@@ -116,6 +116,22 @@ input:disabled,select:disabled{opacity:1;background:var(--bg);color:var(--ink);-
 .ulist{display:flex;flex-direction:column}
 .uitem{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
 .uitem:last-child{border-bottom:0}
+.steps{display:flex;gap:4px;flex-wrap:wrap;margin:-4px 0 4px}
+.st{display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:3px;padding:6px 10px;font-size:13px;font-weight:600;cursor:pointer}
+.st b{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--bg);font-size:11px}
+.st.on{border-color:#111}.st.on b{background:var(--accent);color:#111}
+.st.done b{background:#111;color:var(--accent)}
+.st:disabled{opacity:.45;cursor:default}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.tiles.two-col{grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))}
+.tile{border:1px solid var(--line);background:var(--surface);border-radius:3px;padding:12px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:2px}
+.tile b{font:700 15px var(--f-display)}.tile span{font-size:12px;color:var(--muted)}
+.tile[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#111}.tile[aria-pressed="true"] span{color:#3a3a00}
+.tile:disabled{cursor:default}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tab{border:1px solid var(--line);background:var(--surface);border-radius:3px;padding:7px 11px;font-size:13px;font-weight:600;cursor:pointer}
+.tab[aria-pressed="true"]{background:#111;color:var(--accent);border-color:#111}
+#printSheet svg{page-break-after:always;break-after:page}
 .plangrid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:20px;align-items:start}
 @media (max-width:900px){.plangrid{grid-template-columns:minmax(0,1fr)}}
 .prevbox{border:1px solid var(--line);padding:0;background:#fff;cursor:zoom-in;display:block;width:100%;border-radius:2px}
@@ -302,7 +318,7 @@ function headTitle(){return SITE_SCR.includes(S.screen)&&S.site&&S.site.kom?(S.s
 function render(){
   document.body.classList.toggle('start',!S.user&&!S.admin);
   $('#topbar').innerHTML=S.user
-    ?`<span class="who">${esc(S.user.name)}</span>${S.screen!=='liste'?'<button class="btn small" data-act="back">← Zurück</button>':''}<button class="btn small" data-act="logout">Abmelden</button>`
+    ?`<span class="who">${esc(S.user.name)}</span>${S.screen!=='liste'?'<button class="btn small" data-act="back">← Zurück</button>':''}${SITE_SCR.includes(S.screen)&&S.site&&canEdit(S.site)?'<button class="btn small" data-act="saveNow">Speichern</button>':''}<button class="btn small" data-act="logout">Abmelden</button>`
     :(S.admin?`<span class="who">Verwaltung</span><button class="btn small" data-act="adminOut">Verlassen</button>`:'');
   const t=(S.user||S.admin)?headTitle():'';
   $('#pagehead').innerHTML=t?`<h1>${esc(t)}</h1>`:'';
@@ -495,7 +511,7 @@ const QS_MAX=16;
 const NB_LIST=['IWB Industrielle Werke Basel','Primeo Energie','EBL Genossenschaft Elektra Baselland','AEW Energie AG','BKW Energie AG','CKW AG','EKZ Elektrizitätswerke des Kantons Zürich','Netze BW GmbH','ED Netze GmbH','bnNETZE GmbH'];
 const qsNum=q=>parseFloat(String(q).replace(',','.'))||0;
 const qsTxt=q=>String(q).replace('.',',');
-function planOf(s){if(!s.plan)s.plan={step:'zuleitung',qs:'',adern:'5',nb:'',nbAuto:false,material:false,revs:[]};if(!s.plan.revs)s.plan.revs=[];return s.plan}
+function planOf(s){if(!s.plan)s.plan={step:'unterlagen',qs:'',adern:'5',nb:'',nbAuto:false,material:false,revs:[]};const pl=s.plan;if(!pl.revs)pl.revs=[];if(!pl.docs)pl.docs={deck:false,toc:false,klemmen:false};return pl}
 const initials=n=>String(n||'').split(/\s+/).filter(Boolean).map(w=>w[0].toUpperCase()).join('').slice(0,3);
 /* Netzbetreiber: zuerst was auf diesem Gerät für die PLZ gemerkt wurde, sonst sichere Regel (Basel-Stadt = IWB) */
 function guessNB(s){
@@ -512,16 +528,46 @@ function touchPlan(grund){
   else pl.revs.push({idx:String.fromCharCode(65+Math.min(pl.revs.length,25)),date:today,gez,grund});
   pl.changed=now();persistSite();
 }
+const STEPS=[['unterlagen','Unterlagen'],['hersteller','Hersteller'],['gehaeuse','Gehäuse'],['zuleitung','Zuleitung'],['produkte','Produkte']];
+const HERSTELLER=['Hager','ABB','Schneider Electric','Siemens','Eaton','Legrand'];
+const stepIdx=k=>STEPS.findIndex(x=>x[0]===k);
+function stepOk(pl,k){return {unterlagen:true,hersteller:!!pl.hersteller,gehaeuse:!!pl.gehaeuse&&!!pl.montage,zuleitung:!!pl.qs&&qsNum(pl.qs)<=QS_MAX,produkte:false}[k]}
+function stepper(pl){
+  const cur=stepIdx(pl.step);
+  return `<nav class="steps" aria-label="Planungsschritte">${STEPS.map(([k,l],i)=>{const reach=STEPS.slice(0,i).every(x=>stepOk(pl,x[0]));
+    return `<button type="button" class="st${k===pl.step?' on':''}${i!==cur&&stepOk(pl,k)?' done':''}" data-step="${k}"${reach||i<=cur?'':' disabled'}><b>${i+1}</b><span>${l}</span></button>`}).join('')}</nav>`;
+}
 function vPlan(){
   const p=S.site,pl=planOf(p),ed=canEdit(p),dis=ed?'':' disabled';
-  const hv=p.art==='HV',big=pl.qs&&qsNum(pl.qs)>QS_MAX;
-  const g=hv?guessNB(p):null;
-  if(hv&&!pl.nb&&g&&ed){pl.nb=g.name;pl.nbAuto=true}
-  if(pl.step==='produkte') return vPlanProdukte();
-  return `<div class="plangrid">
-  <section class="card">
-    <div class="row between"><h2>Zuleitung und Einspeisung</h2><span class="tag y">${hv?'HV · mit Zähler':'UV · ohne Zähler'}</span></div>
-    <p class="sub">Schritt 1. Hersteller, Sicherungen und Klemmentyp kommen erst im nächsten Schritt.</p>
+  if(stepIdx(pl.step)<0)pl.step='unterlagen';
+  const k=pl.step,i=stepIdx(k),hv=p.art==='HV';
+  const tile=(key,val,label,sub)=>`<button type="button" class="tile" data-plv="${key}" data-v="${esc(val)}" aria-pressed="${pl[key]===val}"${dis}><b>${esc(label)}</b>${sub?`<span>${esc(sub)}</span>`:''}</button>`;
+  let body='';
+  if(k==='unterlagen'){
+    const d=pl.docs;
+    body=`<h2>Unterlagen</h2><p class="sub">Welche Blätter sollen zusätzlich zum Schema in die Planmappe? Das kannst du später jederzeit ändern.</p>
+    <div class="share" style="grid-template-columns:1fr">
+      <label class="chk"><input type="checkbox" data-doc="deck" ${d.deck?'checked':''}${dis}> Deckblatt</label>
+      <label class="chk"><input type="checkbox" data-doc="toc" ${d.toc?'checked':''}${dis}> Inhaltsverzeichnis</label>
+      <label class="chk"><input type="checkbox" data-doc="klemmen" ${d.klemmen?'checked':''}${dis}> Klemmenliste</label>
+    </div>`;
+  }else if(k==='hersteller'){
+    const other=pl.hersteller&&!HERSTELLER.includes(pl.hersteller);
+    body=`<h2>Hersteller</h2><p class="sub">Von welchem Hersteller kommen Schutzgeräte und Reiheneinbaugeräte?</p>
+    <div class="tiles">${HERSTELLER.map(h=>tile('hersteller',h,h)).join('')}</div>
+    <label class="f">Anderer Hersteller<input id="p-hother" data-pl="herstellerFrei" value="${other?esc(pl.hersteller):''}" placeholder="Name eintragen" autocomplete="off"${dis}></label>`;
+  }else if(k==='gehaeuse'){
+    const alu=pl.gehaeuse==='alu';
+    body=`<h2>Gehäuse</h2><p class="sub">Der genaue Schrank wird am Ende bestimmt, wenn TE-Plätze und Klemmenbreite feststehen.</p>
+    <div class="legend">Verteilerart</div>
+    <div class="tiles two-col">${tile('gehaeuse','alu','Alu-Verteiler','gebaut vom Verteilerbauer')}${tile('gehaeuse','hersteller','Verteiler von '+(pl.hersteller||'Hersteller'),'Gehäuse aus dem Programm des Herstellers')}</div>
+    ${alu?'<div class="msg info">Für den Alu-Verteiler gibt die App am Ende die TE-Anzahl und die Masse der Klemmblöcke für den Verteilerbauer aus.</div>':''}
+    <div class="legend">Montage</div>
+    <div class="tiles two-col">${tile('montage','AP','AP','Aufputz')}${tile('montage','UP','UP','Unterputz')}</div>`;
+  }else if(k==='zuleitung'){
+    const big=pl.qs&&qsNum(pl.qs)>QS_MAX,g=hv?guessNB(p):null;
+    if(hv&&!pl.nb&&g&&ed){pl.nb=g.name;pl.nbAuto=true}
+    body=`<div class="row between"><h2>Zuleitung und Einspeisung</h2><span class="tag y">${hv?'HV · mit Zähler':'UV · ohne Zähler'}</span></div>
     <div class="grid">
       <label class="f c3">Querschnitt Zuleitung <span class="hint">Kupfer</span>
         <select id="p-qs" data-pl="qs"${dis}><option value="">wählen …</option>${opt(QS.map(q=>[q,qsTxt(q)+' mm²'+(qsNum(q)>QS_MAX?' (folgt)':'')]),pl.qs)}</select></label>
@@ -531,43 +577,56 @@ function vPlan(){
       ${hv?`<label class="f c6">Netzbetreiber <span class="hint">${pl.nbAuto&&g?'automatisch: '+esc(g.src):'wird für diese PLZ gemerkt'}</span>
         <input id="p-nb" data-pl="nb" list="dlNB" value="${esc(pl.nb)}" placeholder="z. B. IWB Industrielle Werke Basel" autocomplete="off"${dis}></label>`:''}
     </div>
-    ${p.land==='CH'?`<label class="chk"><input type="checkbox" data-pl="material" ${pl.material?'checked':''}${dis}> Materialliste mit Eldas-Nummer, Herstellernummer und Nettopreis erstellen</label>`:`<p class="sub">Eine Materialliste gibt es nur für Schweizer Baustellen.</p>`}
+    ${p.land==='CH'?`<label class="chk"><input type="checkbox" data-pl="material" ${pl.material?'checked':''}${dis}> Materialliste mit Eldas-Nummer, Herstellernummer und Nettopreis erstellen</label>`:`<p class="sub">Eine Materialliste gibt es nur für Schweizer Baustellen.</p>`}`;
+  }else{
+    body=`<h2>Produkte</h2><p class="sub">Hier wählst du als Nächstes Sicherungen und Klemmentyp${pl.hersteller?' von '+esc(pl.hersteller):''}. Dieser Schritt ist noch in Programmierung.</p>`;
+  }
+  const last=i===STEPS.length-1;
+  return `<div class="plangrid">
+  <section class="card">
+    ${stepper(pl)}
+    ${body}
     <div class="actions">
-      <button type="button" class="btn" data-act="toSite">← Baustellendaten</button>
-      <button type="button" class="btn primary" data-act="planNext" ${!pl.qs||big?'disabled':''}>Weiter</button>
+      <button type="button" class="btn" data-act="planPrev">← ${i===0?'Baustellendaten':STEPS[i-1][1]}</button>
+      <div class="row">${ed?'<button type="button" class="btn" data-act="saveNow">Speichern</button>':''}${last?'<span class="saved">Folgt in der nächsten Version</span>':`<button type="button" class="btn primary" data-act="planNext"${stepOk(pl,k)?'':' disabled'}>Weiter</button>`}</div>
     </div>
   </section>
   ${schemaPreview()}
   </div>`;
 }
-function vPlanProdukte(){
-  return `<div class="plangrid">
-  <section class="card">
-    <h2>Produkte</h2>
-    <p class="sub">Schritt 2. Hier wählst du als Nächstes Hersteller, Sicherungen und Klemmentyp. Dieser Schritt ist noch in Programmierung.</p>
-    <div class="actions"><button type="button" class="btn" data-act="planPrev">← Zuleitung</button><span class="saved">Folgt in der nächsten Version</span></div>
-  </section>
-  ${schemaPreview()}
-  </div>`;
+function pagesOf(s){
+  const pl=planOf(s),d=pl.docs||{},five=(pl.adern||'5')==='5',hv=s.art==='HV';
+  const qs=pl.qs?qsTxt(pl.qs)+' mm²':'Querschnitt offen';
+  const a=[];
+  if(d.deck)a.push({kind:'deck',title:'Deckblatt',sub:'Planmappe'});
+  if(d.toc)a.push({kind:'toc',title:'Inhaltsverzeichnis',sub:'Übersicht der Blätter'});
+  a.push({kind:'einspeisung',title:'Einspeisung',sub:(five?'5×':'3×')+qs+(hv?', Zähler -P1':', ohne Zähler')});
+  if(d.klemmen)a.push({kind:'klemmen',title:'Klemmenliste',sub:'Klemmblock -X0'});
+  a.forEach((p,i)=>p.no=i+1);return a;
 }
 function schemaPreview(){
+  const n=pagesOf(S.site).length;
   return `<aside class="card prev"><div class="row between"><h2>Aktuelles Schema</h2><button type="button" class="btn small primary" data-act="schema">Gross ansehen</button></div>
-    <button type="button" class="prevbox" data-act="schema" aria-label="Schema gross ansehen">${schemaSVG(S.site,1)}</button>
-    <p class="sub">Wird bei jeder Eingabe mitgezeichnet.</p></aside>`;
+    <button type="button" class="prevbox" data-act="schema" aria-label="Schema gross ansehen">${schemaSVG(S.site)}</button>
+    <p class="sub">Wird bei jeder Eingabe mitgezeichnet. Planmappe: ${n} ${n===1?'Blatt':'Blätter'}.</p></aside>`;
 }
 function vSchema(){
-  const pl=planOf(S.site);
+  const pl=planOf(S.site),pages=pagesOf(S.site);
+  if(S.pageIdx==null||S.pageIdx>=pages.length)S.pageIdx=pages.findIndex(p=>p.kind==='einspeisung');
+  const pg=pages[S.pageIdx];
   return `<section class="card">
-    <div class="row between"><h2>Schema · Blatt 1 Einspeisung</h2>
-      <div class="row"><button type="button" class="btn" data-act="printSchema">Drucken</button><button type="button" class="btn primary" data-act="backToPlan">← Zurück zur Planung</button></div></div>
-    <div class="schemabox">${schemaSVG(S.site,1)}</div>
+    <div class="row between"><h2>Planmappe</h2>
+      <div class="row"><button type="button" class="btn" data-act="printSchema">Alle Blätter drucken</button><button type="button" class="btn primary" data-act="backToPlan">← Zurück zur Planung</button></div></div>
+    <div class="tabs">${pages.map((p,i)=>`<button type="button" class="tab" data-page="${i}" aria-pressed="${i===S.pageIdx}">Seite ${p.no} · ${esc(p.title)}</button>`).join('')}</div>
+    <div class="schemabox">${schemaSVG(S.site,pg)}</div>
     <p class="sub">Zuletzt geändert ${pl.changed?fmtDate(pl.changed):fmtDate(S.site.updated)}. Weitere Blätter entstehen mit den nächsten Planungsschritten.</p>
   </section>`;
 }
 
 /* Schemablatt A3 quer im Stil der Planmappe: Raster 0–9 / A–F, Plankopf mit Index-Tabelle */
-function schemaSVG(s,page){
+function schemaSVG(s,pgArg){
   const pl=planOf(s),hv=s.art==='HV',five=(pl.adern||'5')==='5';
+  const pg=pgArg||pagesOf(s).find(x=>x.kind==='einspeisung');const nx=pg.no+1;
   const W=1190,H=842,X0=52,Y0=38,X1=1138,Y1=796,ix0=X0+16,ix1=X1-16,iy0=Y0+16,iy1=708,pk=iy1+16;
   const o=[];const T=(x,y,t,cls='t',a='start')=>o.push(`<text class="${cls}" x="${x}" y="${y}" text-anchor="${a}">${esc(t)}</text>`);
   const L=(x1,y1,x2,y2,cls='w')=>o.push(`<line class="${cls}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`);
@@ -579,6 +638,27 @@ function schemaSVG(s,page){
   'ABCDEF'.split('').forEach((r,i)=>{const y=iy0+i*rh;if(i){L(X0,y,ix0,y,'fr2');L(ix1,y,X1,y,'fr2')}T(X0+8,y+rh/2+4,r,'tg','middle');T(X1-8,y+rh/2+4,r,'tg','middle')});
   L(X0,iy1,X1,iy1,'fr');L(X0,pk,X1,pk,'fr');
 
+  if(pg.kind==='deck'){
+    o.push(`<image href="logo.png" x="${ix0+60}" y="${iy0+60}" width="360" height="80" preserveAspectRatio="xMinYMid meet"/>`);
+    o.push(`<rect x="${ix0+60}" y="${iy0+170}" width="80" height="6" fill="#ffed00"/>`);
+    T(ix0+60,iy0+220,'Planmappe · Verteilerplanung','tdeck');
+    T(ix0+60,iy0+252,(hv?'Hauptverteilung (HV)':'Unterverteilung (UV)')+(s.kom?' · Kommission '+s.kom:''),'tdeck2');
+    const rows=[['Bauherrschaft',s.bauherr],['Objekt',[s.adr,[s.plz,s.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ')],['Bereich / Stockwerk',[s.bereich,s.stock].filter(Boolean).join(' · ')],['Norm',s.norm==='VDE'?'DIN VDE 0100':'NIN SN 411000'],['Hersteller',pl.hersteller],['Gehäuse',pl.gehaeuse?(pl.gehaeuse==='alu'?'Alu-Verteiler':'Herstellerverteiler')+(pl.montage?' · '+pl.montage:''):''],['Planer',userName(s.owner)],['Stand',fmtDate(pl.changed||s.updated)]];
+    rows.forEach((r,i)=>{const y=iy0+310+i*30;T(ix0+60,y,r[0],'tm2');T(ix0+240,y,r[1]||'–','tk4');L(ix0+60,y+10,ix0+700,y+10,'fr3')});
+  }else if(pg.kind==='toc'){
+    T(ix0+40,iy0+50,'Inhaltsverzeichnis','tdeck2');
+    const pages=pagesOf(s);const cols=[ix0+40,ix0+130,ix0+380,ix0+700,ix0+800];
+    ['Seite','Blatt','Inhalt','Ort','Geändert'].forEach((h,i)=>T(cols[i],iy0+90,h,'tb'));L(ix0+40,iy0+97,ix1-40,iy0+97,'fr2');
+    pages.forEach((p,i)=>{const y=iy0+120+i*26;T(cols[0],y,String(p.no),'tk4');T(cols[1],y,p.title,'tk4');T(cols[2],y,p.sub,'tk4');T(cols[3],y,'+'+s.art,'tk4');T(cols[4],y,fmtDate(pl.changed||s.updated).slice(0,10),'tk4');L(ix0+40,y+9,ix1-40,y+9,'fr3')});
+  }else if(pg.kind==='klemmen'){
+    T(ix0+40,iy0+50,'Klemmenliste · Klemmblock -X0 Einspeisung','tdeck2');
+    const cols=[ix0+40,ix0+160,ix0+220,ix0+330,ix0+460,ix0+600,ix0+820];
+    ['Klemmblock','Nr.','Belegung','Querschnitt','Aderfarbe','Feldseite','Hinweis'].forEach((h,i)=>T(cols[i],iy0+90,h,'tb'));L(ix0+40,iy0+97,ix1-40,iy0+97,'fr2');
+    const col={L1:'braun',L2:'schwarz',L3:'grau',L:'braun',N:'blau',PE:'grün-gelb'};
+    const cond=five?['L1','L2','L3','N','PE']:['L','N','PE'];
+    cond.forEach((c,i)=>{const y=iy0+120+i*26;[ '-X0',String(i+1),c,pl.qs?qsTxt(pl.qs)+' mm²':'offen',col[c],'-W1 Zuleitung',pl.hersteller?'Klemmentyp folgt':'' ].forEach((v,j)=>T(cols[j],y,v,'tk4'));L(ix0+40,y+9,ix1-40,y+9,'fr3')});
+    T(ix0+40,iy0+120+cond.length*26+24,'Weitere Klemmblöcke folgen mit den Abgängen. Die Masse der Klemmblöcke werden am Ende für den Verteilerbauer ausgegeben.','tm');
+  }else{
   /* Leiter: L1-L3 voll, N gestrichelt, PE strichpunkt */
   const cond=five?[['L1','w'],['L2','w'],['L3','w'],['N','wn'],['PE','wpe']]:[['L','w'],['N','wn'],['PE','wpe']];
   const xs=cond.map((c,i)=>200+i*15);
@@ -587,10 +667,10 @@ function schemaSVG(s,page){
   const qs=pl.qs?qsTxt(pl.qs)+' mm²':'Querschnitt offen';
   // Leiter von unten nach oben und nach rechts zur Sammelschiene
   cond.forEach((c,i)=>{
-    if(c[0]==='PE'){L(xs[i],yBot,xs[i],peY,c[1]);L(xs[i],peY,ix1-8,peY,c[1]);T(ix1-10,peY-4,'2.0 PE','tr','end');return}
-    const yt=yTop[i];L(xs[i],yBot,xs[i],yt,c[1]);L(xs[i],yt,ix1-8,yt,c[1]);T(ix1-10,yt-2,'2.0 '+c[0],'tr','end');
+    if(c[0]==='PE'){L(xs[i],yBot,xs[i],peY,c[1]);L(xs[i],peY,ix1-8,peY,c[1]);T(ix1-10,peY-4,nx+'.0 PE','tr','end');return}
+    const yt=yTop[i];L(xs[i],yBot,xs[i],yt,c[1]);L(xs[i],yt,ix1-8,yt,c[1]);T(ix1-10,yt-2,nx+'.0 '+c[0],'tr','end');
   });
-  T(ix1-12,yTop[cond.length-2]+24,'Sammelschiene · weiter auf Blatt 2','tm','end');
+  T(ix1-12,yTop[cond.length-2]+24,'Sammelschiene · weiter auf Seite '+nx,'tm','end');
   // Klemmenbeschriftung unten
   cond.forEach((c,i)=>{Rc(xs[i]-6,yBot,12,11,'bx');T(xs[i],yBot+8.5,c[0],'tk','middle')});
   // Kabelmarkierung und Text
@@ -617,13 +697,14 @@ function schemaSVG(s,page){
     T(xs[0]+90,330,'Unterverteilung ohne Zähler','tm');
   }
   // Hinweisbox
-  const nx=820,ny=iy0+150;Rc(nx,ny,280,92,'note');
-  T(nx+12,ny+20,'Einspeisung '+(hv?'Hauptverteilung':'Unterverteilung'),'tb');
-  T(nx+12,ny+36,'Netz: '+(five?'TN-S, 5-adrig ab Einspeisung':'1-phasig, L N PE'),'tm');
-  T(nx+12,ny+50,'Zuleitung: '+(five?'5×':'3×')+qs+' Cu','tm');
-  T(nx+12,ny+64,'Norm: '+(s.norm==='VDE'?'DIN VDE 0100':'NIN SN 411000'),'tm');
-  T(nx+12,ny+78,'Hersteller und Schutzorgane folgen','tm');
+  const bxX=820,ny=iy0+150;Rc(bxX,ny,280,92,'note');
+  T(bxX+12,ny+20,'Einspeisung '+(hv?'Hauptverteilung':'Unterverteilung'),'tb');
+  T(bxX+12,ny+36,'Netz: '+(five?'TN-S, 5-adrig ab Einspeisung':'1-phasig, L N PE'),'tm');
+  T(bxX+12,ny+50,'Zuleitung: '+(five?'5×':'3×')+qs+' Cu','tm');
+  T(bxX+12,ny+64,'Norm: '+(s.norm==='VDE'?'DIN VDE 0100':'NIN SN 411000'),'tm');
+  T(bxX+12,ny+78,'Hersteller: '+(pl.hersteller||'offen')+(pl.gehaeuse?' · '+(pl.gehaeuse==='alu'?'Alu-Verteiler':'Herstellerverteiler')+(pl.montage?' '+pl.montage:''):''),'tm');
 
+  }
   /* Plankopf */
   const ky=pk,kh=(Y1-pk)/5;
   for(let i=1;i<5;i++)L(X0,ky+i*kh,X0+390,ky+i*kh,'fr2');
@@ -645,21 +726,21 @@ function schemaSVG(s,page){
   T(cI[6]+5,ky+43,(s.adr||'').slice(0,30),'tk3');
   T(cI[6]+5,ky+57,[s.plz,s.ort].filter(Boolean).join(' ').slice(0,30),'tk3');
   // Blattbeschreibung
-  T(cI[7]+5,ky+13,'Blattbeschreibung:','tk2');T(cI[7]+5,ky+29,'Einspeisung','tb');
-  T(cI[7]+5,ky+43,(five?'5×':'3×')+qs+(hv?', Zähler -P1':', ohne Zähler'),'tk3');
+  T(cI[7]+5,ky+13,'Blattbeschreibung:','tk2');T(cI[7]+5,ky+29,pg.title,'tb');
+  T(cI[7]+5,ky+43,pg.sub.slice(0,30),'tk3');
   T(cI[7]+5,ky+57,[s.bereich,s.stock].filter(Boolean).join(' · ').slice(0,30),'tk3');
   // Projekt / Ort / Seite
   L(cI[8],ky+kh,X1,ky+kh,'fr2');L(cI[8]+110,ky+kh,cI[8]+110,Y1,'fr2');
   T(cI[8]+5,ky+11,'Kommission: '+(s.kom||'offen'),'tk2');
   T(cI[8]+5,ky+kh+12,'Ort:','tk2');T(cI[8]+115,ky+kh+12,'Seite:','tk2');
-  T(cI[8]+8,Y1-8,'+'+(s.art||'UV'),'tbig');T(cI[8]+122,Y1-8,String(page||1),'tbig');
+  T(cI[8]+8,Y1-8,'+'+(s.art||'UV'),'tbig');T(cI[8]+122,Y1-8,String(pg.no),'tbig');
   T(X1,H-22,'Geändert '+fmtDate(pl.changed||s.updated)+' · Planungssoftware Service und Unterhalt','tm','end');
-  return `<svg class="sheet" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Schema Blatt ${page||1}"><style>
+  return `<svg class="sheet" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Planmappe Seite ${pg.no}"><style>
   .w{stroke:#111;stroke-width:1.3}.wn{stroke:#111;stroke-width:1.1;stroke-dasharray:6 4}.wpe{stroke:#111;stroke-width:1.1;stroke-dasharray:12 3 2 3}
   .fr{stroke:#111;stroke-width:1.2;fill:none}.fr2{stroke:#111;stroke-width:.6}.bx{stroke:#111;stroke-width:.8;fill:#fff}.bxw{stroke:#111;stroke-width:1;fill:#fff}
   .bxd{stroke:#111;stroke-width:.9;fill:none;stroke-dasharray:10 3 2 3}.note{stroke:#bbb;stroke-width:.8;fill:#fff}.term{fill:#fff;stroke:#111;stroke-width:1}
   text{font-family:"DejaVu Sans",Inter,Arial,sans-serif;fill:#111}.t{font-size:10px}.tb{font-size:10.5px;font-weight:700}.tm{font-size:8.5px;fill:#555}.ta{font-size:9.5px;fill:#1f4fa0}
-  .tg{font-size:10px}.tr{font-size:8px;font-family:"DejaVu Sans Mono",monospace}.tk{font-size:6.5px}.tk2{font-size:8.5px}.tk3{font-size:9.5px}.th{font-size:11px;font-weight:700;fill:#444}.tbig{font-size:20px;font-weight:700}
+  .tg{font-size:10px}.tr{font-size:8px;font-family:"DejaVu Sans Mono",monospace}.tk{font-size:6.5px}.tk2{font-size:8.5px}.tk3{font-size:9.5px}.th{font-size:11px;font-weight:700;fill:#444}.tbig{font-size:20px;font-weight:700}.tdeck{font-size:28px;font-weight:700}.tdeck2{font-size:16px;font-weight:700}.tm2{font-size:10px;fill:#666}.tk4{font-size:10.5px}.fr3{stroke:#ccc;stroke-width:.6}
   </style>${o.join('')}</svg>`;
 }
 
@@ -713,7 +794,7 @@ document.addEventListener('input',e=>{
     if(t.dataset.b==='ort')onOrtTyping();
     persistSoon();
   }
-  if(t.dataset.pl==='nb'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.nb=t.value;pl.nbAuto=false;const pb=$('.prevbox');if(pb)pb.innerHTML=schemaSVG(S.site,1);persistSoon()}
+  if(t.dataset.pl==='nb'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.nb=t.value;pl.nbAuto=false;const pb=$('.prevbox');if(pb)pb.innerHTML=schemaSVG(S.site);persistSoon()}
   if(t.id==='q'){S.q=t.value;$('#siteList').innerHTML=siteListHTML()}
   if(t.id==='fOrt'){S.fOrt=t.value;$('#siteList').innerHTML=siteListHTML()}
 });
@@ -725,8 +806,10 @@ document.addEventListener('change',e=>{
     if(t.dataset.b==='land'){if(t.value!=='CH')S.site.kanton='';persistSite();render();return}
     if(t.dataset.b==='ort')onOrtDone();
     persistSite();return}
+  if(t.dataset.doc&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.docs[t.dataset.doc]=t.checked;touchPlan('Unterlagen angepasst');render();return}
   if(t.dataset.pl&&S.site&&canEdit(S.site)){
     const pl=planOf(S.site),k=t.dataset.pl;
+    if(k==='herstellerFrei'){const v=t.value.trim();if(v){pl.hersteller=v;touchPlan('Hersteller '+v)}render();return}
     if(k==='material'){pl.material=t.checked;touchPlan('Materialliste '+(t.checked?'ja':'nein'));return}
     if(k==='nb'){pl.nb=t.value.trim();if(S.site.plz){D.nbMap=D.nbMap||{};D.nbMap[S.site.land+':'+S.site.plz.trim()]=pl.nb}touchPlan('Netzbetreiber '+pl.nb);return}
     pl[k]=t.value;
@@ -806,12 +889,16 @@ document.addEventListener('click',e=>{
   if(act==='print'){printSheet();return}
   if(act==='toPlan'){if(canEdit(S.site))persistSite();planOf(S.site);return go('plan')}
   if(act==='toSite'){return go('baustelle')}
-  if(act==='planNext'){const pl=planOf(S.site);if(!pl.qs||qsNum(pl.qs)>QS_MAX)return;if(canEdit(S.site)){if(S.site.art==='HV'&&pl.nb&&S.site.plz){D.nbMap=D.nbMap||{};D.nbMap[S.site.land+':'+S.site.plz.trim()]=pl.nb}pl.step='produkte';persistSite()}else pl.step='produkte';render();window.scrollTo(0,0);return}
-  if(act==='planPrev'){planOf(S.site).step='zuleitung';if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
+  if(act==='planNext'){const pl=planOf(S.site),i=stepIdx(pl.step);if(!stepOk(pl,pl.step))return;if(canEdit(S.site)){if(pl.step==='zuleitung'&&S.site.art==='HV'&&pl.nb&&S.site.plz){D.nbMap=D.nbMap||{};D.nbMap[S.site.land+':'+S.site.plz.trim()]=pl.nb}}pl.step=STEPS[Math.min(i+1,STEPS.length-1)][0];if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
+  if(act==='planPrev'){const pl=planOf(S.site),i=stepIdx(pl.step);if(i<=0)return go('baustelle');pl.step=STEPS[i-1][0];if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
+  if(t.dataset.step){const pl=planOf(S.site);pl.step=t.dataset.step;if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
+  if(t.dataset.plv&&S.site&&canEdit(S.site)){const pl=planOf(S.site),k=t.dataset.plv;pl[k]=t.dataset.v;touchPlan({hersteller:'Hersteller ',gehaeuse:'Gehäuse ',montage:'Montage '}[k]+(k==='gehaeuse'?(t.dataset.v==='alu'?'Alu':'Hersteller'):t.dataset.v));render();return}
+  if(t.dataset.page){S.pageIdx=+t.dataset.page;render();return}
+  if(act==='saveNow'){if(S.site&&canEdit(S.site)){persistSite();t.textContent='Gespeichert ✓';setTimeout(()=>{if(t.isConnected)t.textContent='Speichern'},1800)}return}
   if(act==='schema'){return go('schema')}
   if(act==='backToPlan'){return go('plan')}
   if(act==='printSchema'){
-    $('#printSheet').innerHTML=schemaSVG(S.site,1);document.body.classList.add('ps');
+    $('#printSheet').innerHTML=pagesOf(S.site).map(pg=>schemaSVG(S.site,pg)).join('');document.body.classList.add('ps');
     const st=document.createElement('style');st.id='pgA3';st.textContent='@page{size:A3 landscape;margin:6mm}';document.head.appendChild(st);
     window.print();setTimeout(()=>{document.body.classList.remove('ps');st.remove()},500);return}
   if(act==='new'){S.site={id:nid(),owner:S.user.id,editors:[],kom:'',bereich:'',stock:'',bauherr:'',adr:'',plz:'',ort:'',kanton:'',land:'CH',norm:'NIN',art:'UV',created:now(),updated:now()};S.isNew=true;S.savedAt=null;return go('baustelle')}
