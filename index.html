@@ -116,6 +116,16 @@ input:disabled,select:disabled{opacity:1;background:var(--bg);color:var(--ink);-
 .ulist{display:flex;flex-direction:column}
 .uitem{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
 .uitem:last-child{border-bottom:0}
+.plangrid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:900px){.plangrid{grid-template-columns:minmax(0,1fr)}}
+.prevbox{border:1px solid var(--line);padding:0;background:#fff;cursor:zoom-in;display:block;width:100%;border-radius:2px}
+.prevbox svg,.schemabox svg{width:100%;height:auto;display:block}
+.schemabox{overflow-x:auto;border:1px solid var(--line);background:#fff}
+.schemabox svg{min-width:860px}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.primary:disabled:hover{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+body.ps .brandbar{display:none!important}
+#printSheet svg{width:100%;height:auto}
 .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:20px;align-items:start}
 
 /* Druckblatt */
@@ -150,7 +160,7 @@ input:disabled,select:disabled{opacity:1;background:var(--bg);color:var(--ink);-
 </header>
 <div class="main wrapx" id="main"></div>
 <div id="printSheet"></div>
-<datalist id="dlKom"></datalist><datalist id="dlBereich"></datalist><datalist id="dlOrt"></datalist><datalist id="dlPlz"></datalist><datalist id="dlFilterOrt"></datalist>
+<datalist id="dlKom"></datalist><datalist id="dlNB"></datalist><datalist id="dlBereich"></datalist><datalist id="dlOrt"></datalist><datalist id="dlPlz"></datalist><datalist id="dlFilterOrt"></datalist>
 <input type="file" id="importFile" accept="application/json,.json" hidden>
 
 <script>
@@ -224,25 +234,27 @@ const nrm=x=>String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036
 const cpt=x=>nrm(x).replace(/[\s\-\/.,_]/g,'');
 function matches(hayParts,query){const words=nrm(query).split(/\s+/).filter(Boolean);if(!words.length)return true;const hay=nrm(hayParts.join(' ')),hayC=cpt(hay);return words.every(w=>hay.includes(w)||hayC.includes(cpt(w)))}
 const fillDl=(id,vals)=>{$('#'+id).innerHTML=vals.map(v=>`<option value="${esc(v)}"></option>`).join('')};
+const LV={start:0,adminLogin:0,admin:0,liste:0,baustelle:1,plan:2,schema:3};
 function go(screen,msg){
-  if(screen==='liste'&&S.screen==='baustelle'&&S.pushed){S.pushed=false;S.pendingMsg=msg||null;try{history.back();return}catch(e){}}
-  const push=screen==='baustelle'&&S.screen!=='baustelle';
+  const cur=LV[S.screen]||0,nx=LV[screen]||0;
+  if(nx<cur&&S.pushDepth>0&&history.state&&history.state.prev===screen){S.pushDepth--;S.pendingMsg=msg||null;try{history.back();return}catch(e){}}
+  const push=nx>cur,prev=S.screen;
   S.screen=screen;S.msg=msg||null;S.armed=null;render();
-  try{if(push){history.pushState(navState(),'','#'+screen);S.pushed=true}else history.replaceState(navState(),'','#'+screen)}catch(e){}
+  try{if(push){history.pushState({...navState(),prev},'','#'+screen);S.pushDepth=(S.pushDepth||0)+1}else history.replaceState({...navState(),prev:(history.state||{}).prev||null},'','#'+screen)}catch(e){}
   window.scrollTo(0,0)}
-const navState=()=>({screen:S.screen,siteId:S.screen==='baustelle'&&S.site?S.site.id:null});
+const navState=()=>({screen:S.screen,siteId:SITE_SCR.includes(S.screen)&&S.site?S.site.id:null});
 const SKEY='vp.session';
 function saveSession(){try{
   if(!S.user&&!S.admin){localStorage.removeItem(SKEY);return}
-  localStorage.setItem(SKEY,JSON.stringify({u:S.user?S.user.id:null,admin:S.admin,screen:S.screen,site:S.screen==='baustelle'?S.site:null,isNew:S.isNew,q:S.q,fNorm:S.fNorm,fKanton:S.fKanton,fOrt:S.fOrt,onlyMine:S.onlyMine,y:window.scrollY}))}catch(e){}}
+  localStorage.setItem(SKEY,JSON.stringify({u:S.user?S.user.id:null,admin:S.admin,screen:S.screen,site:SITE_SCR.includes(S.screen)?S.site:null,isNew:S.isNew,q:S.q,fNorm:S.fNorm,fKanton:S.fKanton,fOrt:S.fOrt,onlyMine:S.onlyMine,y:window.scrollY}))}catch(e){}}
 function restoreSession(){try{
   const o=JSON.parse(localStorage.getItem(SKEY));if(!o)return 0;
   const u=o.u&&D.users.find(x=>x.id===o.u);
   if(u&&u.hash)S.user=u;else if(o.admin&&D.admin)S.admin=true;else return 0;
   S.q=o.q||'';S.fNorm=o.fNorm||'';S.fKanton=o.fKanton||'';S.fOrt=o.fOrt||'';S.onlyMine=!!o.onlyMine;
   if(S.admin){S.screen='admin';return o.y||0}
-  S.screen=['liste','baustelle'].includes(o.screen)?o.screen:'liste';
-  if(S.screen==='baustelle'){
+  S.screen=['liste',...SITE_SCR].includes(o.screen)?o.screen:'liste';
+  if(SITE_SCR.includes(S.screen)){
     const ex=o.site&&D.sites.find(x=>x.id===o.site.id);
     if(ex){S.site=JSON.parse(JSON.stringify(ex));S.isNew=false}
     else if(o.site&&o.isNew&&o.site.owner===S.user.id){S.site=o.site;S.isNew=true}
@@ -253,14 +265,14 @@ function restoreSession(){try{
 function openScreen(st){
   if(!S.user&&!S.admin){S.screen='start';render();return}
   if(S.admin){S.screen='admin';render();return}
-  if(st&&st.screen==='baustelle'&&st.siteId){const ex=D.sites.find(x=>x.id===st.siteId);
-    if(ex){S.site=JSON.parse(JSON.stringify(ex));S.isNew=false;S.screen='baustelle'}
-    else if(S.site&&S.site.id===st.siteId){S.screen='baustelle'}
+  if(st&&SITE_SCR.includes(st.screen)&&st.siteId){const ex=D.sites.find(x=>x.id===st.siteId);
+    if(ex){S.site=JSON.parse(JSON.stringify(ex));S.isNew=false;S.screen=st.screen}
+    else if(S.site&&S.site.id===st.siteId){S.screen=st.screen}
     else S.screen='liste'}
   else S.screen='liste';
-  S.msg=S.pendingMsg||null;S.pendingMsg=null;S.armed=null;S.pushed=S.screen==='baustelle';render();window.scrollTo(0,0);
+  S.msg=S.pendingMsg||null;S.pendingMsg=null;S.armed=null;S.pushDepth=LV[S.screen]||0;render();window.scrollTo(0,0);
 }
-window.addEventListener('popstate',e=>{if(S.screen==='baustelle'&&S.site&&!S.isNew)persistSite();openScreen(e.state)});
+window.addEventListener('popstate',e=>{if(SITE_SCR.includes(S.screen)&&S.site&&!S.isNew)persistSite();openScreen(e.state)});
 window.addEventListener('pagehide',()=>{if(persistT){clearTimeout(persistT);persistSite()}saveSession()});
 window.addEventListener('scroll',()=>{clearTimeout(saveSession.t);saveSession.t=setTimeout(saveSession,300)},{passive:true});
 
@@ -284,8 +296,9 @@ function drawPattern(){
 }
 
 /* ---------- Rendern ---------- */
-const TITLES={liste:'Baustellen',baustelle:'Baustelle',admin:'Verwaltung',adminLogin:''};
-function headTitle(){return S.screen==='baustelle'&&S.site&&S.site.kom?'Kommission '+S.site.kom:(TITLES[S.screen]||'')}
+const TITLES={liste:'Baustellen',baustelle:'Baustelle',plan:'Planung',schema:'Schema',admin:'Verwaltung',adminLogin:''};
+const SITE_SCR=['baustelle','plan','schema'];
+function headTitle(){return SITE_SCR.includes(S.screen)&&S.site&&S.site.kom?(S.screen==='baustelle'?'':TITLES[S.screen]+' · ')+'Kommission '+S.site.kom:(TITLES[S.screen]||'')}
 function render(){
   document.body.classList.toggle('start',!S.user&&!S.admin);
   $('#topbar').innerHTML=S.user
@@ -293,8 +306,9 @@ function render(){
     :(S.admin?`<span class="who">Verwaltung</span><button class="btn small" data-act="adminOut">Verlassen</button>`:'');
   const t=(S.user||S.admin)?headTitle():'';
   $('#pagehead').innerHTML=t?`<h1>${esc(t)}</h1>`:'';
-  const f={start:vStart,liste:vListe,baustelle:vBaustelle,adminLogin:vAdminLogin,admin:vAdmin}[S.screen]||vStart;
+  const f={start:vStart,liste:vListe,baustelle:vBaustelle,plan:vPlan,schema:vSchema,adminLogin:vAdminLogin,admin:vAdmin}[S.screen]||vStart;
   $('#main').innerHTML=f();
+  if(S.screen==='plan')fillDl('dlNB',[...new Set([...Object.values(D.nbMap||{}),...NB_LIST])]);
   if(S.screen==='baustelle'){fillDl('dlBereich',[...new Set([...BEREICHE,...D.sites.map(s=>s.bereich).filter(Boolean)])]);}
   if(S.screen==='baustelle')fillDl('dlKom',[...new Set(D.sites.filter(s=>s.id!==S.site.id&&s.kom).map(s=>s.kom))].sort());
   const af=$('#main [autofocus]');if(af&&window.innerWidth>700)af.focus({preventScroll:true});
@@ -410,8 +424,8 @@ function vBaustelle(){
       <div class="c6" id="bMsg">${msgHTML()}</div>
       <div class="c6 actions">
         ${ed?`<span class="saved" id="savedInfo">${S.savedAt?'Gespeichert um '+fmtTime(S.savedAt):'Wird beim Tippen automatisch gespeichert'}</span>
-        <div class="row"><button type="button" class="btn" data-act="saveSite">Speichern</button><button type="submit" class="btn primary">Speichern und zur Übersicht</button></div>`
-        :`<span class="saved">Nur ansehen</span><div class="row"><button type="button" class="btn" data-act="print">Drucken</button><button type="button" class="btn primary" data-act="liste">Zur Übersicht</button></div>`}
+        <div class="row"><button type="button" class="btn" data-act="saveSite">Speichern</button><button type="submit" class="btn">Zur Übersicht</button><button type="button" class="btn primary" data-act="toPlan">Weiter zur Planung →</button></div>`
+        :`<span class="saved">Nur ansehen</span><div class="row"><button type="button" class="btn" data-act="print">Drucken</button><button type="button" class="btn" data-act="liste">Zur Übersicht</button><button type="button" class="btn primary" data-act="toPlan">Planung ansehen →</button></div>`}
       </div>
     </form>
   </section>`;
@@ -475,6 +489,180 @@ function printSheet(){
   window.print();
 }
 
+/* ---------- Planung ---------- */
+const QS=['1.5','2.5','4','6','10','16','25','35','50','70','95','120','150','185','240'];
+const QS_MAX=16;
+const NB_LIST=['IWB Industrielle Werke Basel','Primeo Energie','EBL Genossenschaft Elektra Baselland','AEW Energie AG','BKW Energie AG','CKW AG','EKZ Elektrizitätswerke des Kantons Zürich','Netze BW GmbH','ED Netze GmbH','bnNETZE GmbH'];
+const qsNum=q=>parseFloat(String(q).replace(',','.'))||0;
+const qsTxt=q=>String(q).replace('.',',');
+function planOf(s){if(!s.plan)s.plan={step:'zuleitung',qs:'',adern:'5',nb:'',nbAuto:false,material:false,revs:[]};if(!s.plan.revs)s.plan.revs=[];return s.plan}
+const initials=n=>String(n||'').split(/\s+/).filter(Boolean).map(w=>w[0].toUpperCase()).join('').slice(0,3);
+/* Netzbetreiber: zuerst was auf diesem Gerät für die PLZ gemerkt wurde, sonst sichere Regel (Basel-Stadt = IWB) */
+function guessNB(s){
+  D.nbMap=D.nbMap||{};
+  const k=(s.land||'')+':'+(s.plz||'').trim();
+  if(D.nbMap[k])return {name:D.nbMap[k],src:'gemerkt für PLZ '+s.plz};
+  if(s.land==='CH'&&s.kanton==='BS')return {name:'IWB Industrielle Werke Basel',src:'Kanton Basel-Stadt'};
+  return null;
+}
+function touchPlan(grund){
+  const p=S.site,pl=planOf(p);const today=new Date().toISOString().slice(0,10);const gez=initials(S.user.name);
+  const last=pl.revs[pl.revs.length-1];
+  if(last&&last.date===today&&last.gez===gez){last.grund=grund}
+  else pl.revs.push({idx:String.fromCharCode(65+Math.min(pl.revs.length,25)),date:today,gez,grund});
+  pl.changed=now();persistSite();
+}
+function vPlan(){
+  const p=S.site,pl=planOf(p),ed=canEdit(p),dis=ed?'':' disabled';
+  const hv=p.art==='HV',big=pl.qs&&qsNum(pl.qs)>QS_MAX;
+  const g=hv?guessNB(p):null;
+  if(hv&&!pl.nb&&g&&ed){pl.nb=g.name;pl.nbAuto=true}
+  if(pl.step==='produkte') return vPlanProdukte();
+  return `<div class="plangrid">
+  <section class="card">
+    <div class="row between"><h2>Zuleitung und Einspeisung</h2><span class="tag y">${hv?'HV · mit Zähler':'UV · ohne Zähler'}</span></div>
+    <p class="sub">Schritt 1. Hersteller, Sicherungen und Klemmentyp kommen erst im nächsten Schritt.</p>
+    <div class="grid">
+      <label class="f c3">Querschnitt Zuleitung <span class="hint">Kupfer</span>
+        <select id="p-qs" data-pl="qs"${dis}><option value="">wählen …</option>${opt(QS.map(q=>[q,qsTxt(q)+' mm²'+(qsNum(q)>QS_MAX?' (folgt)':'')]),pl.qs)}</select></label>
+      <label class="f c3">Adern
+        <select id="p-adern" data-pl="adern"${dis}>${opt([['5','5-adrig · L1 L2 L3 N PE'],['3','3-adrig · L N PE']],pl.adern||'5')}</select></label>
+      ${big?`<div class="c6 msg err">Querschnitte über 16 mm² sind noch nicht in Programmierung. Bitte vorerst 16 mm² oder kleiner wählen.</div>`:''}
+      ${hv?`<label class="f c6">Netzbetreiber <span class="hint">${pl.nbAuto&&g?'automatisch: '+esc(g.src):'wird für diese PLZ gemerkt'}</span>
+        <input id="p-nb" data-pl="nb" list="dlNB" value="${esc(pl.nb)}" placeholder="z. B. IWB Industrielle Werke Basel" autocomplete="off"${dis}></label>`:''}
+    </div>
+    ${p.land==='CH'?`<label class="chk"><input type="checkbox" data-pl="material" ${pl.material?'checked':''}${dis}> Materialliste mit Eldas-Nummer, Herstellernummer und Nettopreis erstellen</label>`:`<p class="sub">Eine Materialliste gibt es nur für Schweizer Baustellen.</p>`}
+    <div class="actions">
+      <button type="button" class="btn" data-act="toSite">← Baustellendaten</button>
+      <button type="button" class="btn primary" data-act="planNext" ${!pl.qs||big?'disabled':''}>Weiter</button>
+    </div>
+  </section>
+  ${schemaPreview()}
+  </div>`;
+}
+function vPlanProdukte(){
+  return `<div class="plangrid">
+  <section class="card">
+    <h2>Produkte</h2>
+    <p class="sub">Schritt 2. Hier wählst du als Nächstes Hersteller, Sicherungen und Klemmentyp. Dieser Schritt ist noch in Programmierung.</p>
+    <div class="actions"><button type="button" class="btn" data-act="planPrev">← Zuleitung</button><span class="saved">Folgt in der nächsten Version</span></div>
+  </section>
+  ${schemaPreview()}
+  </div>`;
+}
+function schemaPreview(){
+  return `<aside class="card prev"><div class="row between"><h2>Aktuelles Schema</h2><button type="button" class="btn small primary" data-act="schema">Gross ansehen</button></div>
+    <button type="button" class="prevbox" data-act="schema" aria-label="Schema gross ansehen">${schemaSVG(S.site,1)}</button>
+    <p class="sub">Wird bei jeder Eingabe mitgezeichnet.</p></aside>`;
+}
+function vSchema(){
+  const pl=planOf(S.site);
+  return `<section class="card">
+    <div class="row between"><h2>Schema · Blatt 1 Einspeisung</h2>
+      <div class="row"><button type="button" class="btn" data-act="printSchema">Drucken</button><button type="button" class="btn primary" data-act="backToPlan">← Zurück zur Planung</button></div></div>
+    <div class="schemabox">${schemaSVG(S.site,1)}</div>
+    <p class="sub">Zuletzt geändert ${pl.changed?fmtDate(pl.changed):fmtDate(S.site.updated)}. Weitere Blätter entstehen mit den nächsten Planungsschritten.</p>
+  </section>`;
+}
+
+/* Schemablatt A3 quer im Stil der Planmappe: Raster 0–9 / A–F, Plankopf mit Index-Tabelle */
+function schemaSVG(s,page){
+  const pl=planOf(s),hv=s.art==='HV',five=(pl.adern||'5')==='5';
+  const W=1190,H=842,X0=52,Y0=38,X1=1138,Y1=796,ix0=X0+16,ix1=X1-16,iy0=Y0+16,iy1=708,pk=iy1+16;
+  const o=[];const T=(x,y,t,cls='t',a='start')=>o.push(`<text class="${cls}" x="${x}" y="${y}" text-anchor="${a}">${esc(t)}</text>`);
+  const L=(x1,y1,x2,y2,cls='w')=>o.push(`<line class="${cls}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`);
+  const Rc=(x,y,w,h,cls='bx')=>o.push(`<rect class="${cls}" x="${x}" y="${y}" width="${w}" height="${h}"/>`);
+  o.push(`<rect x="0" y="0" width="${W}" height="${H}" fill="#fff"/>`);
+  Rc(X0,Y0,X1-X0,Y1-Y0,'fr');Rc(ix0,iy0,ix1-ix0,iy1-iy0,'fr');
+  const cw=(ix1-ix0)/10,rh=(iy1-iy0)/6;
+  for(let i=0;i<10;i++){const x=ix0+i*cw;if(i)L(x,Y0,x,iy0,'fr2');if(i)L(x,iy1,x,pk,'fr2');T(x+cw/2,Y0+12,String(i),'tg','middle');T(x+cw/2,iy1+12,String(i),'tg','middle')}
+  'ABCDEF'.split('').forEach((r,i)=>{const y=iy0+i*rh;if(i){L(X0,y,ix0,y,'fr2');L(ix1,y,X1,y,'fr2')}T(X0+8,y+rh/2+4,r,'tg','middle');T(X1-8,y+rh/2+4,r,'tg','middle')});
+  L(X0,iy1,X1,iy1,'fr');L(X0,pk,X1,pk,'fr');
+
+  /* Leiter: L1-L3 voll, N gestrichelt, PE strichpunkt */
+  const cond=five?[['L1','w'],['L2','w'],['L3','w'],['N','wn'],['PE','wpe']]:[['L','w'],['N','wn'],['PE','wpe']];
+  const xs=cond.map((c,i)=>200+i*15);
+  const yBot=620,yTop=[90,104,118,132,146];
+  const peY=500;
+  const qs=pl.qs?qsTxt(pl.qs)+' mm²':'Querschnitt offen';
+  // Leiter von unten nach oben und nach rechts zur Sammelschiene
+  cond.forEach((c,i)=>{
+    if(c[0]==='PE'){L(xs[i],yBot,xs[i],peY,c[1]);L(xs[i],peY,ix1-8,peY,c[1]);T(ix1-10,peY-4,'2.0 PE','tr','end');return}
+    const yt=yTop[i];L(xs[i],yBot,xs[i],yt,c[1]);L(xs[i],yt,ix1-8,yt,c[1]);T(ix1-10,yt-2,'2.0 '+c[0],'tr','end');
+  });
+  T(ix1-12,yTop[cond.length-2]+24,'Sammelschiene · weiter auf Blatt 2','tm','end');
+  // Klemmenbeschriftung unten
+  cond.forEach((c,i)=>{Rc(xs[i]-6,yBot,12,11,'bx');T(xs[i],yBot+8.5,c[0],'tk','middle')});
+  // Kabelmarkierung und Text
+  const cx=xs[Math.floor(cond.length/2)];
+  for(let k=0;k<3;k++)L(cx-7,yBot+22+k*4,cx+7,yBot+16+k*4,'w');
+  L(xs[0],yBot+11,xs[0],yBot+11);
+  T(xs[0]-14,yBot+9,'-W1','tb','end');
+  T(cx,yBot+46,hv?'Zuleitung vom Hausanschluss':'Zuleitung von der Hauptverteilung','tb','middle');
+  T(cx,yBot+60,(five?'5×':'3×')+qs+' Cu','t','middle');
+  T(cx,yBot+73,hv?'Hausanschlusskasten des Netzbetreibers':'Vorsicherung gemäss HV','tm','middle');
+  // Einspeiseblock -X0
+  const bx=xs[0]-22,bw=xs[xs.length-1]-xs[0]+44;
+  o.push(`<rect class="bxd" x="${bx}" y="${yBot-70}" width="${bw}" height="44"/>`);
+  cond.forEach((c,i)=>{o.push(`<circle class="term" cx="${xs[i]}" cy="${yBot-48}" r="3.2"/>`);T(xs[i]+5,yBot-55,String(i+1),'tk','start')});
+  T(bx+bw+12,yBot-56,'-X0','tb');T(bx+bw+12,yBot-43,'Einspeiseblock','t');T(bx+bw+12,yBot-31,'Klemmentyp folgt im nächsten Schritt','tm');
+  // Zähler nur HV
+  if(hv){
+    const zx=xs[0]-16,zw=xs[cond.length-2]-xs[0]+32,zy=300;
+    Rc(zx,zy,zw,54,'bxw');T(zx+zw/2,zy+31,'kWh','t','middle');
+    T(zx+zw+14,zy+12,'-P1','tb');T(zx+zw+14,zy+26,'Energiezähler','t');
+    T(zx+zw+14,zy+40,'Netzbetreiber: '+(pl.nb||'offen'),'ta');
+    T(zx+zw+14,zy+53,'Zähler und Plombierung gemäss Werkvorschriften','tm');
+  }else{
+    T(xs[0]+90,330,'Unterverteilung ohne Zähler','tm');
+  }
+  // Hinweisbox
+  const nx=820,ny=iy0+150;Rc(nx,ny,280,92,'note');
+  T(nx+12,ny+20,'Einspeisung '+(hv?'Hauptverteilung':'Unterverteilung'),'tb');
+  T(nx+12,ny+36,'Netz: '+(five?'TN-S, 5-adrig ab Einspeisung':'1-phasig, L N PE'),'tm');
+  T(nx+12,ny+50,'Zuleitung: '+(five?'5×':'3×')+qs+' Cu','tm');
+  T(nx+12,ny+64,'Norm: '+(s.norm==='VDE'?'DIN VDE 0100':'NIN SN 411000'),'tm');
+  T(nx+12,ny+78,'Hersteller und Schutzorgane folgen','tm');
+
+  /* Plankopf */
+  const ky=pk,kh=(Y1-pk)/5;
+  for(let i=1;i<5;i++)L(X0,ky+i*kh,X0+390,ky+i*kh,'fr2');
+  const cI=[X0,X0+30,X0+92,X0+122,X0+244,X0+390,X0+606,X0+770,X0+926,X1];
+  [1,2,3,4,5,6,7,8].forEach(i=>L(cI[i],ky,cI[i],Y1,i<4?'fr2':'fr'));
+  const revs=pl.revs.slice(-4).reverse();
+  for(let i=0;i<4;i++){const r=revs[i];const y=ky+i*kh+kh-4;if(r){const d=r.date.split('-');T(cI[0]+15,y,r.idx,'tk2','middle');T(cI[1]+4,y,d[2]+'.'+d[1]+'.'+d[0].slice(2),'tk2');T(cI[2]+4,y,r.gez,'tk2');T(cI[3]+4,y,r.grund.slice(0,26),'tk2')}}
+  const hy=ky+4*kh+kh-4;T(cI[0]+15,hy,'Index','tk2','middle');T(cI[1]+4,hy,'Datum','tk2');T(cI[2]+4,hy,'Gez.','tk2');T(cI[3]+4,hy,'Änderungsgrund','tk2');
+  // Gez./Datum/Gepr.
+  for(let i=1;i<4;i++)L(cI[4],ky+i*(Y1-ky)/4,cI[5],ky+i*(Y1-ky)/4,'fr2');
+  const q4=(Y1-ky)/4;const cr=s.created?fmtDate(s.created).slice(0,10):'';
+  T(cI[4]+5,ky+q4-5,'Gez.:  '+initials(userName(s.owner)),'tk2');T(cI[4]+5,ky+2*q4-5,'Datum:  '+cr,'tk2');T(cI[4]+5,ky+3*q4-5,'Gepr.:  …','tk2');T(cI[4]+5,ky+4*q4-5,'Datum:  …','tk2');
+  // Titel
+  o.push(`<image href="logo.png" x="${cI[5]+14}" y="${ky+6}" width="104" height="23" preserveAspectRatio="xMinYMid meet"/>`);
+  T(cI[5]+108,ky+44,'Verteilerplanung · Schema '+(hv?'HV':'UV'),'th','middle');T(cI[5]+108,ky+57,'Stromlaufplan nach Seiten','tm','middle');
+  // Projektbeschreibung
+  T(cI[6]+5,ky+13,'Projektbeschreibung:','tk2');
+  T(cI[6]+5,ky+29,(s.bauherr||'Bauherrschaft offen').slice(0,30),'tk3');
+  T(cI[6]+5,ky+43,(s.adr||'').slice(0,30),'tk3');
+  T(cI[6]+5,ky+57,[s.plz,s.ort].filter(Boolean).join(' ').slice(0,30),'tk3');
+  // Blattbeschreibung
+  T(cI[7]+5,ky+13,'Blattbeschreibung:','tk2');T(cI[7]+5,ky+29,'Einspeisung','tb');
+  T(cI[7]+5,ky+43,(five?'5×':'3×')+qs+(hv?', Zähler -P1':', ohne Zähler'),'tk3');
+  T(cI[7]+5,ky+57,[s.bereich,s.stock].filter(Boolean).join(' · ').slice(0,30),'tk3');
+  // Projekt / Ort / Seite
+  L(cI[8],ky+kh,X1,ky+kh,'fr2');L(cI[8]+110,ky+kh,cI[8]+110,Y1,'fr2');
+  T(cI[8]+5,ky+11,'Kommission: '+(s.kom||'offen'),'tk2');
+  T(cI[8]+5,ky+kh+12,'Ort:','tk2');T(cI[8]+115,ky+kh+12,'Seite:','tk2');
+  T(cI[8]+8,Y1-8,'+'+(s.art||'UV'),'tbig');T(cI[8]+122,Y1-8,String(page||1),'tbig');
+  T(X1,H-22,'Geändert '+fmtDate(pl.changed||s.updated)+' · Planungssoftware Service und Unterhalt','tm','end');
+  return `<svg class="sheet" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Schema Blatt ${page||1}"><style>
+  .w{stroke:#111;stroke-width:1.3}.wn{stroke:#111;stroke-width:1.1;stroke-dasharray:6 4}.wpe{stroke:#111;stroke-width:1.1;stroke-dasharray:12 3 2 3}
+  .fr{stroke:#111;stroke-width:1.2;fill:none}.fr2{stroke:#111;stroke-width:.6}.bx{stroke:#111;stroke-width:.8;fill:#fff}.bxw{stroke:#111;stroke-width:1;fill:#fff}
+  .bxd{stroke:#111;stroke-width:.9;fill:none;stroke-dasharray:10 3 2 3}.note{stroke:#bbb;stroke-width:.8;fill:#fff}.term{fill:#fff;stroke:#111;stroke-width:1}
+  text{font-family:"DejaVu Sans",Inter,Arial,sans-serif;fill:#111}.t{font-size:10px}.tb{font-size:10.5px;font-weight:700}.tm{font-size:8.5px;fill:#555}.ta{font-size:9.5px;fill:#1f4fa0}
+  .tg{font-size:10px}.tr{font-size:8px;font-family:"DejaVu Sans Mono",monospace}.tk{font-size:6.5px}.tk2{font-size:8.5px}.tk3{font-size:9.5px}.th{font-size:11px;font-weight:700;fill:#444}.tbig{font-size:20px;font-weight:700}
+  </style>${o.join('')}</svg>`;
+}
+
 /* ---------- Verwaltung ---------- */
 function vAdminLogin(){
   const first=!D.admin;
@@ -525,6 +713,7 @@ document.addEventListener('input',e=>{
     if(t.dataset.b==='ort')onOrtTyping();
     persistSoon();
   }
+  if(t.dataset.pl==='nb'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.nb=t.value;pl.nbAuto=false;const pb=$('.prevbox');if(pb)pb.innerHTML=schemaSVG(S.site,1);persistSoon()}
   if(t.id==='q'){S.q=t.value;$('#siteList').innerHTML=siteListHTML()}
   if(t.id==='fOrt'){S.fOrt=t.value;$('#siteList').innerHTML=siteListHTML()}
 });
@@ -536,6 +725,13 @@ document.addEventListener('change',e=>{
     if(t.dataset.b==='land'){if(t.value!=='CH')S.site.kanton='';persistSite();render();return}
     if(t.dataset.b==='ort')onOrtDone();
     persistSite();return}
+  if(t.dataset.pl&&S.site&&canEdit(S.site)){
+    const pl=planOf(S.site),k=t.dataset.pl;
+    if(k==='material'){pl.material=t.checked;touchPlan('Materialliste '+(t.checked?'ja':'nein'));return}
+    if(k==='nb'){pl.nb=t.value.trim();if(S.site.plz){D.nbMap=D.nbMap||{};D.nbMap[S.site.land+':'+S.site.plz.trim()]=pl.nb}touchPlan('Netzbetreiber '+pl.nb);return}
+    pl[k]=t.value;
+    if(k==='qs'||k==='adern')touchPlan('Zuleitung '+((pl.adern||'5')==='5'?'5×':'3×')+(pl.qs?qsTxt(pl.qs)+' mm²':''));
+    render();return}
   if(t.dataset.share&&S.site&&S.site.owner===S.user.id){
     const set=new Set(S.site.editors||[]);t.checked?set.add(t.dataset.share):set.delete(t.dataset.share);S.site.editors=[...set];persistSite();return}
   if(t.id==='fNorm'){S.fNorm=t.value;$('#siteList').innerHTML=siteListHTML();return}
@@ -608,6 +804,16 @@ document.addEventListener('click',e=>{
     t.parentElement.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===t)));return}
   if(act==='saveSite'){persistSite();const w=validate(S.site);S.msg=w?{t:'err',m:w}:{t:'ok',m:'Gespeichert.'};$('#bMsg').innerHTML=msgHTML();return}
   if(act==='print'){printSheet();return}
+  if(act==='toPlan'){if(canEdit(S.site))persistSite();planOf(S.site);return go('plan')}
+  if(act==='toSite'){return go('baustelle')}
+  if(act==='planNext'){const pl=planOf(S.site);if(!pl.qs||qsNum(pl.qs)>QS_MAX)return;if(canEdit(S.site)){if(S.site.art==='HV'&&pl.nb&&S.site.plz){D.nbMap=D.nbMap||{};D.nbMap[S.site.land+':'+S.site.plz.trim()]=pl.nb}pl.step='produkte';persistSite()}else pl.step='produkte';render();window.scrollTo(0,0);return}
+  if(act==='planPrev'){planOf(S.site).step='zuleitung';if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
+  if(act==='schema'){return go('schema')}
+  if(act==='backToPlan'){return go('plan')}
+  if(act==='printSchema'){
+    $('#printSheet').innerHTML=schemaSVG(S.site,1);document.body.classList.add('ps');
+    const st=document.createElement('style');st.id='pgA3';st.textContent='@page{size:A3 landscape;margin:6mm}';document.head.appendChild(st);
+    window.print();setTimeout(()=>{document.body.classList.remove('ps');st.remove()},500);return}
   if(act==='new'){S.site={id:nid(),owner:S.user.id,editors:[],kom:'',bereich:'',stock:'',bauherr:'',adr:'',plz:'',ort:'',kanton:'',land:'CH',norm:'NIN',art:'UV',created:now(),updated:now()};S.isNew=true;S.savedAt=null;return go('baustelle')}
   if(t.dataset.open){
     if(t.dataset.fromhint&&S.site){const cur=S.site;const onlyKom=!cur.bauherr&&!cur.adr&&!cur.plz&&!cur.ort;if(onlyKom&&cur.owner===S.user.id){clearTimeout(persistT);D.sites=D.sites.filter(s=>s.id!==cur.id);save()}}
@@ -616,7 +822,7 @@ document.addEventListener('click',e=>{
   if(t.dataset.arm){S.armed=t.dataset.arm;S.msg=null;if(S.screen==='liste'){$('#siteList').innerHTML=siteListHTML()}else render();return}
   if(act==='disarm'){S.armed=null;$('#siteList').innerHTML=siteListHTML();return}
   if(t.dataset.delsite){const s=D.sites.find(x=>x.id===t.dataset.delsite);if(!s||!canDelete(s))return;D.sites=D.sites.filter(x=>x.id!==s.id);save();S.armed=null;return go('liste',{t:'ok',m:'Baustelle '+(s.kom||'')+' gelöscht.'})}
-  if(act==='liste'||act==='back'){if(S.screen==='baustelle'&&S.site&&!S.isNew)persistSite();return go('liste')}
+  if(act==='liste'||act==='back'){if(SITE_SCR.includes(S.screen)&&S.site&&!S.isNew)persistSite();const up={schema:'plan',plan:'baustelle'};return go(act==='back'&&up[S.screen]?up[S.screen]:'liste')}
   if(act==='logout'){if(S.screen==='baustelle'&&S.site&&!S.isNew)persistSite();S.user=null;S.sel='';S.site=null;return go('start')}
   if(act==='adminLogin')return go('adminLogin');
   if(act==='adminOut'){S.admin=false;return go('start')}
@@ -632,7 +838,7 @@ document.addEventListener('click',e=>{
 });
 
 drawPattern();
-const y0=restoreSession();S.pushed=S.screen==='baustelle'&&!!history.state&&history.state.screen==='baustelle';render();try{history.replaceState(navState(),'','#'+S.screen)}catch(e){}
+const y0=restoreSession();S.pushDepth=history.state&&history.state.screen===S.screen?(LV[S.screen]||0):0;render();try{history.replaceState({...navState(),prev:(history.state&&history.state.screen===S.screen&&history.state.prev)||null},'','#'+S.screen)}catch(e){}
 if(y0)setTimeout(()=>window.scrollTo(0,y0),50);
 })();
 </script>
