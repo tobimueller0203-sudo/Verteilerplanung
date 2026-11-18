@@ -511,7 +511,7 @@ const QS_MAX=16;
 const NB_LIST=['IWB Industrielle Werke Basel','Primeo Energie','EBL Genossenschaft Elektra Baselland','AEW Energie AG','BKW Energie AG','CKW AG','EKZ Elektrizitätswerke des Kantons Zürich','Netze BW GmbH','ED Netze GmbH','bnNETZE GmbH'];
 const qsNum=q=>parseFloat(String(q).replace(',','.'))||0;
 const qsTxt=q=>String(q).replace('.',',');
-function planOf(s){if(!s.plan)s.plan={step:'unterlagen',qs:'',adern:'5',nb:'',nbAuto:false,material:false,revs:[]};const pl=s.plan;if(!pl.revs)pl.revs=[];if(!pl.docs)pl.docs={deck:false,toc:false,klemmen:false};return pl}
+function planOf(s){if(!s.plan)s.plan={step:'unterlagen',qs:'',adern:'5',nb:'',nbAuto:false,material:false,revs:[]};const pl=s.plan;if(!pl.revs)pl.revs=[];if(!pl.docs)pl.docs={deck:false,toc:false,klemmen:false};if(s.art==='HV'){pl.gehaeuse='alu';pl.montage='AP'}else if(pl.montage==='UP'){pl.gehaeuse='hersteller'}return pl}
 const initials=n=>String(n||'').split(/\s+/).filter(Boolean).map(w=>w[0].toUpperCase()).join('').slice(0,3);
 /* Netzbetreiber: zuerst was auf diesem Gerät für die PLZ gemerkt wurde, sonst sichere Regel (Basel-Stadt = IWB) */
 function guessNB(s){
@@ -557,13 +557,20 @@ function vPlan(){
     <div class="tiles">${HERSTELLER.map(h=>tile('hersteller',h,h)).join('')}</div>
     <label class="f">Anderer Hersteller<input id="p-hother" data-pl="herstellerFrei" value="${other?esc(pl.hersteller):''}" placeholder="Name eintragen" autocomplete="off"${dis}></label>`;
   }else if(k==='gehaeuse'){
-    const alu=pl.gehaeuse==='alu';
-    body=`<h2>Gehäuse</h2><p class="sub">Der genaue Schrank wird am Ende bestimmt, wenn TE-Plätze und Klemmenbreite feststehen.</p>
-    <div class="legend">Verteilerart</div>
-    <div class="tiles two-col">${tile('gehaeuse','alu','Alu-Verteiler','gebaut vom Verteilerbauer')}${tile('gehaeuse','hersteller','Verteiler von '+(pl.hersteller||'Hersteller'),'Gehäuse aus dem Programm des Herstellers')}</div>
-    ${alu?'<div class="msg info">Für den Alu-Verteiler gibt die App am Ende die TE-Anzahl und die Masse der Klemmblöcke für den Verteilerbauer aus.</div>':''}
-    <div class="legend">Montage</div>
-    <div class="tiles two-col">${tile('montage','AP','AP','Aufputz')}${tile('montage','UP','UP','Unterputz')}</div>`;
+    if(hv){
+      body=`<h2>Gehäuse</h2><p class="sub">Eine Hauptverteilung wird immer als Alu-Verteiler in Aufputz gebaut.</p>
+      <div class="tiles two-col"><div class="tile" aria-pressed="true"><b>Alu-Verteiler · AP</b><span>gebaut vom Verteilerbauer</span></div></div>
+      <div class="msg info">Am Ende gibt die App die TE-Anzahl und die Masse der Klemmblöcke für den Verteilerbauer aus.</div>`;
+    }else{
+      const alu=pl.gehaeuse==='alu',up=pl.montage==='UP';
+      body=`<h2>Gehäuse</h2><p class="sub">Der genaue Schrank wird am Ende bestimmt, wenn TE-Plätze und Klemmenbreite feststehen.</p>
+      <div class="legend">Montage</div>
+      <div class="tiles two-col">${tile('montage','AP','AP','Aufputz')}${tile('montage','UP','UP','Unterputz')}</div>
+      ${pl.montage?`<div class="legend">Verteilerart</div>
+      <div class="tiles two-col">${up?'':tile('gehaeuse','alu','Alu-Verteiler','gebaut vom Verteilerbauer, immer AP')}${tile('gehaeuse','hersteller','Verteiler von '+(pl.hersteller||'Hersteller'),'Gehäuse aus dem Programm des Herstellers')}</div>
+      ${up?'<p class="sub">Unterputz gibt es nur als Herstellerverteiler, Alu-Verteiler sind immer AP.</p>':''}
+      ${alu?'<div class="msg info">Für den Alu-Verteiler gibt die App am Ende die TE-Anzahl und die Masse der Klemmblöcke für den Verteilerbauer aus.</div>':''}`:''}`;
+    }
   }else if(k==='zuleitung'){
     const big=pl.qs&&qsNum(pl.qs)>QS_MAX,g=hv?guessNB(p):null;
     if(hv&&!pl.nb&&g&&ed){pl.nb=g.name;pl.nbAuto=true}
@@ -892,7 +899,7 @@ document.addEventListener('click',e=>{
   if(act==='planNext'){const pl=planOf(S.site),i=stepIdx(pl.step);if(!stepOk(pl,pl.step))return;if(canEdit(S.site)){if(pl.step==='zuleitung'&&S.site.art==='HV'&&pl.nb&&S.site.plz){D.nbMap=D.nbMap||{};D.nbMap[S.site.land+':'+S.site.plz.trim()]=pl.nb}}pl.step=STEPS[Math.min(i+1,STEPS.length-1)][0];if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
   if(act==='planPrev'){const pl=planOf(S.site),i=stepIdx(pl.step);if(i<=0)return go('baustelle');pl.step=STEPS[i-1][0];if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
   if(t.dataset.step){const pl=planOf(S.site);pl.step=t.dataset.step;if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
-  if(t.dataset.plv&&S.site&&canEdit(S.site)){const pl=planOf(S.site),k=t.dataset.plv;pl[k]=t.dataset.v;touchPlan({hersteller:'Hersteller ',gehaeuse:'Gehäuse ',montage:'Montage '}[k]+(k==='gehaeuse'?(t.dataset.v==='alu'?'Alu':'Hersteller'):t.dataset.v));render();return}
+  if(t.dataset.plv&&S.site&&canEdit(S.site)){const pl=planOf(S.site),k=t.dataset.plv;pl[k]=t.dataset.v;if(k==='montage'&&t.dataset.v==='UP')pl.gehaeuse='hersteller';touchPlan({hersteller:'Hersteller ',gehaeuse:'Gehäuse ',montage:'Montage '}[k]+(k==='gehaeuse'?(t.dataset.v==='alu'?'Alu':'Hersteller'):t.dataset.v));render();return}
   if(t.dataset.page){S.pageIdx=+t.dataset.page;render();return}
   if(act==='saveNow'){if(S.site&&canEdit(S.site)){persistSite();t.textContent='Gespeichert ✓';setTimeout(()=>{if(t.isConnected)t.textContent='Speichern'},1800)}return}
   if(act==='schema'){return go('schema')}
