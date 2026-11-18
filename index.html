@@ -550,7 +550,7 @@ function touchPlan(grund){
 /* Bezügersicherung HV: NIN Diazed oder LS 4-polig D; VDE (Annahme) SLS oder NH */
 const bezTypes=s=>s.norm==='VDE'?[['SLS','SLS-Schalter, selektiv (3-polig)'],['NH','NH-Sicherung (3-polig)']]:[['DZ','Diazed (3-polig)'],['LSD','LS 4-polig, D-Charakteristik']];
 const BEZ_A={DZ:['16','20','25','35','50','63'],LSD:['16','20','25','32','40','50','63'],SLS:['35','40','50','63'],NH:['35','50','63','80','100']};
-const bezTxt=pl=>pl.bez?({DZ:'Diazed',LSD:'LS D',SLS:'SLS',NH:'NH'}[pl.bez])+(pl.bezA?' '+pl.bezA+' A':'')+(pl.bez==='LSD'?' 4-polig':' 3-polig'):'';
+const bezTxt=pl=>pl.bez?(pl.bez==='DZ'?(pl.bezA&&+pl.bezA<=25?'DII':pl.bezA?'DIII':'Diazed'):{LSD:'LS D',SLS:'SLS',NH:'NH'}[pl.bez])+(pl.bezA?' '+pl.bezA+' A':'')+(pl.bez==='LSD'?' 4-polig':pl.bez==='DZ'||pl.bez==='NH'?' + N-Trenner':' 3-polig'):'';
 const HS_A=['25','40','63','80','100','125'];
 const STEPS=[['unterlagen','Unterlagen'],['hersteller','Hersteller'],['gehaeuse','Gehäuse'],['zuleitung','Zuleitung'],['stromkreise','Stromkreise'],['extras','Extras']];
 const HERSTELLER=['Hager','ABB','Schneider Electric','Siemens','Eaton','Legrand'];
@@ -795,6 +795,16 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
   const W=1190,H=842,X0=52,Y0=38,X1=1138,Y1=796,ix0=X0+16,ix1=X1-16,iy0=Y0+16,iy1=708,pk=iy1+16;
   const o=[];const T=(x,y,t,cls='t',a='start')=>o.push(`<text class="${cls}" x="${x}" y="${y}" text-anchor="${a}">${esc(t)}</text>`);
   const L=(x1,y1,x2,y2,cls='w')=>o.push(`<line class="${cls}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`);
+  /* Normsymbole nach Tobis Vorlage: LS = Schaltglied mit Schaltschloss und Auslöser, FI/LS zusätzlich Fehlerstromauslöser, N-Trenner = Trennlasche, Diazed = Sicherungskasten */
+  const BL=8;
+  const LSsym=(x,y1,y2,fi)=>{L(x,y2,x-BL,y1,'w');const px=x-BL*0.3,py=y2-(y2-y1)*0.3;
+    o.push(`<path d="M${px} ${py} l-3.2 1.6 l-1.3 -2.6 l-3.2 1.6" fill="none" stroke="#111" stroke-width=".8"/>`);
+    o.push(`<path d="M${px+0.5} ${py+3.6} l-8 4" stroke="#111" stroke-width=".8"/><path d="M${px-8.3} ${py+7.8} l2.4 -3.9 l1.6 3.1 z" fill="#111"/>`);
+    if(fi)o.push(`<path d="M${px+1} ${py+8} l-9 4.5 M${px-5.2} ${py+8.2} l1.6 3.1" stroke="#111" stroke-width=".8" fill="none"/>`)};
+  const SWsym=(x,y1,y2)=>L(x,y2,x-BL,y1,'w');
+  const NTsym=(x,y1,y2)=>{L(x-4,y1,x+4,y1,'w');L(x-4,y2,x+4,y2,'w')};
+  const FUsym=(x,y1,y2)=>Rc(x-4,y1,8,y2-y1,'bxw');
+  const PN=(x,y,t)=>T(x+2.5,y,t,'tk');
   const Rc=(x,y,w,h,cls='bx')=>o.push(`<rect class="${cls}" x="${x}" y="${y}" width="${w}" height="${h}"/>`);
   o.push(`<rect x="0" y="0" width="${W}" height="${H}" fill="#fff"/>`);
   Rc(X0,Y0,X1-X0,Y1-Y0,'fr');Rc(ix0,iy0,ix1-ix0,iy1-iy0,'fr');
@@ -851,19 +861,19 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     const yD=232,yD2=296,yK=600,yF=346,yB0=396,yB1=432;
     T(xs0-8,yK+9,'-X1','tb','end');
     const RX={PE:10,N:30},rx=cn=>cn==='PE'?10:cn==='N'?30:/^T/.test(cn)?44:/^LA/.test(cn)?56:20;
-    const geo=it=>{if(it.sk){const x0=xs0+it.slot*cw;return {x0,w:cw,c:x0+33,xs:it.cond.map(cn=>x0+rx(cn))}}const x0=xs0+it.slot*cw,w=cw,n=it.cond.length,dx=it.sk?Math.min(14,(w-16)/4):n===5?10:n===4?11:12,bw=(n-1)*dx,c=x0+w-bw/2-(it.sk?6:12);return {x0,w,c,xs:it.cond.map((_,k)=>c+(k-(n-1)/2)*dx)}};
+    const geo=it=>{if(it.sk){const x0=xs0+it.slot*cw;return {x0,w:cw,c:x0+33,xs:it.cond.map(cn=>x0+rx(cn))}}const x0=xs0+it.slot*cw,w=cw,n=it.cond.length,dx=14,bw=(n-1)*dx,c=x0+w-bw/2-(it.sk?6:12);return {x0,w,c,xs:it.cond.map((_,k)=>c+(k-(n-1)/2)*dx)}};
     let G;const foot=(it,g)=>{
-      it.cond.forEach((cn,k)=>{const x=g.xs[k];Rc(x-5,yK,10,11,'bx');T(x,yK+8.5,String(it.kl+k),'tk','middle');L(x,yK+11,x,yK+30,bcls(cn));if(it.sk)T(x,yK-4,cn,'tk','middle')});
+      it.cond.forEach((cn,k)=>{const x=g.xs[k];o.push(`<circle class="term" cx="${x}" cy="${yK+3.4}" r="3.4"/>`);T(x,yK+15,String(it.kl+k),'tk','middle');T(x,yK+22,cn,'tk5','middle')});
       /* Reserveklemmen für überzählige Adern */
-      for(let q=0;q<(it.res||0);q++){const lx=g.xs[g.xs.length-1],st=it.sk?12:Math.max(10,(g.xs[1]-g.xs[0])||10),x=lx+st*(q+1),nr=it.kl+it.cond.length+q;Rc(x-5,yK,10,11,'bx');T(x,yK+8.5,String(nr),'tk','middle');L(x,yK+11,x,yK+30,'wc');T(x,yK-4,'Res','tk','middle')}
+      for(let q=0;q<(it.res||0);q++){const lx=g.xs[g.xs.length-1],st=it.sk?12:Math.max(10,(g.xs[1]-g.xs[0])||10),x=lx+st*(q+1),nr=it.kl+it.cond.length+q;o.push(`<circle class="term" cx="${x}" cy="${yK+3.4}" r="3.4"/>`);T(x,yK+15,String(nr),'tk','middle');T(x,yK+22,'Res','tk5','middle')}
       if(it.sk&&it.k>0)return;
-      let gw=g.w,gc=g.c;if(it.sk){const grp=it.sk.rel.filter(x=>G.has(x)),lg=G.get(grp[grp.length-1]);gw=lg.x0+lg.w-g.x0;gc=(g.xs[0]+lg.xs[lg.xs.length-1])/2;L(g.xs[0],yK+30,lg.xs[lg.xs.length-1],yK+30,'w')}
-      for(let m=0;m<3;m++)L(gc-8,yK+22+m*3,gc+8,yK+17+m*3,'w');
-      if(it.sk){T(g.x0+2,yK+24,it.w,'tm','end');T(g.x0+2,yK+35,it.cab+'×1,5','tk2','end')}else{T(g.x0+6,yK+24,it.w,'tm');T(g.x0+6,yK+35,cabTxt(it).replace(' mm²',''),'tk2')}
+      let gw=g.w,gc=g.c;if(it.sk){const grp=it.sk.rel.filter(x=>G.has(x)),lg=G.get(grp[grp.length-1]);gw=lg.x0+lg.w-g.x0;gc=(g.xs[0]+lg.xs[lg.xs.length-1])/2}
+      for(let m=0;m<3;m++)L(gc-7,yK+35+m*3,gc+7,yK+30+m*3,'w');
+      if(it.sk){T(g.x0+2,yK+34,it.w,'tm','end');T(g.x0+2,yK+44,it.cab+'×1,5','tk2','end')}else{T(g.xs[0]-BL-4,yK+34,it.w,'tm','end');T(g.xs[0]-BL-4,yK+44,cabTxt(it).replace(' mm²',''),'tk2','end')}
       g={...g,w:gw};
       const nm=it.sk?it.sk.name:it.name;
       const mx=Math.max(8,Math.floor(g.w/7.2)),words=String(nm).split(/\s+/),lines=[''];words.forEach(wd=>{const cur=lines[lines.length-1];if((cur+' '+wd).trim().length>mx&&cur)lines.push(wd);else lines[lines.length-1]=(cur+' '+wd).trim()});
-      const small=lines.some(l=>l.length>mx);lines.slice(0,2).forEach((t,m)=>T(g.x0+g.w/2,yK+54+m*12,t.slice(0,small?Math.floor(g.w/5.6):mx+2),small?'tnm2':'tb','middle'))};
+      const small=lines.some(l=>l.length>mx);lines.slice(0,2).forEach((t,m)=>T(g.x0+g.w/2,yK+60+m*11,t.slice(0,small?Math.floor(g.w/5.6):mx+2),small?'tnm2':'tb','middle'))};
     G=new Map();items.forEach(it=>G.set(it,geo(it)));
     items.forEach(it=>{
       const g=G.get(it),x0=g.x0,w=g.w,xs=g.xs;
@@ -892,16 +902,13 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
       r.cond.forEach((cn,k)=>{const x=xs[k],cls=bcls(cn),yb=busY[cn];
         if(hasRel&&cn==='PE')return;
         o.push(`<circle cx="${x}" cy="${yb}" r="2.2" fill="#111"/>`);
-        const ntHere=r.nt&&cn==='N',yEnd=hasRel?(k===0?yF:cn==='N'?yF+8:null):yK;
-        if(cn!=='PE'&&(k<r.poles||ntHere)){L(x,yb,x,yD+6,cls);if(!ntHere){L(x-3,yD+3,x+3,yD+9,'w');L(x-3,yD+9,x+3,yD+3,'w')}else L(x-3,yD+6,x+3,yD+6,'w');L(x,yD2-6,x-9,yD+16,'w');L(x,yD2-6,x,yEnd==null?yD2+30:yEnd,cls)}
-        else L(x,yb,x,yEnd==null?yD2+30:yEnd,cls)});
-      if(r.poles>1)L(xs[0]-4.5,yD+28,xs[r.poles-1]-4.5,yD+28,'cp');
-      if(r.nt){const xn=xs[r.cond.indexOf('N')];T(xn+4,yD-4,'N','tk')}
-      const ln=r.cond.filter(c=>c!=='PE').length;
-      if(r.typ==='FILS'){const xa=xs[0],xb=xs[ln-1];o.push(`<ellipse class="bxw" cx="${(xa+xb)/2}" cy="${yD2+16}" rx="${(xb-xa)/2+8}" ry="5" fill="none"/>`);T((xa+xb)/2+(xb-xa)/2+11,yD2+19,'IΔ','tk2')}
+        const ntHere=r.nt&&cn==='N',yEnd=hasRel?(k===0?yF:cn==='N'?yF+8:null):yK,y1=yD+6,y2=yD+42,ye=yEnd==null?yD2+30:yEnd;
+        if(cn!=='PE'&&(k<r.poles||ntHere)){L(x,yb,x,y1,cls);if(ntHere)NTsym(x,y1,y2);else LSsym(x,y1,y2,r.typ==='FILS');PN(x,y1-3,String(2*k+1));PN(x,y2+8,String(2*k+2));L(x,y2,x,ye,cls)}
+        else L(x,yb,x,ye,cls)});
+      if(r.poles>1){const yc=yD+6+36*0.22;L(xs[0]-BL*0.75,yc,xs[r.poles-1]-BL*0.75,yc,'cpl')}
       /* Bezeichnung direkt links neben der Sicherung */
-      const tx=xs[0]-10;let ly=yD+20;const lab=(t,cl)=>{T(tx,ly,t,cl,'end');ly+=13};
-      lab(r.f,'tb');lab(r.char+r.amp+' A','tk3');lab(typTxt(r.typ),'tk3');if(r.siem)lab('Siemens','tm');if(+r.pol<3)lab(r.cond[0],'ta');lab(r.pol+'-polig','tm');
+      const tx=xs[0]-BL-12;let ly=yD+12;const lab=(t,cl)=>{T(tx,ly,t,cl,'end');ly+=12};
+      lab(r.f,'tb');lab((r.typ==='FILS'?'FI-LS ':'LS ')+r.char,'tk3');lab(r.amp+' A','tk3');if(r.siem)lab('Siemens','tm');if(+r.pol<3)lab(r.cond[0],'ta');lab(r.pol+'-polig','tm');
       if(r.nt)lab('+ N-Trenner','tm');
       {const rl=railOf(r.rail);if(rl.nt||rl.siem||rl.rel)T(tx,ly+4,'⚠','twarn','end')}
       if(hasRel){
@@ -913,7 +920,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
       if(r.note){const mx=Math.max(10,Math.floor(w/4.8)),words=String(r.note).split(/\s+/),lines=[''];words.forEach(wd=>{const cur=lines[lines.length-1];if((cur+' '+wd).trim().length>mx&&cur)lines.push(wd);else lines[lines.length-1]=(cur+' '+wd).trim()});
         lines.slice(0,3).forEach((t,m)=>T(x0+4,462+m*11,(m===0?'Notiz: ':'')+t.slice(0,mx+4),'tnote'))}
     });
-    let hy=yK+79;const hint=t=>{T(ix0+10,hy,'⚠ Hinweis: '+t,'twarn');hy+=10};
+    let hy=yK+86;const hint=t=>{T(ix0+10,hy,'⚠ Hinweis: '+t,'twarn');hy+=9};
     const rs=[...new Set(items.filter(it=>!it.sk).map(it=>it.rail))].map(railOf),fl=k=>rs.filter(r=>r[k]).map(r=>r.no).join(', ');
     if(fl('nt'))hint('N-Trenner auf Hutschiene '+fl('nt')+'. Dort keine Phasen- und keine Etagenschiene möglich, gilt für alle Sicherungen mit ⚠.');
     if(fl('siem'))hint('1-polige FI/LS von Siemens auf Hutschiene '+fl('siem')+'. Etagen- sowie Kammschienen von '+(pl.hersteller||'Hersteller')+' sind NICHT kompatibel.');
@@ -932,10 +939,10 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
   });
   T(ix1-12,yTop[cond.length-2]+24,toSk?'Sammelschiene · weiter auf Seite '+nx:'Sammelschiene · Stromkreise folgen','tm','end');
   // Klemmenbeschriftung unten
-  cond.forEach((c,i)=>{Rc(xs[i]-6,yBot,12,11,'bx');T(xs[i],yBot+8.5,c[0],'tk','middle')});
+  cond.forEach((c,i)=>{o.push(`<circle class="term" cx="${xs[i]}" cy="${yBot+3.4}" r="3.4"/>`);T(xs[i],yBot+15,c[0],'tk','middle')});
   // Kabelmarkierung und Text
   const cx=xs[Math.floor(cond.length/2)];
-  for(let k=0;k<3;k++)L(cx-7,yBot+22+k*4,cx+7,yBot+16+k*4,'w');
+  for(let k=0;k<3;k++)L(cx-7,yBot+26+k*4,cx+7,yBot+20+k*4,'w');
   L(xs[0],yBot+11,xs[0],yBot+11);
   T(xs[0]-14,yBot+9,'-W1','tb','end');
   T(cx,yBot+46,hv?'Zuleitung vom Hausanschluss':'Zuleitung von der Hauptverteilung','tb','middle');
@@ -953,12 +960,13 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     T(zx+zw+14,zy+12,'-P1','tb');T(zx+zw+14,zy+26,'Energiezähler','t');
     T(zx+zw+14,zy+40,'Netzbetreiber: '+(pl.nb||'offen'),'ta');
     T(zx+zw+14,zy+53,'Zähler und Plombierung gemäss Werkvorschriften','tm');
-    if(pl.bez){const sw=pl.bez==='LSD'||pl.bez==='SLS',live=cond.filter(c=>c[0]!=='PE'),cnt=pl.bez==='LSD'?live.length:Math.max(1,live.length-1),y1=200,y2=244;
-      for(let i=0;i<cnt;i++){const x=xs[i];
-        if(sw){o.push(`<rect x="${x-2.5}" y="${y1}" width="5" height="${y2-y1}" fill="#fff"/>`);L(x,y2,x-9,y1+6,'w');L(x-3,y1-3,x+3,y1+3,'w');L(x-3,y1+3,x+3,y1-3,'w')}
-        else{o.push(`<rect x="${x-4}" y="${y1+4}" width="8" height="${y2-y1-8}" fill="#fff" stroke="#111" stroke-width=".9"/>`);L(x,y1+4,x,y2-4,'w')}}
-      if(sw&&cnt>1)L(xs[0]-4.5,y1+22,xs[cnt-1]-4.5,y1+22,'cp');
-      T(xs[0]-14,y1+12,'-F0','tb','end');T(xs[0]-14,y1+25,'Bezügersicherung','t','end');T(xs[0]-14,y1+37,bezTxt(pl)+(pl.bezA?'':' · Strom offen'),'tm','end');}
+    if(pl.bez){const sw=pl.bez==='LSD'||pl.bez==='SLS',live=cond.filter(c=>c[0]!=='PE'),ph=five?3:1,y1=206,y2=238;
+      live.forEach((c,i)=>{const x=xs[i],isN=c[0]==='N';o.push(`<rect x="${x-BL-2}" y="${y1}" width="${BL+4}" height="${y2-y1}" fill="#fff"/>`);
+        if(isN){if(pl.bez==='LSD')LSsym(x,y1,y2,false);else NTsym(x,y1,y2)}
+        else if(sw)LSsym(x,y1,y2,false);else{L(x,y1-0.1,x,y1,'w');FUsym(x,y1,y2)}
+        PN(x,y1-3,String(2*i+1));PN(x,y2+8,String(2*i+2))});
+      if(sw&&live.length>1){const yc=y1+(y2-y1)*0.25;L(xs[0]-BL*0.75,yc,xs[(pl.bez==='LSD'?live.length:ph)-1]-BL*0.75,yc,'cpl')}
+      T(xs[0]-BL-6,y1+8,'-F0','tb','end');T(xs[0]-BL-6,y1+20,bezTxt(pl)||'Bezügersicherung','tk3','end');T(xs[0]-BL-6,y1+32,'Bezügersicherung'+(pl.bezA?'':' · Strom offen'),'tm','end');}
   }else{
     const spdOn=!!pl.spd,hsOn=!!pl.hs,live=cond.filter(c=>c[0]!=='PE');
     if(!spdOn&&!hsOn)T(xs[0]+90,330,'Unterverteilung ohne Zähler','tm');
@@ -1023,7 +1031,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
   .fr{stroke:#111;stroke-width:1.2;fill:none}.fr2{stroke:#111;stroke-width:.6}.bx{stroke:#111;stroke-width:.8;fill:#fff}.bxw{stroke:#111;stroke-width:1;fill:#fff}
   .bxd{stroke:#111;stroke-width:.9;fill:none;stroke-dasharray:10 3 2 3}.note{stroke:#bbb;stroke-width:.8;fill:#fff}.term{fill:#fff;stroke:#111;stroke-width:1}
   text{font-family:"DejaVu Sans",Inter,Arial,sans-serif;fill:#111}.t{font-size:10px}.tb{font-size:10.5px;font-weight:700}.tm{font-size:8.5px;fill:#555}.ta{font-size:9.5px;fill:#1f4fa0}
-  .tg{font-size:10px}.tr{font-size:8px;font-family:"DejaVu Sans Mono",monospace}.tk{font-size:6.5px}.tk2{font-size:8.5px}.tk3{font-size:9.5px}.th{font-size:11px;font-weight:700;fill:#444}.tbig{font-size:20px;font-weight:700}.tdeck{font-size:34px;font-weight:700}.tdeck2{font-size:16px;font-weight:700}.tm2{font-size:10px;fill:#666}.tk4{font-size:10.5px}.fr3{stroke:#ccc;stroke-width:.6}.cp{stroke:#111;stroke-width:.8;stroke-dasharray:3 2}.dbox{stroke:#111;stroke-width:.9;fill:#fff}.tbw{font-size:11px;font-weight:700;fill:#ffed00;letter-spacing:.06em}.tlab{font-size:11px;font-weight:700;letter-spacing:.18em;fill:#555}.tdeck3{font-size:14px;font-weight:700}.twarn{font-size:9.5px;font-weight:700;fill:#b42318}.tnm2{font-size:8.5px;font-weight:700}.wc{stroke:#111;stroke-width:1.1}.bxr{fill:none;stroke:#111;stroke-width:.7;stroke-dasharray:3 2}.trel{font-size:7.5px;fill:#444}.tbh{font-size:10px;font-weight:700;paint-order:stroke;stroke:#fff;stroke-width:3px}.tnote{font-size:8px;font-style:italic;fill:#1f4fa0;paint-order:stroke;stroke:#fff;stroke-width:3px}.thalo{font-size:7.5px;fill:#555;paint-order:stroke;stroke:#fff;stroke-width:3px}
+  .tg{font-size:10px}.tr{font-size:8px;font-family:"DejaVu Sans Mono",monospace}.tk{font-size:6.5px}.tk2{font-size:8.5px}.tk3{font-size:9.5px}.th{font-size:11px;font-weight:700;fill:#444}.tbig{font-size:20px;font-weight:700}.tdeck{font-size:34px;font-weight:700}.tdeck2{font-size:16px;font-weight:700}.tm2{font-size:10px;fill:#666}.tk4{font-size:10.5px}.fr3{stroke:#ccc;stroke-width:.6}.cp{stroke:#111;stroke-width:.8;stroke-dasharray:3 2}.dbox{stroke:#111;stroke-width:.9;fill:#fff}.tbw{font-size:11px;font-weight:700;fill:#ffed00;letter-spacing:.06em}.tlab{font-size:11px;font-weight:700;letter-spacing:.18em;fill:#555}.tdeck3{font-size:14px;font-weight:700}.tk5{font-size:5.5px;fill:#555}.cpl{stroke:#111;stroke-width:.7}.twarn{font-size:9.5px;font-weight:700;fill:#b42318}.tnm2{font-size:8.5px;font-weight:700}.wc{stroke:#111;stroke-width:1.1}.bxr{fill:none;stroke:#111;stroke-width:.7;stroke-dasharray:3 2}.trel{font-size:7.5px;fill:#444}.tbh{font-size:10px;font-weight:700;paint-order:stroke;stroke:#fff;stroke-width:3px}.tnote{font-size:8px;font-style:italic;fill:#1f4fa0;paint-order:stroke;stroke:#fff;stroke-width:3px}.thalo{font-size:7.5px;fill:#555;paint-order:stroke;stroke:#fff;stroke-width:3px}
   </style>${o.join('')}</svg>`;
 }
 
