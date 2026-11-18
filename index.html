@@ -3,18 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0b0b0b">
+<meta name="theme-color" content="#ffffff">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Verteiler">
 <title>Verteilerplanung Schachenmann</title>
+<link rel="apple-touch-icon" href="logo.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap">
 <style>
-/* Layout: schwarzes Kopfband mit Logo, gelbe Akzentlinie, darunter Karten. Farben Schwarz/Gelb nach Schachenmann. */
+/* Layout: weisse Logozeile, schwarzes Band mit gelber Linie, darunter Karten. Farben Schwarz/Gelb nach Schachenmann. */
 :root{
   --bg:#f4f4f1; --surface:#ffffff; --ink:#141414; --muted:#5f5f5a; --line:#dcdcd5; --field:#ffffff;
   --head:#0b0b0b; --accent:#ffed00; --accent-ink:#111111; --link:#5c5200; --focus:#111111;
-  --err:#b42318; --err-soft:#fdecea; --ok:#1d7a46; --ok-soft:#e3f3e9;
+  --err:#b42318; --err-soft:#fdecea; --ok:#1d7a46; --ok-soft:#e3f3e9; --info-soft:#fff9c2; --info:#4a4300;
   --f-display:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
   color-scheme:light;
@@ -22,7 +22,7 @@
 @media (prefers-color-scheme: dark){:root{
   --bg:#0e0e0d; --surface:#191918; --ink:#f0f0ec; --muted:#a3a39c; --line:#2e2e2b; --field:#121211;
   --head:#050505; --link:#ffed00; --focus:#ffed00;
-  --err:#ff8a80; --err-soft:#3a1714; --ok:#6fd39a; --ok-soft:#10301e; color-scheme:dark}}
+  --err:#ff8a80; --err-soft:#3a1714; --ok:#6fd39a; --ok-soft:#10301e; --info-soft:#2e2a05; --info:#fff27a; color-scheme:dark}}
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;min-height:100vh;-webkit-text-size-adjust:100%}
@@ -30,20 +30,24 @@ h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0}
 button,input,select{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 [hidden]{display:none!important}
+.wrapx{max-width:1080px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 
-/* Kopfband */
-.hero{position:relative;background:var(--head);color:#f3f3ef;overflow:hidden;padding-top:env(safe-area-inset-top,0px)}
+/* Logozeile: immer weiss, damit das Originallogo stimmt */
+.brandbar{background:#ffffff;color:#141414;padding-top:env(safe-area-inset-top,0px);border-bottom:1px solid #e4e4dd}
+.brandbar .wrapx{padding-block:14px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.lg{display:flex;flex-direction:column;gap:5px}
+.lg img{height:36px;width:auto;max-width:100%;display:block}
+.start .lg img{height:clamp(44px,10vw,64px)}
+.tagline{font-size:12px;color:#6b6b64;letter-spacing:.05em}
+.wordmark{font:800 italic 30px/1 var(--f-display);color:#111}
+.bk img{height:30px;width:auto;display:block}
+
+/* Schwarzes Band */
+.hero{position:relative;background:var(--head);color:#f3f3ef;overflow:hidden}
 .hero svg.pattern{position:absolute;inset:0;width:100%;height:100%;opacity:.5}
 .hero .yb{position:absolute;left:0;right:0;bottom:0;height:6px;background:var(--accent)}
-.hero .in{position:relative;max-width:1080px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:22px 120px;display:flex;flex-direction:column;gap:40px}
-.hero.start .in{padding-block:56px 150px;gap:0}
-.brandrow{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.logo{display:flex;align-items:center;min-height:44px}
-.logo img{height:44px;max-width:240px;object-fit:contain;display:block}
-.hero.start .logo img{height:clamp(64px,12vw,110px);max-width:min(100%,520px)}
-.wordmark{font:800 24px/1 var(--f-display);letter-spacing:-.01em;color:#fff;display:flex;align-items:baseline;gap:8px}
-.wordmark i{font-style:normal;color:var(--accent)}
-.hero.start .wordmark{font-size:clamp(26px,8vw,72px)}
+.hero .wrapx{position:relative;padding-block:26px 112px;display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.start .hero .wrapx{padding-block:30px 120px}
 .topbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14px}
 .topbar .who{opacity:.85;margin-right:4px}
 .topbar .btn{background:transparent;border-color:rgba(255,255,255,.35);color:#f3f3ef}
@@ -51,16 +55,19 @@ button,input,select{font:inherit;color:inherit}
 .pagehead h1{font-size:clamp(26px,4.5vw,40px);font-weight:800;letter-spacing:-.02em;color:#fff}
 
 /* Inhalt */
-.main{max-width:1080px;margin:-90px auto 0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 calc(48px + env(safe-area-inset-bottom,0px));position:relative;display:flex;flex-direction:column;gap:20px}
-.hero.start + .main{margin-top:-110px}
+.main{margin-top:-90px;padding-block:0 calc(48px + env(safe-area-inset-bottom,0px));position:relative;display:flex;flex-direction:column;gap:20px}
+.start .main{margin-top:-104px}
 .card{background:var(--surface);border:1px solid var(--line);border-top:4px solid var(--accent);border-radius:4px;padding:24px;box-shadow:0 18px 40px -24px rgba(0,0,0,.45);display:flex;flex-direction:column;gap:18px;min-width:0}
 .card.narrow{max-width:440px;width:100%}
 .card h2{font-size:21px;font-weight:700;letter-spacing:-.01em}
 .sub{color:var(--muted);margin:0;font-size:14px}
-label.f{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600}
+.muted{color:var(--muted);font-weight:500}
+label.f{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;position:relative}
 label.f .hint{font-weight:400;color:var(--muted)}
 input,select{background:var(--field);border:1px solid var(--line);border-radius:4px;padding:11px 12px;font-size:16px;width:100%;min-width:0}
 input:focus,select:focus{border-color:var(--ink)}
+input:disabled::placeholder{color:transparent}
+input:disabled,select:disabled{opacity:1;background:var(--bg);color:var(--ink);-webkit-text-fill-color:var(--ink)}
 .btn{border:1px solid var(--line);background:var(--surface);border-radius:3px;padding:11px 16px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;text-decoration:none}
 .btn:hover{border-color:var(--ink)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
@@ -71,6 +78,7 @@ input:focus,select:focus{border-color:var(--ink)}
 .msg{border-radius:4px;padding:10px 12px;font-size:14px}
 .msg.err{background:var(--err-soft);color:var(--err)}
 .msg.ok{background:var(--ok-soft);color:var(--ok)}
+.msg.info{background:var(--info-soft);color:var(--info)}
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .between{justify-content:space-between}
 .grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px}
@@ -78,6 +86,7 @@ input:focus,select:focus{border-color:var(--ink)}
 @media (max-width:640px){.c4,.c3,.c2{grid-column:span 6}.card{padding:18px}}
 .seg{display:flex;border:1px solid var(--line);border-radius:4px;padding:3px;gap:3px;background:var(--bg)}
 .seg button{flex:1;border:0;background:none;border-radius:3px;padding:9px 10px;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:1px}
+.seg button:disabled{cursor:default}
 .seg button b{font:700 15px var(--f-display)}
 .seg button span{font-size:12px;color:var(--muted)}
 .seg button[aria-pressed="true"]{background:var(--accent);color:#111}
@@ -86,11 +95,15 @@ input:focus,select:focus{border-color:var(--ink)}
 .tag{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:3px;background:var(--bg);border:1px solid var(--line);color:var(--muted);white-space:nowrap}
 .tag.y{background:var(--accent);color:#111;border-color:var(--accent)}
 .tag.ok{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.tag.lock{background:transparent}
 .actions{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--line);margin:0 -24px -24px;padding:14px 24px calc(14px + env(safe-area-inset-bottom,0px));display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;z-index:2}
 @media (max-width:640px){.actions{margin:0 -18px -18px;padding-left:18px;padding-right:18px}}
 .saved{font-size:13px;color:var(--muted)}
 .foot{color:var(--muted);font-size:12px;text-align:center;display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
 .foot .btn.link{color:var(--muted);font-size:12px;font-weight:500}
+.chk{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500}
+.chk input{width:18px;height:18px;padding:0}
+.share{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
 
 /* Übersicht */
 .tools{display:grid;grid-template-columns:minmax(0,2fr) repeat(3,minmax(0,1fr));gap:10px}
@@ -103,28 +116,45 @@ input:focus,select:focus{border-color:var(--ink)}
 .site .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
 .site .acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 @media (max-width:560px){.site{grid-template-columns:1fr}.site .acts{justify-content:flex-start}}
-.muted{color:var(--muted);font-weight:500}
 .empty{padding:28px 0;text-align:center;color:var(--muted)}
 .ulist{display:flex;flex-direction:column}
 .uitem{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
 .uitem:last-child{border-bottom:0}
 .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:20px;align-items:start}
+
+/* Druckblatt */
+#printSheet{display:none}
+@media print{
+  @page{margin:16mm}
+  body{background:#fff;color:#000}
+  .hero,.main,.foot,.bk{display:none!important}
+  .brandbar{border:0;padding:0}
+  #printSheet{display:block;font-size:12pt;color:#000}
+  #printSheet h1{font-size:20pt;margin:12pt 0 4pt}
+  #printSheet table{border-collapse:collapse;width:100%;margin-top:10pt}
+  #printSheet td{border-bottom:1px solid #ccc;padding:6pt 4pt;vertical-align:top}
+  #printSheet td:first-child{width:38%;color:#555}
+  #printSheet .pf{margin-top:18pt;font-size:9pt;color:#666}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
+<div class="brandbar"><div class="wrapx">
+  <div class="lg"><div id="logo"><span class="wordmark">Schachenmann</span></div><div class="tagline">Planungssoftware Service und Unterhalt</div></div>
+  <div class="bk" id="bk"></div>
+</div></div>
 <header class="hero" id="hero">
   <svg class="pattern" id="pattern" aria-hidden="true"></svg>
   <div class="yb" aria-hidden="true"></div>
-  <div class="in">
-    <div class="brandrow">
-      <div class="logo" id="logo"></div>
-      <div class="topbar" id="topbar"></div>
-    </div>
+  <div class="wrapx">
     <div class="pagehead" id="pagehead"></div>
+    <div class="topbar" id="topbar"></div>
   </div>
 </header>
-<div class="main" id="main"></div>
+<div class="main wrapx" id="main"></div>
+<div id="printSheet"></div>
+<datalist id="dlKom"></datalist><datalist id="dlOrt"></datalist><datalist id="dlPlz"></datalist><datalist id="dlFilterOrt"></datalist>
 <input type="file" id="importFile" accept="application/json,.json" hidden>
 
 <script>
@@ -141,13 +171,31 @@ let D;
 try{D=JSON.parse(localStorage.getItem(KEY))}catch(e){D=null}
 if(!D||!Array.isArray(D.users)) D={users:START_NAMES.map(n=>({id:nid(),name:n})),admin:null};
 D.sites=D.sites||[];
-// Übernahme aus der Vorversion (eine Baustelle pro Person)
 if(D.projects){Object.entries(D.projects).forEach(([uid,p])=>{if(p&&(p.kom||p.adr)){D.sites.push({id:nid(),owner:uid,kom:p.kom||'',bauherr:'',adr:p.adr||'',plz:p.plz||'',ort:p.ort||'',kanton:'',land:p.land||'CH',norm:p.norm||'NIN',art:p.art||'UV',created:now(),updated:now()})}});delete D.projects}
 delete D.branding;
+D.sites.forEach(s=>{if(!Array.isArray(s.editors))s.editors=[]});
 function save(){try{localStorage.setItem(KEY,JSON.stringify(D));return true}catch(e){return false}}
 save();
 
-let S={screen:'start',user:null,admin:false,msg:null,sel:'',site:null,savedAt:null,q:'',fNorm:'',fKanton:'',fOrt:'',fWer:'mine',armed:null};
+let S={screen:'start',user:null,admin:false,msg:null,sel:'',site:null,isNew:false,savedAt:null,q:'',fNorm:'',fKanton:'',fOrt:'',onlyMine:false,armed:null};
+
+/* ---------- Rechte: bearbeiten nur Ersteller oder freigegebene Planer, löschen nur Ersteller ---------- */
+const canEdit=s=>!!S.user&&(s.owner===S.user.id||(s.editors||[]).includes(S.user.id));
+const canDelete=s=>!!S.user&&s.owner===S.user.id;
+
+/* ---------- PLZ-Verzeichnis ---------- */
+const PLZ={ready:false};
+fetch('plz.json').then(r=>r.json()).then(d=>{
+  for(const land of Object.keys(d)){
+    const byZip=new Map(),byOrt=new Map();
+    d[land].forEach(([z,o,k])=>{
+      if(!byZip.has(z))byZip.set(z,[]);byZip.get(z).push({o,k:k||''});
+      const key=o.toLowerCase();if(!byOrt.has(key))byOrt.set(key,{o,list:[]});byOrt.get(key).list.push({z,k:k||''});
+    });
+    PLZ[land]={byZip,byOrt,orte:[...byOrt.values()].map(x=>x.o).sort((a,b)=>a.localeCompare(b,'de'))};
+  }
+  PLZ.ready=true;
+}).catch(()=>{});
 
 /* ---------- Passwort ---------- */
 const hex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
@@ -170,31 +218,26 @@ const msgHTML=()=>S.msg?`<div class="msg ${S.msg.t}" role="status">${esc(S.msg.m
 const sortedUsers=()=>[...D.users].sort((a,b)=>a.name.localeCompare(b.name,'de'));
 const userName=id=>(D.users.find(u=>u.id===id)||{}).name||'unbekannt';
 const landName=k=>(LAENDER.find(l=>l[0]===k)||[,k])[1];
+const kantonName=k=>(KANTONE.find(x=>x[0]===k)||[,''])[1];
 const fmtDate=iso=>{try{return new Date(iso).toLocaleString('de-CH',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}catch(e){return ''}};
 const fmtTime=d=>d.toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'});
-function go(screen,msg){S.screen=screen;S.msg=msg||null;S.armed=null;render();window.scrollTo(0,0)}
 const complete=s=>!!(s.kom&&s.adr&&s.plz&&s.ort&&(s.land!=='CH'||s.kanton));
+const fillDl=(id,vals)=>{$('#'+id).innerHTML=vals.map(v=>`<option value="${esc(v)}"></option>`).join('')};
+function go(screen,msg){S.screen=screen;S.msg=msg||null;S.armed=null;render();window.scrollTo(0,0)}
 
-/* ---------- Logo: logo.svg oder logo.png im selben Ordner ---------- */
-let LOGO=null;
-function loadLogo(){
-  const list=['logo.svg','logo.png','logo.jpg'];
-  const tryNext=i=>{if(i>=list.length){LOGO=false;renderLogo();return}
-    const im=new Image();im.onload=()=>{LOGO=list[i];renderLogo()};im.onerror=()=>tryNext(i+1);im.src=list[i]+'?v=1'};
-  tryNext(0);
-}
-function renderLogo(){
-  $('#logo').innerHTML=LOGO?`<img src="${LOGO}?v=1" alt="Schachenmann + Co AG">`:`<div class="wordmark" aria-label="Schachenmann + Co AG">SCHACHENMANN<i>+</i></div>`;
-}
+/* ---------- Logos: logo.png (Schachenmann), burkhalter.png/.svg (optional) ---------- */
+function loadImg(list,cb){const next=i=>{if(i>=list.length)return;const im=new Image();im.onload=()=>cb(list[i]);im.onerror=()=>next(i+1);im.src=list[i]};next(0)}
+loadImg(['logo.svg','logo.png'],src=>{$('#logo').innerHTML=`<img src="${src}" alt="Schachenmann">`});
+loadImg(['burkhalter.svg','burkhalter.png'],src=>{$('#bk').innerHTML=`<img src="${src}" alt="Burkhalter Gruppe">`});
 
 function drawPattern(){
   const svg=$('#pattern');const w=1400,h=520;
   svg.setAttribute('viewBox',`0 0 ${w} ${h}`);svg.setAttribute('preserveAspectRatio','xMidYMid slice');
   const ph=['#ffed00','#8a8a84','#5a5a55','#ffed00'];const c='#d8d8d0';
   let s='';
-  [70,96,122,148].forEach((y,i)=>s+=`<line x1="0" y1="${y}" x2="${w}" y2="${y}" stroke="${ph[i]}" stroke-width="3" opacity=".5"/>`);
+  [40,66,92,118].forEach((y,i)=>s+=`<line x1="0" y1="${y}" x2="${w}" y2="${y}" stroke="${ph[i]}" stroke-width="3" opacity=".5"/>`);
   for(let i=0;i<26;i++){
-    const x=60+i*54,bus=70+(i%4)*26,y0=210+(i%3)*14;
+    const x=60+i*54,bus=40+(i%4)*26,y0=180+(i%3)*14;
     s+=`<g stroke="${c}" stroke-width="1.3" opacity=".3"><line x1="${x}" y1="${bus}" x2="${x}" y2="${y0}"/><line x1="${x}" y1="${y0+34}" x2="${x-11}" y2="${y0+8}"/><line x1="${x-4}" y1="${y0-4}" x2="${x+4}" y2="${y0+4}"/><line x1="${x-4}" y1="${y0+4}" x2="${x+4}" y2="${y0-4}"/><line x1="${x}" y1="${y0+34}" x2="${x}" y2="${h}" opacity=".6"/></g><circle cx="${x}" cy="${bus}" r="3" fill="${c}" opacity=".4"/>`;
   }
   s+=`<defs><linearGradient id="fade" x1="0" x2="1"><stop offset="0" stop-color="#0b0b0b" stop-opacity=".95"/><stop offset=".55" stop-color="#0b0b0b" stop-opacity=".35"/><stop offset="1" stop-color="#0b0b0b" stop-opacity="0"/></linearGradient></defs><rect x="0" y="0" width="${w}" height="${h}" fill="url(#fade)"/>`;
@@ -202,16 +245,18 @@ function drawPattern(){
 }
 
 /* ---------- Rendern ---------- */
-const TITLES={liste:'Meine Baustellen',baustelle:'Baustelle',admin:'Verwaltung'};
+const TITLES={liste:'Baustellen',baustelle:'Baustelle',admin:'Verwaltung',adminLogin:''};
+function headTitle(){return S.screen==='baustelle'&&S.site&&S.site.kom?'Kommission '+S.site.kom:(TITLES[S.screen]||'')}
 function render(){
-  const start=!S.user&&!S.admin;
-  $('#hero').classList.toggle('start',start);
+  document.body.classList.toggle('start',!S.user&&!S.admin);
   $('#topbar').innerHTML=S.user
     ?`<span class="who">${esc(S.user.name)}</span>${S.screen!=='liste'?'<button class="btn small" data-act="liste">Übersicht</button>':''}<button class="btn small" data-act="logout">Abmelden</button>`
     :(S.admin?`<span class="who">Verwaltung</span><button class="btn small" data-act="adminOut">Verlassen</button>`:'');
-  $('#pagehead').innerHTML=start?'':`<h1>${esc(S.screen==='baustelle'&&S.site&&S.site.kom?'Kommission '+S.site.kom:(TITLES[S.screen]||''))}</h1>`;
+  const t=(S.user||S.admin)?headTitle():'';
+  $('#pagehead').innerHTML=t?`<h1>${esc(t)}</h1>`:'';
   const f={start:vStart,liste:vListe,baustelle:vBaustelle,adminLogin:vAdminLogin,admin:vAdmin}[S.screen]||vStart;
   $('#main').innerHTML=f();
+  if(S.screen==='baustelle')fillDl('dlKom',[...new Set(D.sites.filter(s=>s.id!==S.site.id&&s.kom).map(s=>s.kom))].sort());
   const af=$('#main [autofocus]');if(af&&window.innerWidth>700)af.focus({preventScroll:true});
 }
 
@@ -237,20 +282,19 @@ function vStart(){
 
 /* ---------- Übersicht ---------- */
 function visibleSites(){
-  const q=S.q.trim().toLowerCase();
-  return D.sites.filter(s=>(S.fWer==='all'||s.owner===S.user.id)
+  const q=S.q.trim().toLowerCase(), fo=S.fOrt.trim().toLowerCase();
+  return D.sites.filter(s=>(!S.onlyMine||canEdit(s))
     &&(!S.fNorm||s.norm===S.fNorm)
     &&(!S.fKanton||(S.fKanton==='_DE'?s.land==='DE':s.kanton===S.fKanton))
-    &&(!S.fOrt||(s.ort||'').trim().toLowerCase()===S.fOrt)
-    &&(!q||[s.kom,s.bauherr,s.adr,s.plz,s.ort,s.kanton,landName(s.land)].join(' ').toLowerCase().includes(q)))
-    .sort((a,b)=>(b.updated||'').localeCompare(a.updated||''));
+    &&(!fo||(s.plz||'').toLowerCase().startsWith(fo)||(s.ort||'').toLowerCase().includes(fo)||((s.plz||'')+' '+(s.ort||'')).toLowerCase().includes(fo))
+    &&(!q||[s.kom,s.bauherr,s.adr,s.plz,s.ort,s.kanton,landName(s.land),userName(s.owner)].join(' ').toLowerCase().includes(q)))
+    .sort((a,b)=>{const ma=canEdit(a)?0:1,mb=canEdit(b)?0:1;return ma-mb||(b.updated||'').localeCompare(a.updated||'')});
 }
 function siteListHTML(){
   const list=visibleSites();
-  const total=D.sites.filter(s=>S.fWer==='all'||s.owner===S.user.id).length;
-  if(!total) return `<div class="empty">Noch keine Baustellen gespeichert.<br>Lege mit «Neue Baustelle» die erste an.</div>`;
+  if(!D.sites.length) return `<div class="empty">Noch keine Baustellen gespeichert.<br>Lege mit «Neue Baustelle» die erste an.</div>`;
   if(!list.length) return `<div class="empty">Keine Baustelle passt zur Suche oder zum Filter.</div>`;
-  return `<div class="sites">${list.map(s=>`<div class="site">
+  return `<div class="sites">${list.map(s=>{const ed=canEdit(s);return `<div class="site">
     <div>
       <div class="t">${s.kom?esc(s.kom):'<span class="muted">ohne Kommissionsnummer</span>'}${s.bauherr?`<span style="font-weight:500">· ${esc(s.bauherr)}</span>`:''}</div>
       <div class="d">${esc([s.adr,[s.plz,s.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ')||'Adresse fehlt')}</div>
@@ -258,71 +302,90 @@ function siteListHTML(){
         <span class="tag y">${s.art}</span><span class="tag">${s.norm}</span>
         ${s.land==='CH'&&s.kanton?`<span class="tag">${s.kanton}</span>`:`<span class="tag">${esc(landName(s.land))}</span>`}
         ${complete(s)?'':'<span class="tag">angefangen</span>'}
-        <span class="tag" title="zuletzt geändert">${fmtDate(s.updated)}${S.fWer==='all'?' · '+esc(userName(s.owner)):''}</span>
+        <span class="tag">${esc(userName(s.owner))}</span>
+        ${ed?'':'<span class="tag lock">nur ansehen</span>'}
+        <span class="tag" title="zuletzt geändert">${fmtDate(s.updated)}</span>
       </div>
     </div>
     <div class="acts">
-      <button class="btn small primary" data-open="${s.id}">Öffnen</button>
-      ${S.armed===s.id?`<button class="btn small danger" data-delsite="${s.id}">Wirklich löschen</button><button class="btn small" data-act="disarm">Abbrechen</button>`
-      :`<button class="btn small danger" data-arm="${s.id}">Löschen</button>`}
-    </div></div>`).join('')}</div>`;
+      <button class="btn small ${ed?'primary':''}" data-open="${s.id}">${ed?'Öffnen':'Ansehen'}</button>
+      ${canDelete(s)?(S.armed===s.id?`<button class="btn small danger" data-delsite="${s.id}">Wirklich löschen</button><button class="btn small" data-act="disarm">Abbrechen</button>`
+      :`<button class="btn small danger" data-arm="${s.id}">Löschen</button>`):''}
+    </div></div>`}).join('')}</div>`;
 }
 function vListe(){
-  const mine=D.sites.filter(s=>S.fWer==='all'||s.owner===S.user.id);
-  const kantone=[...new Set(mine.filter(s=>s.land==='CH'&&s.kanton).map(s=>s.kanton))].sort();
-  const hasDE=mine.some(s=>s.land==='DE');
-  const orte=[...new Map(mine.filter(s=>s.ort).map(s=>[s.ort.trim().toLowerCase(),s.ort.trim()])).entries()].sort((a,b)=>a[1].localeCompare(b[1],'de'));
+  const kantone=[...new Set(D.sites.filter(s=>s.land==='CH'&&s.kanton).map(s=>s.kanton))].sort();
+  const hasDE=D.sites.some(s=>s.land==='DE');
+  setTimeout(()=>fillDl('dlFilterOrt',[...new Set(D.sites.flatMap(s=>[s.ort&&s.ort.trim(),s.plz&&s.ort?s.plz+' '+s.ort.trim():null]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'de'))),0);
   return `<section class="card">
     <div class="row between"><h2>Angefangene und gespeicherte Baustellen</h2><button class="btn primary" data-act="new">+ Neue Baustelle</button></div>
+    ${msgHTML()}
     <div class="tools">
-      <label class="f q">Suche<input id="q" type="search" value="${esc(S.q)}" placeholder="Kommission, Bauherrschaft, Strasse, Ort …" autocomplete="off"></label>
+      <label class="f q">Suche<input id="q" type="search" value="${esc(S.q)}" placeholder="Kommission, Bauherrschaft, Strasse, Planer …" autocomplete="off"></label>
+      <label class="f">PLZ oder Stadt<input id="fOrt" type="search" list="dlFilterOrt" value="${esc(S.fOrt)}" placeholder="z. B. 4056 oder Basel" autocomplete="off"></label>
       <label class="f">Norm<select id="fNorm">${opt([['','alle'],['NIN','NIN'],['VDE','VDE']],S.fNorm)}</select></label>
-      <label class="f">Kanton<select id="fKanton">${opt([['','alle'],...kantone.map(k=>[k,k+' · '+(KANTONE.find(x=>x[0]===k)||[,''])[1]]),...(hasDE?[['_DE','Deutschland']]:[])],S.fKanton)}</select></label>
-      <label class="f">Stadt / Ort<select id="fOrt">${opt([['','alle'],...orte],S.fOrt)}</select></label>
+      <label class="f">Kanton<select id="fKanton">${opt([['','alle'],...kantone.map(k=>[k,k+' · '+kantonName(k)]),...(hasDE?[['_DE','Deutschland']]:[])],S.fKanton)}</select></label>
     </div>
-    <div class="row"><label class="row" style="gap:6px;font-size:14px"><input type="checkbox" id="fWer" style="width:auto" ${S.fWer==='all'?'checked':''}> Baustellen aller Planer auf diesem Gerät zeigen</label></div>
+    <label class="chk"><input type="checkbox" id="onlyMine" ${S.onlyMine?'checked':''}> Nur Baustellen, die ich bearbeiten darf</label>
     <div id="siteList">${siteListHTML()}</div>
   </section>
   <section class="card">
     <h2>Sicherung</h2>
-    <p class="sub">Alles wird automatisch in diesem Browser gespeichert und bleibt auch nach dem Schliessen erhalten. Werden die Browserdaten gelöscht, ist es weg. Lade darum ab und zu eine Sicherungsdatei herunter. Mit ihr kannst du die Baustellen auch auf ein anderes Gerät bringen.</p>
-    ${msgHTML()}
+    <p class="sub">Alles wird automatisch in diesem Browser gespeichert und bleibt nach dem Schliessen erhalten. Werden die Browserdaten gelöscht, ist es weg. Lade darum ab und zu eine Sicherungsdatei herunter. Mit ihr bringst du die Baustellen auch auf ein anderes Gerät.</p>
     <div class="row"><button class="btn" data-act="export">Sicherung herunterladen</button><button class="btn" data-act="import">Sicherung laden</button></div>
   </section>`;
 }
 
 /* ---------- Baustelle ---------- */
+function komHint(){
+  const p=S.site,k=(p.kom||'').trim().toLowerCase();
+  if(!k) return '';
+  const hits=D.sites.filter(s=>s.id!==p.id&&(s.kom||'').trim().toLowerCase()===k);
+  if(!hits.length) return '';
+  const h=hits[0];
+  return `<div class="msg info">Kommission ${esc(h.kom)} ist schon erfasst von ${esc(userName(h.owner))}${h.adr?', '+esc(h.adr):''}. <button type="button" class="btn link" data-open="${h.id}" data-fromhint="1">${canEdit(h)?'Diese öffnen':'Ansehen'}</button></div>`;
+}
 function vBaustelle(){
-  const p=S.site;
-  const seg=(k,opts)=>`<div class="seg" role="group">${opts.map(([v,t,s])=>`<button type="button" data-seg="${k}" data-v="${v}" aria-pressed="${p[k]===v}"><b>${t}</b><span>${s}</span></button>`).join('')}</div>`;
+  const p=S.site, ed=canEdit(p), dis=ed?'':' disabled';
+  const seg=(k,opts)=>`<div class="seg" role="group">${opts.map(([v,t,s])=>`<button type="button" data-seg="${k}" data-v="${v}" aria-pressed="${p[k]===v}"${dis}><b>${t}</b><span>${s}</span></button>`).join('')}</div>`;
   const ch=p.land==='CH';
+  const others=sortedUsers().filter(u=>u.id!==p.owner);
   return `<section class="card">
-    <div class="row between"><h2>Baustellendaten</h2></div>
+    <div class="row between"><h2>Baustellendaten</h2><div class="row"><span class="tag">Erstellt von ${esc(userName(p.owner))}</span><button type="button" class="btn small" data-act="print">Drucken</button></div></div>
+    ${ed?'':`<div class="msg info">Nur ansehen. Diese Baustelle gehört ${esc(userName(p.owner))}. Ändern kannst du sie erst, wenn ${esc(userName(p.owner))} sie für dich freigibt.</div>`}
     <form id="bForm" class="grid" novalidate>
-      <label class="f c2">Kommissionsnummer<input id="b-kom" data-b="kom" value="${esc(p.kom)}" placeholder="z. B. 24-0815" autofocus></label>
-      <label class="f c4">Bauherrschaft<input id="b-bauherr" data-b="bauherr" value="${esc(p.bauherr)}" placeholder="Name oder Firma"></label>
-      <label class="f c4">Strasse und Nummer<input id="b-adr" data-b="adr" value="${esc(p.adr)}" autocomplete="street-address"></label>
-      <label class="f c2">Land<select id="b-land" data-b="land">${opt(LAENDER,p.land)}</select></label>
-      <label class="f c2">PLZ<input id="b-plz" data-b="plz" value="${esc(p.plz)}" inputmode="numeric" placeholder="${p.land==='DE'||p.land==='FR'?'79539':'4051'}" autocomplete="postal-code"></label>
-      <label class="f ${ch?'c2':'c4'}">${p.land==='DE'?'Stadt':'Ort'}<input id="b-ort" data-b="ort" value="${esc(p.ort)}" placeholder="${p.land==='DE'?'Lörrach':'Basel'}" autocomplete="address-level2"></label>
-      ${ch?`<label class="f c2">Kanton<select id="b-kanton" data-b="kanton"><option value="">wählen …</option>${opt(KANTONE.map(([k,n])=>[k,k+' · '+n]),p.kanton)}</select></label>`:''}
+      <label class="f c2">Kommissionsnummer<input id="b-kom" data-b="kom" value="${esc(p.kom)}" placeholder="z. B. 24-0815" list="dlKom" autocomplete="off"${ed&&S.isNew?' autofocus':''}${dis}></label>
+      <label class="f c4">Bauherrschaft<input id="b-bauherr" data-b="bauherr" value="${esc(p.bauherr)}" placeholder="Name oder Firma"${dis}></label>
+      <div class="c6" id="komHint">${komHint()}</div>
+      <label class="f c4">Strasse und Nummer<input id="b-adr" data-b="adr" value="${esc(p.adr)}" autocomplete="off"${dis}></label>
+      <label class="f c2">Land<select id="b-land" data-b="land"${dis}>${opt(LAENDER,p.land)}</select></label>
+      <label class="f c2">PLZ<input id="b-plz" data-b="plz" value="${esc(p.plz)}" inputmode="numeric" list="dlPlz" autocomplete="off" placeholder="${p.land==='DE'||p.land==='FR'?'79539':'4051'}"${dis}></label>
+      <label class="f ${ch?'c2':'c4'}">${p.land==='DE'?'Stadt':'Ort'}<input id="b-ort" data-b="ort" value="${esc(p.ort)}" list="dlOrt" autocomplete="off" placeholder="${p.land==='DE'?'Lörrach':'Basel'}"${dis}></label>
+      ${ch?`<label class="f c2">Kanton<select id="b-kanton" data-b="kanton"${dis}><option value="">wählen …</option>${opt(KANTONE.map(([k,n])=>[k,k+' · '+n]),p.kanton)}</select></label>`:''}
       <div class="c3"><div class="legend">Zu behandelnde Norm</div>${seg('norm',[['NIN','NIN','Schweiz, SN 411000 (Standard)'],['VDE','VDE','Deutschland, DIN VDE 0100']])}</div>
       <div class="c3"><div class="legend">Art der Verteilung</div>${seg('art',[['UV','UV','Unterverteilung'],['HV','HV','Hauptverteilung']])}</div>
+      ${p.owner===S.user.id&&others.length?`<div class="c6"><div class="legend">Bearbeitung freigeben für</div><div class="share">${others.map(u=>`<label class="chk"><input type="checkbox" data-share="${u.id}" ${(p.editors||[]).includes(u.id)?'checked':''}> ${esc(u.name)}</label>`).join('')}</div><p class="sub" style="margin-top:6px">Alle anderen können die Baustelle nur ansehen und drucken. Löschen kannst nur du.</p></div>`:''}
       <div class="c6" id="bMsg">${msgHTML()}</div>
       <div class="c6 actions">
-        <span class="saved" id="savedInfo">${S.savedAt?'Gespeichert um '+fmtTime(S.savedAt):'Wird beim Tippen automatisch gespeichert'}</span>
-        <div class="row"><button type="button" class="btn" data-act="saveSite">Speichern</button><button type="submit" class="btn primary">Speichern und zur Übersicht</button></div>
+        ${ed?`<span class="saved" id="savedInfo">${S.savedAt?'Gespeichert um '+fmtTime(S.savedAt):'Wird beim Tippen automatisch gespeichert'}</span>
+        <div class="row"><button type="button" class="btn" data-act="saveSite">Speichern</button><button type="submit" class="btn primary">Speichern und zur Übersicht</button></div>`
+        :`<span class="saved">Nur ansehen</span><div class="row"><button type="button" class="btn" data-act="print">Drucken</button><button type="button" class="btn primary" data-act="liste">Zur Übersicht</button></div>`}
       </div>
     </form>
   </section>`;
 }
 function persistSite(){
-  const p=S.site;p.updated=now();
+  const p=S.site;if(!p||!canEdit(p))return false;
+  p.updated=now();
   const i=D.sites.findIndex(s=>s.id===p.id);
-  if(i<0)D.sites.push(p);else D.sites[i]=p;
-  if(save()){S.savedAt=new Date();const el=$('#savedInfo');if(el)el.textContent='Gespeichert um '+fmtTime(S.savedAt);return true}
-  const el=$('#savedInfo');if(el)el.textContent='Speichern fehlgeschlagen, der Gerätespeicher ist voll oder gesperrt';return false;
+  if(i>=0&&!canEdit(D.sites[i]))return false;
+  if(i<0)D.sites.push(JSON.parse(JSON.stringify(p)));else D.sites[i]=JSON.parse(JSON.stringify(p));
+  S.isNew=false;
+  const el=$('#savedInfo');
+  if(save()){S.savedAt=new Date();if(el)el.textContent='Gespeichert um '+fmtTime(S.savedAt);return true}
+  if(el)el.textContent='Speichern fehlgeschlagen, der Gerätespeicher ist voll oder gesperrt';return false;
 }
+let persistT;const persistSoon=()=>{clearTimeout(persistT);persistT=setTimeout(persistSite,400)};
 function validate(p){
   const miss=[];
   if(!p.kom.trim())miss.push('Kommissionsnummer');
@@ -334,6 +397,40 @@ function validate(p){
   const len={CH:4,LI:4,AT:4,DE:5,FR:5}[p.land];
   if(len&&!new RegExp('^\\d{'+len+'}$').test(p.plz.trim()))return `Gespeichert. Bitte die PLZ prüfen, in ${landName(p.land)} hat sie ${len} Ziffern.`;
   return null;
+}
+function setField(k,v){S.site[k]=v;const el=$('#b-'+k);if(el)el.value=v}
+function onPlz(){
+  const p=S.site,L=PLZ[p.land];if(!L)return;
+  const z=p.plz.trim();
+  const zips=[...L.byZip.keys()].filter(k=>k.startsWith(z)).slice(0,40);
+  fillDl('dlPlz',z?zips.map(k=>k):[]);
+  const hit=L.byZip.get(z);
+  if(hit){
+    fillDl('dlOrt',[...new Set(hit.map(h=>h.o))]);
+    if(!p.ort||p._autoOrt===p.ort||!hit.some(h=>h.o===p.ort)){setField('ort',hit[0].o);p._autoOrt=hit[0].o}
+    if(p.land==='CH'&&hit[0].k){setField('kanton',hit[0].k)}
+  }
+}
+function onOrtTyping(){
+  const p=S.site,L=PLZ[p.land];if(!L)return;
+  const o=p.ort.trim().toLowerCase();
+  fillDl('dlOrt',o.length<2?[]:L.orte.filter(x=>x.toLowerCase().startsWith(o)).slice(0,30));
+}
+function onOrtDone(){
+  const p=S.site,L=PLZ[p.land];if(!L)return;
+  const hit=L.byOrt.get(p.ort.trim().toLowerCase());if(!hit)return;
+  if(p.ort!==hit.o)setField('ort',hit.o);
+  const zips=[...new Set(hit.list.map(h=>h.z))];
+  fillDl('dlPlz',zips);
+  if(!zips.includes(p.plz.trim())){setField('plz',zips.length===1?zips[0]:'');}
+  if(p.land==='CH'&&hit.list[0].k)setField('kanton',hit.list[0].k);
+  if(zips.length>1&&!p.plz){S.msg={t:'info',m:hit.o+' hat mehrere Postleitzahlen. Tippe ins PLZ-Feld und wähle die passende.'};$('#bMsg').innerHTML=msgHTML()}
+}
+function printSheet(){
+  const p=S.site;
+  const rows=[['Kommissionsnummer',p.kom],['Bauherrschaft',p.bauherr],['Strasse',p.adr],[p.land==='DE'?'PLZ / Stadt':'PLZ / Ort',[p.plz,p.ort].filter(Boolean).join(' ')],...(p.land==='CH'?[['Kanton',p.kanton?p.kanton+' · '+kantonName(p.kanton):'']]:[]),['Land',landName(p.land)],['Norm',p.norm==='NIN'?'NIN (SN 411000)':'VDE (DIN VDE 0100)'],['Art der Verteilung',p.art==='HV'?'Hauptverteilung (HV)':'Unterverteilung (UV)'],['Erstellt von',userName(p.owner)],['Zuletzt geändert',fmtDate(p.updated)]];
+  $('#printSheet').innerHTML=`<h1>Baustellendaten${p.kom?' · Kommission '+esc(p.kom):''}</h1><table>${rows.map(r=>`<tr><td>${esc(r[0])}</td><td>${esc(r[1]||'–')}</td></tr>`).join('')}</table><div class="pf">Gedruckt am ${fmtDate(now())} von ${esc(S.user.name)} · Planungssoftware Service und Unterhalt</div>`;
+  window.print();
 }
 
 /* ---------- Verwaltung ---------- */
@@ -372,35 +469,50 @@ function vAdmin(){
       <input id="newApw" type="password" placeholder="Neues Passwort, mind. 8 Zeichen" autocomplete="new-password" style="flex:1 1 200px">
       <button class="btn" type="submit">Ändern</button>
     </form>
+    <p class="sub">Die Verwaltung kann keine Baustellen ändern oder löschen. Das dürfen nur der Ersteller und die Planer, für die er sie freigegeben hat.</p>
   </section></div>`;
 }
 
 /* ---------- Ereignisse ---------- */
 document.addEventListener('input',e=>{
   const t=e.target;
-  if(t.dataset.b&&t.tagName==='INPUT'&&S.site){S.site[t.dataset.b]=t.value;clearTimeout(persistSite.t);persistSite.t=setTimeout(persistSite,400)}
+  if(t.dataset.b&&t.tagName==='INPUT'&&S.site&&canEdit(S.site)){
+    S.site[t.dataset.b]=t.value;
+    if(t.dataset.b==='kom'){$('#komHint').innerHTML=komHint();$('#pagehead').innerHTML=`<h1>${esc(headTitle())}</h1>`}
+    if(t.dataset.b==='plz')onPlz();
+    if(t.dataset.b==='ort')onOrtTyping();
+    persistSoon();
+  }
   if(t.id==='q'){S.q=t.value;$('#siteList').innerHTML=siteListHTML()}
+  if(t.id==='fOrt'){S.fOrt=t.value;$('#siteList').innerHTML=siteListHTML()}
 });
 document.addEventListener('change',e=>{
   const t=e.target;
   if(t.id==='userSel'){S.sel=t.value;S.msg=null;render();return}
-  if(t.dataset.b&&S.site){
+  if(t.dataset.b&&S.site&&canEdit(S.site)){
     S.site[t.dataset.b]=t.value;
     if(t.dataset.b==='land'){if(t.value!=='CH')S.site.kanton='';persistSite();render();return}
+    if(t.dataset.b==='ort')onOrtDone();
     persistSite();return}
+  if(t.dataset.share&&S.site&&S.site.owner===S.user.id){
+    const set=new Set(S.site.editors||[]);t.checked?set.add(t.dataset.share):set.delete(t.dataset.share);S.site.editors=[...set];persistSite();return}
   if(t.id==='fNorm'){S.fNorm=t.value;$('#siteList').innerHTML=siteListHTML();return}
   if(t.id==='fKanton'){S.fKanton=t.value;$('#siteList').innerHTML=siteListHTML();return}
-  if(t.id==='fOrt'){S.fOrt=t.value;$('#siteList').innerHTML=siteListHTML();return}
-  if(t.id==='fWer'){S.fWer=t.checked?'all':'mine';S.fKanton='';S.fOrt='';render();return}
+  if(t.id==='onlyMine'){S.onlyMine=t.checked;$('#siteList').innerHTML=siteListHTML();return}
   if(t.id==='importFile'){
     const file=t.files[0];if(!file)return;
     const r=new FileReader();
     r.onload=()=>{try{
         const o=JSON.parse(r.result);if(!Array.isArray(o.sites))throw 0;
-        let n=0;o.sites.forEach(s=>{if(!s||!s.id)return;const i=D.sites.findIndex(x=>x.id===s.id);
-          if(!D.users.some(u=>u.id===s.owner)){const nm=(o.users||[]).find(u=>u.id===s.owner);const ex=nm&&D.users.find(u=>u.name===nm.name);s.owner=ex?ex.id:S.user.id}
-          if(i<0){D.sites.push(s);n++}else if((s.updated||'')>(D.sites[i].updated||'')){D.sites[i]=s;n++}});
-        save();S.msg={t:'ok',m:n+' Baustellen aus der Sicherung übernommen.'};
+        let n=0,skip=0;
+        o.sites.forEach(s=>{if(!s||!s.id)return;
+          const nm=(o.users||[]).find(u=>u.id===s.owner);
+          if(!D.users.some(u=>u.id===s.owner)){const ex=nm&&D.users.find(u=>u.name===nm.name);if(ex)s.owner=ex.id;else if(nm){const nu={id:s.owner,name:nm.name};D.users.push(nu)}}
+          s.editors=Array.isArray(s.editors)?s.editors:[];
+          const i=D.sites.findIndex(x=>x.id===s.id);
+          if(i<0){D.sites.push(s);n++}
+          else if((s.updated||'')>(D.sites[i].updated||'')){if(canEdit(D.sites[i])){D.sites[i]=s;n++}else skip++}});
+        save();S.msg={t:'ok',m:n+' Baustellen übernommen.'+(skip?' '+skip+' fremde Baustellen wurden nicht überschrieben.':'')};
       }catch(err){S.msg={t:'err',m:'Diese Datei ist keine Sicherung der Verteilerplanung.'}}
       t.value='';render()};
     r.readAsText(file);
@@ -422,6 +534,7 @@ document.addEventListener('submit',async e=>{
     S.user=u;S.admin=false;return go('liste');
   }
   if(id==='bForm'){
+    if(!canEdit(S.site))return go('liste');
     persistSite();const w=validate(S.site);
     return go('liste',w?{t:'err',m:w}:{t:'ok',m:'Baustelle '+S.site.kom+' gespeichert.'});
   }
@@ -449,30 +562,34 @@ document.addEventListener('submit',async e=>{
 document.addEventListener('click',e=>{
   const t=e.target.closest('button');if(!t)return;
   const act=t.dataset.act;
-  if(t.dataset.seg&&S.site){S.site[t.dataset.seg]=t.dataset.v;persistSite();
+  if(t.dataset.seg&&S.site&&canEdit(S.site)){S.site[t.dataset.seg]=t.dataset.v;persistSite();
     t.parentElement.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===t)));return}
-  if(act==='saveSite'){persistSite();const w=validate(S.site);S.msg=w?{t:'err',m:w}:{t:'ok',m:'Gespeichert.'};$('#bMsg').innerHTML=msgHTML();$('#pagehead').innerHTML=`<h1>${esc(S.site.kom?'Kommission '+S.site.kom:'Baustelle')}</h1>`;return}
-  if(act==='new'){S.site={id:nid(),owner:S.user.id,kom:'',bauherr:'',adr:'',plz:'',ort:'',kanton:'',land:'CH',norm:'NIN',art:'UV',created:now(),updated:now()};S.savedAt=null;return go('baustelle')}
-  if(t.dataset.open){S.site=JSON.parse(JSON.stringify(D.sites.find(s=>s.id===t.dataset.open)));S.savedAt=null;return go('baustelle')}
+  if(act==='saveSite'){persistSite();const w=validate(S.site);S.msg=w?{t:'err',m:w}:{t:'ok',m:'Gespeichert.'};$('#bMsg').innerHTML=msgHTML();return}
+  if(act==='print'){printSheet();return}
+  if(act==='new'){S.site={id:nid(),owner:S.user.id,editors:[],kom:'',bauherr:'',adr:'',plz:'',ort:'',kanton:'',land:'CH',norm:'NIN',art:'UV',created:now(),updated:now()};S.isNew=true;S.savedAt=null;return go('baustelle')}
+  if(t.dataset.open){
+    if(t.dataset.fromhint&&S.site){const cur=S.site;const onlyKom=!cur.bauherr&&!cur.adr&&!cur.plz&&!cur.ort;if(onlyKom&&cur.owner===S.user.id){clearTimeout(persistT);D.sites=D.sites.filter(s=>s.id!==cur.id);save()}}
+    const s=D.sites.find(x=>x.id===t.dataset.open);if(!s)return;
+    S.site=JSON.parse(JSON.stringify(s));S.isNew=false;S.savedAt=null;return go('baustelle')}
   if(t.dataset.arm){S.armed=t.dataset.arm;S.msg=null;if(S.screen==='liste'){$('#siteList').innerHTML=siteListHTML()}else render();return}
   if(act==='disarm'){S.armed=null;$('#siteList').innerHTML=siteListHTML();return}
-  if(t.dataset.delsite){const s=D.sites.find(x=>x.id===t.dataset.delsite);D.sites=D.sites.filter(x=>x.id!==t.dataset.delsite);save();S.armed=null;return go('liste',{t:'ok',m:'Baustelle '+(s.kom||'')+' gelöscht.'})}
-  if(act==='liste'){if(S.screen==='baustelle'&&S.site)persistSite();return go('liste')}
-  if(act==='logout'){if(S.screen==='baustelle'&&S.site)persistSite();S.user=null;S.sel='';S.site=null;return go('start')}
+  if(t.dataset.delsite){const s=D.sites.find(x=>x.id===t.dataset.delsite);if(!s||!canDelete(s))return;D.sites=D.sites.filter(x=>x.id!==s.id);save();S.armed=null;return go('liste',{t:'ok',m:'Baustelle '+(s.kom||'')+' gelöscht.'})}
+  if(act==='liste'){if(S.screen==='baustelle'&&S.site&&!S.isNew)persistSite();return go('liste')}
+  if(act==='logout'){if(S.screen==='baustelle'&&S.site&&!S.isNew)persistSite();S.user=null;S.sel='';S.site=null;return go('start')}
   if(act==='adminLogin')return go('adminLogin');
   if(act==='adminOut'){S.admin=false;return go('start')}
   if(act==='home')return go('start');
   if(act==='export'){
-    const data={app:'verteilerplanung',version:2,exported:now(),users:D.users.map(u=>({id:u.id,name:u.name})),sites:D.sites};
+    const data={app:'verteilerplanung',version:3,exported:now(),users:D.users.map(u=>({id:u.id,name:u.name})),sites:D.sites};
     const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Verteilerplanung-Sicherung-'+new Date().toISOString().slice(0,10)+'.json';
     document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);return}
   if(act==='import'){$('#importFile').click();return}
   if(t.dataset.reset){const u=D.users.find(x=>x.id===t.dataset.reset);delete u.hash;delete u.salt;save();S.armed=null;S.msg={t:'ok',m:'Passwort von '+u.name+' zurückgesetzt. Beim nächsten Anmelden wird ein neues festgelegt.'};return render()}
-  if(t.dataset.del){const u=D.users.find(x=>x.id===t.dataset.del);D.users=D.users.filter(x=>x.id!==u.id);save();S.armed=null;S.msg={t:'ok',m:u.name+' entfernt. Seine Baustellen bleiben erhalten.'};return render()}
+  if(t.dataset.del){const u=D.users.find(x=>x.id===t.dataset.del);D.users=D.users.filter(x=>x.id!==u.id);save();S.armed=null;S.msg={t:'ok',m:u.name+' entfernt. Die Baustellen bleiben erhalten.'};return render()}
 });
 
-drawPattern();loadLogo();renderLogo();render();
+drawPattern();render();
 })();
 </script>
 </body>
