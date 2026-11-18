@@ -561,7 +561,7 @@ const AMP=['2','4','6','8','10','13','16','20','25','32','40','50','63'].map(a=>
 const TYP=[['FILS','FI/LS'],['LS','LS']];
 const typTxt=t=>t==='FILS'?'FI/LS':'LS';
 const KL_PER_PAGE=20,RAIL_TE=12;
-const SK_ADERN=['2','3','4','5','7'].map(a=>[a,a+'×']);
+const SK_ADERN=['2','3','4','5','7','8','10','12'].map(a=>[a,a+'×']);
 const SK_QS=['1.5','2.5','4','6','10','16'].map(q=>[q,qsTxt(q)]);
 const cabTxt=r=>r.adern&&r.qs?r.adern+'×'+qsTxt(r.qs)+' mm²':'Kabel offen';
 /* Kabel automatisch bei 3-/4-polig: bis 13 A 5×1,5, 16 A 5×2,5 (manuell änderbar) */
@@ -575,7 +575,8 @@ function teOf(s,pl,r){const p=+r.pol;if(r.typ==='FILS'&&p<=2&&siemOn(pl))return 
 const RELAIS=[['TLZ','Treppenhausautomat','TLZ',1,['Treppenhaus-','automat']],['SS','Schrittschalter','SS',1,['Schritt-','schalter']],['REL','Relais','K',1,['Relais']],['ZR','Zeitrelais','ZR',1,['Zeitrelais']],['SCH','Schütz','K',2,['Schütz']]];
 const relInfo=k=>RELAIS.find(x=>x[0]===k)||RELAIS[2];
 /* Mehrere Relais an einer Sicherung: ein Kabel, L und N gebrückt. Adern = PE L N + je Relais Taster und Lampe */
-const CAB_STD=[5,7,10,12,14,16,19,24];
+/* FE0 1,5 mm² im CH-Handel: 2,3,4,5,6,7,8,10,12,16,21,27 Adern (kein 9×). Überzählige Adern bekommen Reserveklemmen. */
+const CAB_STD=[2,3,4,5,6,7,8,10,12,16,21,27];
 const relCab=n=>{const need=3+2*n;return CAB_STD.find(c=>c>=need)||need};
 function skLayout(s){
   const pl=planOf(s),five=(pl.adern||'5')==='5';
@@ -601,8 +602,8 @@ function skLayout(s){
   pages.forEach(q=>q.items.forEach(it=>{
     if(it.sk){const n=it.sk.rel.length,ix=n>1?String(it.k+1):'';it.K='-K'+kn++;it.cab=relCab(n);it.adern=String(it.cab);it.qs='1.5';
       if(it.k===0){it.cond=['PE',it.sk.cond[0],'N','T'+ix,'LA'+ix];it.w='-W'+w++}else{it.cond=['T'+ix,'LA'+ix];it.w=it.sk.rel[0].w}
-      it.kl=kl;kl+=it.cond.length}
-    else if(!it.rel.length){it.kl=kl;kl+=it.cond.length;it.w='-W'+w++}}));
+      it.res=it.k===n-1?it.cab-(3+2*n):0;it.kl=kl;kl+=it.cond.length+it.res}
+    else if(!it.rel.length){it.res=Math.max(0,(+it.adern||0)-it.cond.length);it.kl=kl;kl+=it.cond.length+it.res;it.w='-W'+w++}}));
   const sichTE=list.reduce((a,r)=>a+r.te,0),relTE=rels.reduce((a,x)=>a+x.te,0);
   const sum={res,cap,sichTE,relTE,resTE:Math.ceil((sichTE+relTE)*res),railsSk:rails.filter(r=>r.kind==='sk').length,railsRel:rails.filter(r=>r.kind==='rel').length,rails:rails.length,place:rails.length*RAIL_TE};
   return {list,rails,pages,sum};
@@ -676,7 +677,7 @@ function vPlan(){
       <div class="sk1"><input data-sk="name" value="${esc(r.name)}" placeholder="z. B. Backofen" aria-label="Bezeichnung Stromkreis ${j+1}" autocomplete="off"${dis}>
         <span class="tag skt" id="skt-${j}"></span>
         ${ed?`<button type="button" class="btn x" data-skdel="${j}" aria-label="Zeile ${j+1} löschen" title="Zeile löschen">✕</button>`:''}</div>
-      <div class="sk2">${sel('pol',pol,r,'Polzahl')}${sel('char',CHAR,r,'Char.')}${sel('amp',AMP,r,'Strom')}${sel('typ',TYP,r,'Typ')}${(r.relais||[]).length?`<label class="m" style="grid-column:span 2"><span>Kabel</span><span class="kab">je Relais 5×1,5</span></label>`:sel('adern',[['','–'],...SK_ADERN],r,'Adern')+sel('qs',[['','–'],...SK_QS],r,'mm²')}</div>
+      <div class="sk2">${sel('pol',pol,r,'Polzahl')}${sel('char',CHAR,r,'Char.')}${sel('amp',AMP,r,'Strom')}${sel('typ',TYP,r,'Typ')}${(r.relais||[]).length?`<label class="m" style="grid-column:span 2"><span>Kabel</span><span class="kab">ein Kabel ${relCab(r.relais.length)}×1,5</span></label>`:sel('adern',[['','–'],...SK_ADERN],r,'Adern')+sel('qs',[['','–'],...SK_QS],r,'mm²')}</div>
       <div class="sk3">${(r.relais||[]).map((t,q)=>`<span class="rl"><b>K</b> ${esc(relInfo(t)[1])}${ed?`<button type="button" data-rldel="${j}:${q}" aria-label="Relais entfernen">✕</button>`:''}</span>`).join('')}
         ${ed?`<select class="rladd" data-rladd="${j}" aria-label="Relais hinzufügen"><option value="">+ Relais …</option>${RELAIS.map(x=>`<option value="${x[0]}">${esc(x[1])}</option>`).join('')}</select>`:''}
 </div>
@@ -741,7 +742,8 @@ function skDecor(){
       if(x.nt)h.push('<span class="nt">+ N-Trenner direkt neben der Sicherung (NIN)</span>');
       if(rl.nt)h.push('<span class="warn">Hutschiene '+rl.no+': keine Phasen- oder Etagenschiene möglich'+(x.nt?'':' (N-Trenner auf derselben Schiene)')+'</span>');
       if(rl.siem)h.push('<span class="warn">Hutschiene '+rl.no+': Etagen- und Kammschienen von '+esc(pl.hersteller||'Hersteller')+' nicht kompatibel (Siemens FI/LS)</span>');
-      if(x.rel.length)h.push('<span class="nt">'+x.rel.map(k=>k.K+' '+relInfo(k.t)[1]).join(', ')+' im Schema neben der Sicherung, Kabel je 5×1,5</span>');
+      if(x.rel.length){const lr=x.rel[x.rel.length-1];h.push('<span class="nt">'+x.rel.map(k=>k.K+' '+relInfo(k.t)[1]).join(', ')+' neben der Sicherung, ein Kabel '+lr.cab+'×1,5 (L und N gebrückt)'+(lr.res?', '+lr.res+(lr.res===1?' Reserveklemme':' Reserveklemmen'):'')+'</span>')}
+      else if(x.res)h.push('<span class="nt">Kabel hat '+x.res+(x.res===1?' Ader':' Adern')+' mehr als nötig: '+x.res+(x.res===1?' Reserveklemme':' Reserveklemmen')+'</span>');
       if(rl.rel)h.push('<span class="warn">Hutschiene '+rl.no+': Relais mit auf der Sicherungsschiene, '+(/hager/i.test(pl.hersteller||'')?'bei Hager keine Phasenschiene möglich':'Phasenschiene beim Hersteller prüfen')+'</span>')}
     nEl.innerHTML=h.join('');nEl.hidden=!h.length});
   const si=$('#skInfo');if(si)si.textContent=skInfo(S.site);
@@ -832,7 +834,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     const col={L1:'braun',L2:'schwarz',L3:'grau',L:'braun',N:'blau',PE:'grün-gelb'};
     const cond=five?['L1','L2','L3','N','PE']:['L','N','PE'];
     const rows=cond.map((c,i)=>['-X0',String(i+1),c,pl.qs?qsTxt(pl.qs)+' mm²':'offen',col[c],'-W1 Zuleitung',pl.hersteller?'Klemmentyp folgt':''])
-      .concat(LL.pages.flatMap(q=>q.items).filter(it=>it.sk?it.k===0:!it.rel.length).map(r=>r.sk?(()=>{const g=r.sk.rel,all=g.flatMap(x=>x.cond||[]),last=g[g.length-1];return ['-X1',r.kl+'–'+(last.kl+last.cond.length-1),all.join(' ').slice(0,30),'1,5 mm²',r.cab===5?'gn-ge br bl sw gr':'gn-ge + nummeriert',(g.map(x=>x.K).join(', ')+' ('+r.sk.f+' '+r.sk.name+')').slice(0,40),r.w+' '+r.cab+'×1,5 mm²']})():['-X1',r.kl+'–'+(r.kl+r.cond.length-1),r.cond.join(' '),r.qs?qsTxt(r.qs)+' mm²':'offen','',(r.f+' '+r.name).slice(0,40),r.w+' '+cabTxt(r)]));
+      .concat(LL.pages.flatMap(q=>q.items).filter(it=>it.sk?it.k===0:!it.rel.length).map(r=>r.sk?(()=>{const g=r.sk.rel,last=g[g.length-1],all=g.flatMap(x=>x.cond||[]).concat(Array(last.res||0).fill('Res'));return ['-X1',r.kl+'–'+(last.kl+last.cond.length+(last.res||0)-1),('PE '+r.cond[1]+' N · '+g.length+'× T/LA'+(last.res?' · '+last.res+' Res':'')),'1,5 mm²',r.cab===5?'gn-ge br bl sw gr':'gn-ge + nummeriert',(g.map(x=>x.K).join(', ')+' ('+r.sk.f+' '+r.sk.name+')').slice(0,40),r.w+' '+r.cab+'×1,5 mm²'+(last.res?' · '+last.res+' Reserve':'')]})():['-X1',r.kl+'–'+(r.kl+r.cond.length+(r.res||0)-1),r.cond.concat(Array(r.res||0).fill('Res')).join(' '),r.qs?qsTxt(r.qs)+' mm²':'offen','',(r.f+' '+r.name).slice(0,40),r.w+' '+cabTxt(r)]));
     const part=rows.slice((pg.part||0)*KL_PER_PAGE,((pg.part||0)+1)*KL_PER_PAGE);
     part.forEach((v,i)=>{const y=iy0+120+i*26;v.forEach((t,j)=>T(cols[j],y,t,'tk4'));L(ix0+40,y+9,ix1-40,y+9,'fr3')});
     if((pg.part||0)===nParts-1)T(ix0+40,iy0+120+part.length*26+24,sk.length?'Klemmentyp der Abgänge folgt. Die Masse der Klemmblöcke werden am Ende für den Verteilerbauer ausgegeben.':'Weitere Klemmblöcke folgen mit den Stromkreisen. Die Masse der Klemmblöcke werden am Ende für den Verteilerbauer ausgegeben.','tm');
@@ -852,6 +854,8 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     const geo=it=>{if(it.sk){const x0=xs0+it.slot*cw;return {x0,w:cw,c:x0+33,xs:it.cond.map(cn=>x0+rx(cn))}}const x0=xs0+it.slot*cw,w=cw,n=it.cond.length,dx=it.sk?Math.min(14,(w-16)/4):n===5?10:n===4?11:12,bw=(n-1)*dx,c=x0+w-bw/2-(it.sk?6:12);return {x0,w,c,xs:it.cond.map((_,k)=>c+(k-(n-1)/2)*dx)}};
     let G;const foot=(it,g)=>{
       it.cond.forEach((cn,k)=>{const x=g.xs[k];Rc(x-5,yK,10,11,'bx');T(x,yK+8.5,String(it.kl+k),'tk','middle');L(x,yK+11,x,yK+30,bcls(cn));if(it.sk)T(x,yK-4,cn,'tk','middle')});
+      /* Reserveklemmen für überzählige Adern */
+      for(let q=0;q<(it.res||0);q++){const lx=g.xs[g.xs.length-1],st=it.sk?12:Math.max(10,(g.xs[1]-g.xs[0])||10),x=lx+st*(q+1),nr=it.kl+it.cond.length+q;Rc(x-5,yK,10,11,'bx');T(x,yK+8.5,String(nr),'tk','middle');L(x,yK+11,x,yK+30,'wc');T(x,yK-4,'Res','tk','middle')}
       if(it.sk&&it.k>0)return;
       let gw=g.w,gc=g.c;if(it.sk){const grp=it.sk.rel.filter(x=>G.has(x)),lg=G.get(grp[grp.length-1]);gw=lg.x0+lg.w-g.x0;gc=(g.xs[0]+lg.xs[lg.xs.length-1])/2;L(g.xs[0],yK+30,lg.xs[lg.xs.length-1],yK+30,'w')}
       for(let m=0;m<3;m++)L(gc-8,yK+22+m*3,gc+8,yK+17+m*3,'w');
