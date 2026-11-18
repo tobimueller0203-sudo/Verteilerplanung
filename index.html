@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}</style>
+</head>
+<body>
+<title>Verteilerplanung Schachenmann</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: Startseite mit dunklem Titelband (Sammelschienen-Motiv oder eigenes Titelbild), darüber schwebende Anmeldekarte. Danach schlichte Arbeitsansicht. */
+:root{
+  --bg:#f4f4f1; --surface:#ffffff; --ink:#141414; --muted:#5f5f5a; --line:#dcdcd5;
+  --navy:#0b0b0b; --navy2:#1a1a1a; --accent:#ffed00; --accent-ink:#111111; --link:#5c5200; --focus:#111111;
+  --err:#b42318; --err-soft:#fdecea; --ok:#1d7a46; --ok-soft:#e3f3e9; --field:#ffffff;
+  --f-display:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e0e0d; --surface:#191918; --ink:#f0f0ec; --muted:#a3a39c; --line:#2e2e2b;
+  --navy:#050505; --navy2:#141414; --accent:#ffed00; --accent-ink:#111111; --link:#ffed00; --focus:#ffed00;
+  --err:#ff8a80; --err-soft:#3a1714; --ok:#6fd39a; --ok-soft:#10301e; --field:#121211; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e0e0d; --surface:#191918; --ink:#f0f0ec; --muted:#a3a39c; --line:#2e2e2b;
+  --navy:#050505; --navy2:#141414; --accent:#ffed00; --accent-ink:#111111; --link:#ffed00; --focus:#ffed00;
+  --err:#ff8a80; --err-soft:#3a1714; --ok:#6fd39a; --ok-soft:#10301e; --field:#121211; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;min-height:100%}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+/* Titelband */
+.hero{position:relative;background:var(--navy);color:#f3f6fa;overflow:hidden}
+.btn.primary:hover{background:#111;color:var(--accent);border-color:#111}
+.hero .bgimg{position:absolute;inset:0;background-size:cover;background-position:center}
+.hero .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,20,36,.55),rgba(8,20,36,.85))}
+.hero svg.pattern{position:absolute;inset:0;width:100%;height:100%;opacity:.5}
+.hero .in{position:relative;max-width:1080px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 150px;display:flex;flex-direction:column;gap:56px}
+.brandrow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:12px}
+.brand img{height:40px;max-width:180px;object-fit:contain;background:#fff;border-radius:6px;padding:4px 8px}
+.mark{width:40px;height:40px;border-radius:2px;background:var(--accent);display:grid;place-items:center;font:800 17px var(--f-display);color:#111;letter-spacing:-.02em}
+.brand .nm{font:700 16px var(--f-display);line-height:1.15}
+.brand .nm small{display:block;font:500 12px var(--f-body);opacity:.75;letter-spacing:.04em}
+.eyebrow{margin-bottom:10px;font:600 12px var(--f-body);letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.hero h1 .hl{color:var(--accent)}
+.hero .yb{position:absolute;left:0;right:0;bottom:0;height:6px;background:var(--accent)}
+.hero h1{font-size:clamp(34px,6vw,60px);font-weight:800;letter-spacing:-.025em;line-height:1.02;max-width:14ch}
+.hero p.lead{font-size:17px;max-width:46ch;opacity:.85;margin:14px 0 0}
+
+/* Inhalt */
+.main{max-width:1080px;margin:-110px auto 0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px;position:relative;display:flex;flex-direction:column;gap:20px}
+.card{background:var(--surface);border:1px solid var(--line);border-top:4px solid var(--accent);border-radius:4px;padding:26px;box-shadow:0 18px 40px -24px rgba(8,20,36,.45);display:flex;flex-direction:column;gap:18px;min-width:0}
+.card.narrow{max-width:460px;width:100%}
+.card h2{font-size:22px;font-weight:700;letter-spacing:-.01em}
+.card .sub{color:var(--muted);margin:-10px 0 0;font-size:14px}
+.facts{display:flex;flex-wrap:wrap;gap:10px 28px;color:var(--muted);font-size:13px}
+.facts b{color:var(--ink);font-weight:600}
+label.f{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:var(--ink)}
+label.f .hint{font-weight:400;color:var(--muted)}
+input,select{background:var(--field);border:1px solid var(--line);border-radius:8px;padding:11px 12px;font-size:15px;width:100%;min-width:0}
+input:focus,select:focus{border-color:var(--ink)}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:3px;padding:11px 16px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.05)}
+.btn.small{padding:6px 10px;font-size:13px}
+.btn.link{border:0;background:none;padding:0;color:var(--link);font-weight:500}
+.btn.danger{color:var(--err)}
+.btn:disabled{opacity:.55;cursor:default}
+.msg{border-radius:8px;padding:10px 12px;font-size:14px}
+.msg.err{background:var(--err-soft);color:var(--err)}
+.msg.ok{background:var(--ok-soft);color:var(--ok)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.row.between{justify-content:space-between}
+.grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px}
+.c6{grid-column:span 6}.c4{grid-column:span 4}.c3{grid-column:span 3}.c2{grid-column:span 2}
+@media (max-width:640px){.c4,.c3,.c2{grid-column:span 6}.card{padding:20px}.hero .in{gap:36px;padding-block:22px 130px}}
+.seg{display:flex;border:1px solid var(--line);border-radius:9px;padding:3px;gap:3px;background:var(--bg)}
+.seg button{flex:1;border:0;background:none;border-radius:6px;padding:9px 10px;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:1px}
+.seg button b{font:700 15px var(--f-display)}
+.seg button span{font-size:12px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#111}.seg button[aria-pressed="true"] span{color:#3a3a00}
+.legend{font-size:13px;font-weight:600;margin-bottom:6px}
+.tag{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--bg);border:1px solid var(--line);color:var(--muted)}
+.tag.ok{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.ulist{display:flex;flex-direction:column}
+.uitem{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+.uitem:last-child{border-bottom:0}
+.uitem .n{font-weight:600}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:20px;align-items:start}
+.topbar{display:flex;align-items:center;gap:14px;color:#f3f6fa;font-size:14px}
+.topbar .who{opacity:.85}
+.topbar .btn{background:transparent;border-color:rgba(255,255,255,.35);color:#f3f6fa}
+.foot{color:var(--muted);font-size:12px;text-align:center;display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+.foot button{color:var(--muted)}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:14px}
+.summary div span{display:block;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.summary div b{font:600 16px var(--f-display)}
+.thumb{height:56px;max-width:200px;border-radius:6px;border:1px solid var(--line);object-fit:cover;background:var(--bg)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<header class="hero" id="hero">
+  <div class="bgimg" id="heroImg" hidden></div>
+  <svg class="pattern" id="pattern" aria-hidden="true"></svg>
+  <div class="yb" aria-hidden="true"></div>
+  <div class="shade" id="heroShade" hidden></div>
+  <div class="in">
+    <div class="brandrow">
+      <div class="brand" id="brand"></div>
+      <div class="topbar" id="topbar"></div>
+    </div>
+    <div id="heroText"></div>
+  </div>
+</header>
+<div class="main" id="main"></div>
+
+<script>
+(() => {
+const KEY='vp.v2';
+const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
+const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
+const nid=()=>Math.random().toString(36).slice(2,10);
+let D;
+try{D=JSON.parse(localStorage.getItem(KEY))}catch(e){D=null}
+if(!D||!Array.isArray(D.users)) D={users:START_NAMES.map(n=>({id:nid(),name:n})),admin:null,branding:{},projects:{}};
+D.branding=D.branding||{};D.projects=D.projects||{};
+function save(){try{localStorage.setItem(KEY,JSON.stringify(D));return true}catch(e){return false}}
+
+/* Sitzung nur im Speicher: nach dem Neuladen meldet man sich neu an */
+let S={screen:'start',user:null,admin:false,msg:null,sel:''};
+
+/* ---------- Passwort-Hash (PBKDF2, mit Salz) ---------- */
+const hex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
+async function hashPw(pw,salt){
+  if(window.crypto&&crypto.subtle){
+    const k=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveBits']);
+    const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:new TextEncoder().encode(salt),iterations:150000,hash:'SHA-256'},k,256);
+    return 'p2$'+hex(bits);
+  }
+  let h=2166136261;const s=salt+pw;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return 'f1$'+(h>>>0).toString(16);
+}
+async function setPw(obj,pw){obj.salt=nid()+nid();obj.hash=await hashPw(pw,obj.salt)}
+async function checkPw(obj,pw){return obj&&obj.hash&&(await hashPw(pw,obj.salt))===obj.hash}
+
+/* ---------- Helfer ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const opt=(list,val)=>list.map(([k,l])=>`<option value="${esc(k)}"${k===val?' selected':''}>${esc(l)}</option>`).join('');
+const msgHTML=()=>S.msg?`<div class="msg ${S.msg.t}" role="status">${esc(S.msg.m)}</div>`:'';
+const sortedUsers=()=>[...D.users].sort((a,b)=>a.name.localeCompare(b.name,'de'));
+function go(screen,msg){S.screen=screen;S.msg=msg||null;render();window.scrollTo(0,0)}
+
+/* Sammelschienen-Motiv im Titelband */
+function drawPattern(){
+  const svg=$('#pattern');const w=1400,h=520;
+  svg.setAttribute('viewBox',`0 0 ${w} ${h}`);svg.setAttribute('preserveAspectRatio','xMidYMid slice');
+  const ph=['#ffed00','#8a8a84','#5a5a55','#ffed00'];
+  let s='';
+  [70,96,122,148].forEach((y,i)=>s+=`<line x1="0" y1="${y}" x2="${w}" y2="${y}" stroke="${ph[i]}" stroke-width="3" opacity=".55"/>`);
+  for(let i=0;i<26;i++){
+    const x=60+i*54, bus=70+(i%4)*26, y0=210+(i%3)*14;
+    s+=`<line x1="${x}" y1="${bus}" x2="${x}" y2="${y0}" stroke="#d8d8d0" stroke-width="1.3" opacity=".35"/>`;
+    s+=`<line x1="${x}" y1="${y0+34}" x2="${x-11}" y2="${y0+8}" stroke="#d8d8d0" stroke-width="1.3" opacity=".35"/>`;
+    s+=`<line x1="${x-4}" y1="${y0-4}" x2="${x+4}" y2="${y0+4}" stroke="#d8d8d0" stroke-width="1.3" opacity=".35"/><line x1="${x-4}" y1="${y0+4}" x2="${x+4}" y2="${y0-4}" stroke="#d8d8d0" stroke-width="1.3" opacity=".35"/>`;
+    s+=`<line x1="${x}" y1="${y0+34}" x2="${x}" y2="${h}" stroke="#d8d8d0" stroke-width="1.3" opacity=".22"/>`;
+    s+=`<circle cx="${x}" cy="${bus}" r="3" fill="#d8d8d0" opacity=".45"/>`;
+  }
+  s+=`<rect x="0" y="0" width="${w}" height="${h}" fill="url(#fade)"/><defs><linearGradient id="fade" x1="0" x2="1"><stop offset="0" stop-color="#0b0b0b" stop-opacity=".95"/><stop offset=".55" stop-color="#0b0b0b" stop-opacity=".35"/><stop offset="1" stop-color="#0b0b0b" stop-opacity="0"/></linearGradient></defs>`;
+  svg.innerHTML=s;
+}
+
+/* ---------- Rendern ---------- */
+function renderChrome(){
+  const b=D.branding;
+  $('#brand').innerHTML=(b.logo?`<img src="${b.logo}" alt="Logo">`:`<div class="mark" aria-hidden="true">S+</div>`)+`<div class="nm">Schachenmann + Co AG<small>BASEL · ELEKTRO</small></div>`;
+  const img=$('#heroImg');
+  if(b.hero){img.style.backgroundImage=`url(${b.hero})`;img.hidden=false;$('#heroShade').hidden=false;$('#pattern').style.display='none'}
+  else{img.hidden=true;$('#heroShade').hidden=true;$('#pattern').style.display=''}
+  $('#topbar').innerHTML=S.user?`<span class="who">${esc(S.user.name)}</span><button class="btn small" data-act="logout">Abmelden</button>`:(S.admin?`<span class="who">Verwaltung</span><button class="btn small" data-act="adminOut">Verlassen</button>`:'');
+  const loggedIn=S.user||S.admin;
+  $('#heroText').innerHTML=loggedIn
+    ?`<div class="eyebrow">${S.admin?'Verwaltung':'Neue Planung'}</div><h1 style="font-size:clamp(28px,4.5vw,44px);max-width:20ch">${S.admin?'Namen, Passwörter und Bilder':'Baustelle erfassen'}</h1>`
+    :`<div class="eyebrow">360° Verteilerplanung · UV und HV</div><h1>Verteiler planen.<br><span class="hl">Nicht mehr von Hand.</span></h1><p class="lead">Baustelle erfassen, Verteiler zusammenstellen und die Unterlagen sauber an den Verteilerbauer schicken.</p>`;
+}
+function render(){
+  renderChrome();
+  const f={start:vStart,baustelle:vBaustelle,weiter:vWeiter,adminLogin:vAdminLogin,admin:vAdmin}[S.screen]||vStart;
+  $('#main').innerHTML=f();
+  const af=$('#main [autofocus]');if(af)af.focus({preventScroll:true});
+}
+
+function vStart(){
+  const u=D.users.find(x=>x.id===S.sel);
+  const needCreate=u&&!u.hash;
+  return `<section class="card narrow">
+    <div><h2>Anmelden</h2></div>
+    <p class="sub">Wähle aus, unter welchem Namen die Planung läuft.</p>
+    <form id="loginForm" style="display:flex;flex-direction:column;gap:16px" novalidate>
+      <label class="f">Planung läuft unter
+        <select id="userSel"><option value="">Name wählen …</option>${opt(sortedUsers().map(x=>[x.id,x.name]),S.sel)}</select></label>
+      ${u?(needCreate?`
+        <div class="msg ok">Erste Anmeldung für ${esc(u.name)}. Lege jetzt dein persönliches Passwort fest.</div>
+        <label class="f">Neues Passwort <span class="hint">mindestens 6 Zeichen</span><input id="pw1" type="password" autocomplete="new-password" autofocus></label>
+        <label class="f">Passwort wiederholen<input id="pw2" type="password" autocomplete="new-password"></label>
+        ${msgHTML()}
+        <button class="btn primary" type="submit">Passwort speichern und starten</button>`
+      :`
+        <label class="f">Passwort<input id="pw" type="password" autocomplete="current-password" autofocus></label>
+        ${msgHTML()}
+        <button class="btn primary" type="submit">Anmelden</button>
+        <p class="sub" style="margin:0">Passwort vergessen? Die Verwaltung kann es zurücksetzen, danach legst du ein neues fest.</p>`)
+      :msgHTML()}
+    </form>
+  </section>
+  <div class="foot"><span>Prototyp · Daten werden auf diesem Gerät gespeichert</span><span>·</span><button class="btn link" data-act="adminLogin" style="color:var(--muted);font-size:12px">Verwaltung</button></div>`;
+}
+
+function proj(){const p=D.projects[S.user.id]||(D.projects[S.user.id]={});
+  if(!p.land)p.land='CH';if(!p.norm)p.norm='NIN';if(!p.art)p.art='UV';return p}
+function vBaustelle(){
+  const p=proj();
+  const seg=(k,opts)=>`<div class="seg" role="group">${opts.map(([v,t,s])=>`<button type="button" data-seg="${k}" data-v="${v}" aria-pressed="${p[k]===v}"><b>${t}</b><span>${s}</span></button>`).join('')}</div>`;
+  return `<section class="card">
+    <div class="row between"><h2>Baustellendaten</h2>${p.saved?'<span class="tag ok">gespeichert</span>':''}</div>
+    <p class="sub">Die Angaben bleiben für das laufende Projekt gespeichert und werden beim nächsten Anmelden wieder geladen.</p>
+    <form id="bForm" class="grid" novalidate>
+      <label class="f c2">Kommissionsnummer<input id="b-kom" data-b="kom" value="${esc(p.kom)}" placeholder="z. B. 24-0815" autofocus></label>
+      <label class="f c4">Adresse<input id="b-adr" data-b="adr" value="${esc(p.adr)}" placeholder="Strasse und Nummer" autocomplete="street-address"></label>
+      <label class="f c2">PLZ<input id="b-plz" data-b="plz" value="${esc(p.plz)}" inputmode="numeric" placeholder="${p.land==='DE'||p.land==='FR'?'79539':'4051'}" autocomplete="postal-code"></label>
+      <label class="f c2">Ort<input id="b-ort" data-b="ort" value="${esc(p.ort)}" placeholder="Basel" autocomplete="address-level2"></label>
+      <label class="f c2">Land<select id="b-land" data-b="land">${opt(LAENDER,p.land)}</select></label>
+      <div class="c3"><div class="legend">Zu behandelnde Norm</div>${seg('norm',[['NIN','NIN','Schweiz, SN 411000 (Standard)'],['VDE','VDE','Deutschland, DIN VDE 0100']])}</div>
+      <div class="c3"><div class="legend">Art der Verteilung</div>${seg('art',[['UV','UV','Unterverteilung'],['HV','HV','Hauptverteilung']])}</div>
+      <div class="c6" id="bMsg">${msgHTML()}</div>
+      <div class="c6 row between">
+        <button type="button" class="btn link" data-act="clearProj">Felder leeren</button>
+        <button type="submit" class="btn primary">Speichern und weiter</button>
+      </div>
+    </form>
+  </section>`;
+}
+function vWeiter(){
+  const p=proj();const land=(LAENDER.find(l=>l[0]===p.land)||[,p.land])[1];
+  return `<section class="card">
+    <div class="row between"><h2>Kommission ${esc(p.kom)}</h2><button class="btn small" data-act="editProj">Bearbeiten</button></div>
+    <div class="summary">
+      <div><span>Adresse</span><b>${esc(p.adr)}</b></div>
+      <div><span>PLZ / Ort</span><b>${esc(p.plz)} ${esc(p.ort)}</b></div>
+      <div><span>Land</span><b>${esc(land)}</b></div>
+      <div><span>Norm</span><b>${p.norm}</b></div>
+      <div><span>Verteilung</span><b>${p.art==='HV'?'Hauptverteilung (HV)':'Unterverteilung (UV)'}</b></div>
+      <div><span>Planung durch</span><b>${esc(S.user.name)}</b></div>
+    </div>
+    <div class="msg ok">Baustellendaten gespeichert. Der nächste Schritt, die eigentliche Verteilerplanung, folgt in der nächsten Version.</div>
+  </section>`;
+}
+
+function vAdminLogin(){
+  const first=!D.admin;
+  return `<section class="card narrow">
+    <h2>Verwaltung</h2>
+    <p class="sub">${first?'Noch kein Verwaltungspasswort vorhanden. Lege es jetzt fest, es schützt das Anlegen von Namen und das Zurücksetzen von Passwörtern.':'Nur für die Verwaltung der Namen und Passwörter.'}</p>
+    <form id="adminForm" style="display:flex;flex-direction:column;gap:16px" novalidate>
+      <label class="f">${first?'Neues Verwaltungspasswort <span class="hint">mindestens 8 Zeichen</span>':'Verwaltungspasswort'}<input id="apw" type="password" autocomplete="${first?'new-password':'current-password'}" autofocus></label>
+      ${first?'<label class="f">Passwort wiederholen<input id="apw2" type="password" autocomplete="new-password"></label>':''}
+      ${msgHTML()}
+      <div class="row between"><button type="button" class="btn link" data-act="home">Zurück</button><button class="btn primary" type="submit">${first?'Festlegen und öffnen':'Öffnen'}</button></div>
+    </form>
+  </section>`;
+}
+function vAdmin(){
+  const b=D.branding;
+  return `<div class="two">
+  <section class="card">
+    <h2>Namen</h2>
+    <form id="addUser" class="row" novalidate>
+      <input id="newName" placeholder="Vorname Nachname" style="flex:1 1 200px" autocomplete="off">
+      <button class="btn primary" type="submit">Name anlegen</button>
+    </form>
+    ${msgHTML()}
+    <div class="ulist">${sortedUsers().map(u=>`<div class="uitem">
+      <div><div class="n">${esc(u.name)}</div>${u.hash?'<span class="tag ok">Passwort gesetzt</span>':'<span class="tag">wartet auf erstes Passwort</span>'}</div>
+      <div class="row">
+        ${u.hash?`<button class="btn small" data-reset="${u.id}">Passwort zurücksetzen</button>`:''}
+        <button class="btn small danger" data-del="${u.id}">Entfernen</button>
+      </div></div>`).join('')}</div>
+  </section>
+  <section class="card">
+    <h2>Logo und Titelbild</h2>
+    <p class="sub">Lade das offizielle Firmenlogo und ein Titelbild hoch. Sie erscheinen auf der Startseite.</p>
+    <label class="f">Logo <span class="hint">PNG oder SVG, am besten mit hellem Hintergrund</span><input id="upLogo" type="file" accept="image/*"></label>
+    ${b.logo?`<div class="row"><img class="thumb" src="${b.logo}" alt="Aktuelles Logo"><button class="btn small" data-act="rmLogo">Logo entfernen</button></div>`:''}
+    <label class="f">Titelbild <span class="hint">Querformat, wird automatisch verkleinert</span><input id="upHero" type="file" accept="image/*"></label>
+    ${b.hero?`<div class="row"><img class="thumb" src="${b.hero}" alt="Aktuelles Titelbild"><button class="btn small" data-act="rmHero">Titelbild entfernen</button></div>`:''}
+    <h2 style="font-size:17px;margin-top:6px">Verwaltungspasswort ändern</h2>
+    <form id="chAdmin" class="row" novalidate>
+      <input id="newApw" type="password" placeholder="Neues Passwort, mind. 8 Zeichen" autocomplete="new-password" style="flex:1 1 200px">
+      <button class="btn" type="submit">Ändern</button>
+    </form>
+  </section></div>`;
+}
+
+/* ---------- Bilder verkleinern ---------- */
+function readImage(file,maxW,type){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onerror=rej;
+    r.onload=()=>{
+      if(file.type==='image/svg+xml'){res(r.result);return}
+      const im=new Image();im.onerror=rej;
+      im.onload=()=>{const sc=Math.min(1,maxW/im.width);const c=document.createElement('canvas');c.width=Math.round(im.width*sc);c.height=Math.round(im.height*sc);
+        c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL(type,0.82))};
+      im.src=r.result;
+    };
+    r.readAsDataURL(file);
+  });
+}
+
+/* ---------- Ereignisse ---------- */
+document.addEventListener('change',async e=>{
+  const t=e.target;
+  if(t.id==='userSel'){S.sel=t.value;S.msg=null;render();return}
+  if(t.dataset.b){proj()[t.dataset.b]=t.value;save();if(t.dataset.b==='land')render();return}
+  if(t.id==='upLogo'||t.id==='upHero'){
+    const file=t.files[0];if(!file)return;
+    try{
+      const url=await readImage(file,t.id==='upLogo'?480:1800,t.id==='upLogo'?'image/png':'image/jpeg');
+      D.branding[t.id==='upLogo'?'logo':'hero']=url;
+      if(!save()){delete D.branding[t.id==='upLogo'?'logo':'hero'];S.msg={t:'err',m:'Das Bild ist zu gross für den Gerätespeicher. Bitte ein kleineres Bild wählen.'}}
+      else S.msg={t:'ok',m:t.id==='upLogo'?'Logo gespeichert.':'Titelbild gespeichert.'};
+    }catch(err){S.msg={t:'err',m:'Das Bild konnte nicht gelesen werden. Bitte PNG, JPG oder SVG verwenden.'}}
+    render();
+  }
+});
+document.addEventListener('input',e=>{const t=e.target;if(t.dataset.b&&t.tagName==='INPUT'){const p=proj();p[t.dataset.b]=t.value;p.saved=false;save()}});
+
+document.addEventListener('submit',async e=>{
+  e.preventDefault();
+  const id=e.target.id;
+  if(id==='loginForm'){
+    const u=D.users.find(x=>x.id===S.sel);
+    if(!u){S.msg={t:'err',m:'Bitte zuerst einen Namen wählen.'};return render()}
+    if(!u.hash){
+      const a=$('#pw1').value,b=$('#pw2').value;
+      if(a.length<6){S.msg={t:'err',m:'Das Passwort braucht mindestens 6 Zeichen.'};return render()}
+      if(a!==b){S.msg={t:'err',m:'Die beiden Passwörter stimmen nicht überein.'};return render()}
+      await setPw(u,a);save();
+    }else if(!(await checkPw(u,$('#pw').value))){S.msg={t:'err',m:'Das Passwort stimmt nicht. Bitte nochmals versuchen.'};return render()}
+    S.user=u;S.admin=false;
+    const p=D.projects[u.id];
+    return go(p&&p.saved?'weiter':'baustelle');
+  }
+  if(id==='bForm'){
+    const p=proj(),miss=[];
+    if(!p.kom||!p.kom.trim())miss.push('Kommissionsnummer');
+    if(!p.adr||!p.adr.trim())miss.push('Adresse');
+    if(!p.plz||!p.plz.trim())miss.push('PLZ');
+    if(!p.ort||!p.ort.trim())miss.push('Ort');
+    if(miss.length){S.msg={t:'err',m:'Bitte noch ausfüllen: '+miss.join(', ')+'.'};$('#bMsg').innerHTML=msgHTML();return}
+    const plzLen={CH:4,LI:4,AT:4,DE:5,FR:5}[p.land];
+    if(plzLen&&!new RegExp('^\\d{'+plzLen+'}$').test(p.plz.trim())){S.msg={t:'err',m:`Die PLZ für ${LAENDER.find(l=>l[0]===p.land)[1]} hat ${plzLen} Ziffern.`};$('#bMsg').innerHTML=msgHTML();return}
+    p.saved=true;save();return go('weiter');
+  }
+  if(id==='adminForm'){
+    const a=$('#apw').value;
+    if(!D.admin){
+      if(a.length<8){S.msg={t:'err',m:'Das Verwaltungspasswort braucht mindestens 8 Zeichen.'};return render()}
+      if(a!==$('#apw2').value){S.msg={t:'err',m:'Die beiden Passwörter stimmen nicht überein.'};return render()}
+      D.admin={};await setPw(D.admin,a);save();
+    }else if(!(await checkPw(D.admin,a))){S.msg={t:'err',m:'Das Verwaltungspasswort stimmt nicht.'};return render()}
+    S.admin=true;S.user=null;return go('admin');
+  }
+  if(id==='addUser'){
+    const n=$('#newName').value.trim().replace(/\s+/g,' ');
+    if(n.length<3){S.msg={t:'err',m:'Bitte Vor- und Nachnamen eingeben.'};return render()}
+    if(D.users.some(u=>u.name.toLowerCase()===n.toLowerCase())){S.msg={t:'err',m:n+' gibt es schon.'};return render()}
+    D.users.push({id:nid(),name:n});save();S.msg={t:'ok',m:n+' angelegt. Beim ersten Anmelden legt die Person ihr Passwort selbst fest.'};return render();
+  }
+  if(id==='chAdmin'){
+    const a=$('#newApw').value;if(a.length<8){S.msg={t:'err',m:'Das neue Verwaltungspasswort braucht mindestens 8 Zeichen.'};return render()}
+    await setPw(D.admin,a);save();S.msg={t:'ok',m:'Verwaltungspasswort geändert.'};return render();
+  }
+});
+
+document.addEventListener('click',e=>{
+  const t=e.target.closest('button');if(!t)return;
+  const act=t.dataset.act;
+  if(t.dataset.seg){proj()[t.dataset.seg]=t.dataset.v;proj().saved=false;save();
+    t.parentElement.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===t)));return}
+  if(act==='logout'){S.user=null;S.sel='';return go('start')}
+  if(act==='adminLogin')return go('adminLogin');
+  if(act==='adminOut'){S.admin=false;return go('start')}
+  if(act==='home')return go('start');
+  if(act==='editProj')return go('baustelle');
+  if(act==='clearProj'){if(t.dataset.armed!=='1'){t.dataset.armed='1';t.textContent='Wirklich alle Felder leeren?';return}D.projects[S.user.id]={};save();return go('baustelle')}
+  if(act==='rmLogo'){delete D.branding.logo;save();return render()}
+  if(act==='rmHero'){delete D.branding.hero;save();return render()}
+  if(t.dataset.reset){const u=D.users.find(x=>x.id===t.dataset.reset);
+    if(t.dataset.armed!=='1'){t.dataset.armed='1';t.textContent='Sicher zurücksetzen?';return}
+    delete u.hash;delete u.salt;save();S.msg={t:'ok',m:'Passwort von '+u.name+' zurückgesetzt. Beim nächsten Anmelden wird ein neues festgelegt.'};return render()}
+  if(t.dataset.del){const u=D.users.find(x=>x.id===t.dataset.del);
+    if(t.dataset.armed!=='1'){t.dataset.armed='1';t.textContent='Sicher entfernen?';return}
+    D.users=D.users.filter(x=>x.id!==u.id);delete D.projects[u.id];save();S.msg={t:'ok',m:u.name+' entfernt.'};return render()}
+});
+
+drawPattern();
+render();
+})();
+</script>
+
+</body>
+</html>
