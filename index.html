@@ -841,7 +841,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     const pageOfRail=()=>pg.no;
     const busN=five?['L1','L2','L3','N']:['L','N'],busY={PE:500};busN.forEach((b,i)=>busY[b]=90+i*14);
     const bcls=b=>b==='N'?'wn':b==='PE'?'wpe':/^(T|LA)/.test(b)?'wc':'w';
-    const xs0=ix0+cw,items=pg.dp.items,xEnd=cont?ix1-8:xs0+items.length*cw-4;
+    const xs0=ix0+cw,items=pg.dp.items,xEnd=ix1-8;
     const colOf=x=>Math.max(0,Math.min(9,Math.floor((x-ix0)/cw)));
     [...busN,'PE'].forEach(b=>{const y=busY[b];L(ix0+8,y,xEnd,y,bcls(b));T(ix0+10,y-3,prv+'.9 '+b,'tr');if(cont)T(ix1-10,y-3,nxt.no+'.0 '+b,'tr','end')});
     T(ix0+10,busY.PE+16,'PE-Schiene','tm');
