@@ -142,7 +142,7 @@ input:disabled,select:disabled{opacity:1;background:var(--bg);color:var(--ink);-
 .sk .x{padding:8px 0;width:40px;color:var(--muted);flex:none}
 .skt{flex:none}
 .zlr{border:1px solid var(--line);border-radius:10px;padding:12px;margin:10px 0;border-bottom:1px solid var(--line)}.zlr.res{background:#fafafa;border-style:dashed}.zlno{min-width:40px;font-size:16px}.zlsel{max-width:210px;padding:8px}
-.sk3{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.sk3{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-end}.sk3 .m select{height:38px;padding:6px 8px;font-size:13px;width:auto;min-width:140px}
 .rl{display:inline-flex;align-items:center;gap:6px;background:var(--info-soft);border:1px solid #e6dc6a;border-radius:3px;padding:4px 4px 4px 8px;font-size:13px}
 .rl button{border:0;background:none;cursor:pointer;color:var(--muted);padding:2px 6px}
 .rladd{width:auto;padding:6px 8px;font-size:13px}.chk.small{font-size:13px}.te{border-collapse:collapse;width:100%;font-size:14px}.te td{padding:6px 0;border-bottom:1px solid var(--line)}.te td:last-child{text-align:right;font-weight:600}.te tr.sum td{font-weight:700}.chk input.pct{width:72px;height:auto;padding:6px 8px;font-size:15px}
@@ -718,7 +718,7 @@ function vPlan(){
         ${ed?`<button type="button" class="btn x" data-skdel="${j}" aria-label="Zeile ${j+1} löschen" title="Zeile löschen">✕</button>`:''}</div>
       <div class="sk2">${sel('pol',pol,r,'Polzahl')}${sel('char',CHAR,r,'Char.')}${sel('amp',AMP,r,'Strom')}${sel('typ',TYP,r,'Typ')}${(r.relais||[]).length?`<label class="m" style="grid-column:span 2"><span>Kabel</span><span class="kab">ein Kabel ${relCab(r.relais.length)}×1,5</span></label>`:sel('adern',[['','–'],...SK_ADERN],r,'Adern')+sel('qs',[['','–'],...SK_QS],r,'mm²')}</div>
       <div class="sk3">${(r.relais||[]).length||!zMain?'':`<label class="m abg"><span>Kabelabgänge</span><select data-sk="abg"${dis}>${opt([['1','1 Abgang'],['2','2 Abgänge'],['3','3 Abgänge'],['4','4 Abgänge']],r.abg||'1')}</select></label>`}${(r.relais||[]).map((t,q)=>`<span class="rl"><b>K</b> ${esc(relInfo(t)[1])}${ed?`<button type="button" data-rldel="${j}:${q}" aria-label="Relais entfernen">✕</button>`:''}</span>`).join('')}
-        ${ed&&zMain?`<select class="rladd" data-rladd="${j}" aria-label="Relais hinzufügen"><option value="">+ Relais …</option>${RELAIS.map(x=>`<option value="${x[0]}">${esc(x[1])}</option>`).join('')}</select>`:''}
+        ${ed&&zMain?`<label class="m"><span>Relais</span><select class="rladd" data-rladd="${j}" aria-label="Relais hinzufügen"><option value="">+ Relais …</option>${RELAIS.map(x=>`<option value="${x[0]}">${esc(x[1])}</option>`).join('')}</select></label>`:''}
 </div>
       <input class="note" data-sk="note" value="${esc(r.note||'')}" placeholder="Notiz zur Sicherung (erscheint im Schema)" aria-label="Notiz Stromkreis ${j+1}" autocomplete="off"${dis}>
       <div class="skn" id="skn-${j}"></div>
