@@ -756,19 +756,21 @@ function busPlan(s,L,fresh){
   /* drei 4-polige Schienen untereinander: eine KCF668S statt zwei KCF663S */
   for(let i=0;i+1<ets.length;i++){const x=ets[i],y=ets[i+1];if(x.on&&y.on&&x.k==='44'&&y.k==='44'&&x.b===y.a&&!x.m&&!osd[x.a]&&!osd[y.a]){x.k='444';x.b=y.b;x.m=true;ets.splice(i+1,1)}}
   /* Seiten: X0 links -> erste Etagenschiene rechts (links bleibt frei zum Einspeisen), danach immer abwechselnd. Pro Seite einer Hutschiene nur eine Etagenschiene */
-  {let pe=null,pa=null;ets.forEach(e=>{e.exp=pe&&pe.b===e.a?opp(pe.exp):opp(side);e.side=osd[e.a]?opp(e.exp):e.exp;e.part=e.k==='44'?'E44':e.k==='444'?'E444':'E'+e.k+e.side;
-    if(e.on){if(e.side!==e.exp)msgs.push({e:1,t:'Fehler: Etagenschiene Hutschiene '+e.a+'–'+e.b+' ist '+sdT(e.side)+', muss '+sdT(e.exp)+' sein (Einspeisung -X0 '+sdT(side)+', erste Etagenschiene auf der Gegenseite, dann abwechselnd).'});
-      if(pa&&pa.b===e.a&&pa.side===e.side)msgs.push({e:1,t:'Fehler: Hutschiene '+e.a+' hat '+sdT(e.side)+' zwei Etagenschienen. Pro Seite geht nur eine.'});pe=e;pa=e}else{pe=null;pa=null}})}
+  const x0u=(pl.klPos||{})['-X0']==='u',adj=(p,e)=>p&&(x0u?p.a===e.b:p.b===e.a),shr=e=>x0u?e.b:e.a;
+  {let pe=null,pa=null;(x0u?[...ets].reverse():ets).forEach(e=>{e.exp=adj(pe,e)?opp(pe.exp):opp(side);e.side=osd[e.a]?opp(e.exp):e.exp;e.part=e.k==='44'?'E44':e.k==='444'?'E444':'E'+e.k+e.side;
+    if(e.on){if(e.side!==e.exp)msgs.push({e:1,t:'Fehler: Etagenschiene Hutschiene '+e.a+'–'+e.b+' ist '+sdT(e.side)+', muss '+sdT(e.exp)+' sein (Einspeisung -X0 '+sdT(side)+(x0u?' unten':' oben')+', erste Etagenschiene auf der Gegenseite, dann abwechselnd).'});
+      if(adj(pa,e)&&pa.side===e.side)msgs.push({e:1,t:'Fehler: Hutschiene '+shr(e)+' hat '+sdT(e.side)+' zwei Etagenschienen. Pro Seite geht nur eine.'});pe=e;pa=e}else{pe=null;pa=null}})}
   const lz='Litzenbrücke '+(pl.qs?qsTxt(pl.qs)+' mm²':'(Querschnitt Zuleitung)');
   ets.filter(e=>e.blk).forEach(e=>msgs.push({e:0,t:'Hutschiene '+e.a+'–'+e.b+': keine Etagenschiene möglich, weil auf '+e.few.map(r=>'Hutschiene '+r.no+' nur '+r.n2+(r.n2===1?' zweipolige Sicherung':' zweipolige Sicherungen')).join(' und ')+' sitzen (mindestens 3 nötig). Sonst bleibt ein Kupferstift der Etagenschiene frei, der sich nicht isolieren lässt. Stattdessen '+lz+'.'}));
   ets.filter(e=>e.cut).forEach(e=>msgs.push({e:1,t:'Etagenschiene zwischen Hutschiene '+e.a+' und '+e.b+' gelöscht: '+lz+' nötig.'}));
   /* Einspeisung: erste Schiene mit Sammelschiene je Einspeisung vom -X0, jede weitere über Etagenschiene oder Litzenbrücke */
   const fed=new Set();const seen=new Set();
-  rails.forEach(r=>{if(!r.on)return;if(!seen.has(r.zid)){seen.add(r.zid);r.feed='X0';fed.add(r.no);return}
-    const e=ets.find(e=>e.on&&r.no>e.a&&r.no<=e.b);if(e&&fed.has(e.a)){r.feed='ET';fed.add(r.no);return}
+  (x0u?[...rails].reverse():rails).forEach(r=>{if(!r.on)return;if(!seen.has(r.zid)){seen.add(r.zid);r.feed='X0';fed.add(r.no);return}
+    const e=ets.find(e=>e.on&&(x0u?r.no>=e.a&&r.no<e.b:r.no>e.a&&r.no<=e.b));if(e&&fed.has(x0u?e.b:e.a)){r.feed='ET';fed.add(r.no);return}
     r.feed='LITZE';fed.add(r.no);if(r.typ==='SIEM')msgs.push({e:0,t:'Hutschiene '+r.no+' (Siemens FI/LS): Hager-Etagenschienen passen nicht, Einspeisung über Litzenbrücke.'});
     else if(!etOn)msgs.push({e:0,t:'Hutschiene '+r.no+': ohne Etagenschienen, Einspeisung über Litzenbrücke.'});
-    else if(!ets.some(e=>(e.cut||e.blk)&&e.b===r.no))msgs.push({e:0,t:'Hutschiene '+r.no+': keine Etagenschiene möglich (Schiene darüber ohne passende Sammelschiene), Einspeisung über Litzenbrücke.'})});
+    else if(!ets.some(e=>(e.cut||e.blk)&&(x0u?e.a:e.b)===r.no))msgs.push({e:0,t:'Hutschiene '+r.no+': keine Etagenschiene möglich (Schiene '+(x0u?'darunter':'darüber')+' ohne passende Sammelschiene), Einspeisung über Litzenbrücke.'})});
+  if(pl.x0Moved&&ets.some(e=>e.on))msgs.unshift({e:1,warn:1,t:'Achtung: Der Zuleitungsblock -X0 wurde versetzt. Bitte die Etagenschienen nochmals auf Richtigkeit prüfen.'});
   const it=[];rails.forEach(r=>{if(r.on)it.push(r.part)});ets.forEach(e=>{if(e.on)it.push(e.part)});
   const cnt={};it.forEach(p=>cnt[p]=(cnt[p]||0)+1);
   const parts=Object.keys(cnt).map(p=>({...BUS_P[p],key:p,n:cnt[p]}));
@@ -837,8 +839,8 @@ function busEdit(p,B,dis){const sdT=x=>x==='l'?'links':'rechts',bt=(act,no,txt,c
   return `<div class="legend">Schienen bearbeiten</div><p class="sub">Hier löschst du einzelne Schienen oder setzt sie wieder ein. -X0 verschiebst du mit dem schwarzen Knopf in der Ansicht (links/rechts) oder durch Antippen des gelben -X0 (oben/unten).</p><table class="te">${[...rs,...es].join('')||'<tr><td>Keine Schienen</td><td></td></tr>'}</table>`}
 function busList(B){const row=(a,b,cl)=>`<tr${cl?` class="${cl}"`:''}><td>${a}</td><td>${b}</td></tr>`;
   return B.parts.length?`<table class="te">${B.parts.map(x=>row(x.n+'× '+esc((x.hst||'Hager')+' '+x.art)+' <span class="sub">('+x.nr+')</span>',chf(x.net*x.n)+' CHF')).join('')}${row('Schienen zusammen','netto '+chf(B.net)+' / brutto '+chf(B.bru)+' CHF','sum')}</table>`:'<p class="sub">Noch keine Sammelschienen nötig.</p>'}
-function busMsgs(B){return B.msgs.map(m=>`<div class="msg ${m.e?'err':'info'}">${esc(m.t)}</div>`).join('')}
-function busBody(p,pl,dis){const B=busPlan(p),tile=(key,val,label,sub)=>`<button type="button" class="tile" data-plv="${key}" data-v="${esc(val)}" aria-pressed="${(pl[key]||(key==='etag'?'ja':key==='x0Side'?'l':'o'))===val}"${dis}><b>${esc(label)}</b>${sub?`<span>${esc(sub)}</span>`:''}</button>`;
+function busMsgs(B){return B.msgs.map(m=>`<div class="msg ${m.e?'err':'info'}">${m.warn?'⚠ ':''}${esc(m.t)}${m.warn&&canEdit(S.site)?' <button type="button" class="btn small" data-act="x0Ok">Geprüft</button>':''}</div>`).join('')}
+function busBody(p,pl,dis){if(canEdit(p))pl.busSeen=true;const B=busPlan(p),tile=(key,val,label,sub)=>`<button type="button" class="tile" data-plv="${key}" data-v="${esc(val)}" aria-pressed="${(pl[key]||(key==='etag'?'ja':key==='x0Side'?'l':'o'))===val}"${dis}><b>${esc(label)}</b>${sub?`<span>${esc(sub)}</span>`:''}</button>`;
   const edited=pl.bus&&pl.bus.sig===B.sig&&(Object.keys(pl.bus.off).length||Object.keys(pl.bus.et).length);
   return `<h2>Sammel- und Etagenschienen</h2><p class="sub">Hager-Verteiler bis 10 mm². Die App macht einen Vorschlag und prüft ihn laufend. Du kannst ihn unten in der Ansicht ändern.</p>
   <div class="legend">Etagenschienen verwenden?</div>
@@ -960,7 +962,9 @@ function vPlan(){
       <label class="f c3">Adern
         <select id="p-adern" data-pl="adern"${dis}>${opt([['5','5-adrig · L1 L2 L3 N PE'],['3','3-adrig · L N PE']],pl.adern||'5')}</select></label>
       ${busOn(p)?`<label class="f c3">Zuleitungsblock -X0 <span class="hint">Seite der Etagenschienen</span>
-        <select data-pl="x0Side"${dis}>${opt([['l','links'],['r','rechts']],x0Side(pl))}</select></label>`:''}
+        <select data-pl="x0Side"${dis}>${opt([['l','links'],['r','rechts']],x0Side(pl))}</select></label>
+      <label class="f c3">Zuleitungsblock -X0 Höhe <span class="hint">Etagenschienen starten dort</span>
+        <select data-klpos="-X0"${dis}>${opt([['o','oben'],['u','unten']],klPos(pl,'-X0')==='unten'?'u':'o')}</select></label>`:''}
       ${big?`<div class="c6 msg err">Querschnitte über 16 mm² sind noch nicht in Programmierung. Bitte vorerst 16 mm² oder kleiner wählen.</div>`:''}
       ${hv?(zlSkip(p)?`<div class="c6 legend">Zähler -P1 <span class="hint">Einfamilienhaus, ein Zähler</span></div>${zlFields(p,pl.zl[0],0,dis)}
       ${ed?`<div class="c6"><button type="button" class="btn" data-act="zlAdd">+ Weiteren Zähler hinzufügen</button></div>`:''}`:`<div class="c6 msg info">${p.geb==='MFH'?'Mehrfamilienhaus':'Mehrere Zähler'}: ${zlSum(p)}. Im nächsten Schritt legst du alle Zähler mit Bezügersicherung und Abgang fest.</div>`):''}
@@ -1567,7 +1571,7 @@ document.addEventListener('change',e=>{
     else{z[k]=t.value;if(k==='bez'&&!(BEZ_A[z.bez]||[]).includes(z.bezA))z.bezA='';touchPlan('Zähler '+nm+': '+(k==='bez'||k==='bezA'?'Bezügersicherung '+bezTxt(z):'Abgang '+(z.adern==='3'?'3×':'5×')+(z.qs?qsTxt(z.qs)+' mm²':'')))}
     S.prevSel=null;render();return}
   if(t.dataset.rladd!=null&&t.value&&S.site&&canEdit(S.site)){const pl=planOf(S.site),r=pl.sk[+t.dataset.rladd];if(r){r.relais=r.relais||[];r.relais.push(t.value);touchPlan('Relais '+relInfo(t.value)[1]+' bei '+(r.name||'Stromkreis'));render()}return}
-  if(t.dataset.klpos&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.klPos=pl.klPos||{};if(t.value==='u')pl.klPos[t.dataset.klpos]='u';else delete pl.klPos[t.dataset.klpos];touchPlan('Klemmen '+t.dataset.klpos+' '+(t.value==='u'?'unten':'oben'));render();return}
+  if(t.dataset.klpos&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.klPos=pl.klPos||{};if(t.dataset.klpos==='-X0'&&((pl.klPos['-X0']==='u')!==(t.value==='u')))(pl.busSeen&&(pl.x0Moved=true));if(t.value==='u')pl.klPos[t.dataset.klpos]='u';else delete pl.klPos[t.dataset.klpos];touchPlan('Klemmen '+t.dataset.klpos+' '+(t.value==='u'?'unten':'oben'));render();return}
   if(t.dataset.preis&&S.site&&canEdit(S.site)){const pl=planOf(S.site),k=t.dataset.preis;pl.preise=pl.preise||{};const o=pl.preise[k]=pl.preise[k]||{},v=t.value.trim();if(v==='')delete o[t.dataset.pk];else o[t.dataset.pk]=Math.max(0,+v.replace(',','.')||0);if(o.net==null&&o.bru==null)delete pl.preise[k];touchPlan('Preis von Hand: '+manTxt(k));render();return}
   if(t.dataset.ex==='litzeMag'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.litzeMag=t.checked;touchPlan('Litze '+(t.checked?'aus dem Magazin':'auf Kommission'));render();return}
   if((t.dataset.ex==='res'||t.dataset.ex==='resPct'||t.dataset.ex==='relSame')&&S.site&&canEdit(S.site)){const pl=planOf(S.site),k=t.dataset.ex;
@@ -1584,7 +1588,7 @@ document.addEventListener('change',e=>{
     pl[k]=t.value;
     if(k==='bez'){if(!(BEZ_A[pl.bez]||[]).includes(pl.bezA))pl.bezA='';touchPlan('Bezügersicherung '+bezTxt(pl))}
     if(k==='bezA')touchPlan('Bezügersicherung '+bezTxt(pl));
-    if(k==='x0Side')touchPlan('-X0 '+(t.value==='r'?'rechts':'links'));if(k==='big4')touchPlan('4-polige '+(t.value==='u'?'unten':'oben'));
+    if(k==='x0Side'){(pl.busSeen&&(pl.x0Moved=true));touchPlan('-X0 '+(t.value==='r'?'rechts':'links'))}if(k==='big4')touchPlan('4-polige '+(t.value==='u'?'unten':'oben'));
     if(k==='qs'||k==='adern')touchPlan('Zuleitung '+((pl.adern||'5')==='5'?'5×':'3×')+(pl.qs?qsTxt(pl.qs)+' mm²':''));
     render();return}
   if(t.dataset.share&&S.site&&S.site.owner===S.user.id){
@@ -1655,13 +1659,14 @@ document.addEventListener('submit',async e=>{
 document.addEventListener('click',e=>{
   const t=e.target.closest('button,g[data-act]');if(!t)return;
   const act=t.dataset.act;
-  if(['busTog','etTog','etSide','x0Flip','x0Pos','busReset'].includes(act)&&S.site&&canEdit(S.site)){const pl=planOf(S.site),no=t.dataset.no;
+  if(['busTog','etTog','etSide','x0Flip','x0Pos','busReset','x0Ok'].includes(act)&&S.site&&canEdit(S.site)){const pl=planOf(S.site),no=t.dataset.no;
     if(act==='busTog')busSet(b=>{if(b.off[no])delete b.off[no];else b.off[no]=1;touchPlan('Sammelschiene Hutschiene '+no+(b.off[no]?' entfernt':' eingesetzt'))});
     if(act==='etTog')busSet(b=>{if(b.et[no])delete b.et[no];else b.et[no]=1;touchPlan('Etagenschiene ab Hutschiene '+no+(b.et[no]?' gelöscht':' eingesetzt'))});
     if(act==='etSide')busSet(b=>{if(b.sd[no])delete b.sd[no];else b.sd[no]=1;touchPlan('Etagenschiene ab Hutschiene '+no+' Seite gewechselt')});
     if(act==='busReset'){delete pl.bus;touchPlan('Schienen: Vorschlag wiederhergestellt')}
-    if(act==='x0Flip'){pl.x0Side=x0Side(pl)==='l'?'r':'l';touchPlan('-X0 '+(pl.x0Side==='r'?'rechts':'links'))}
-    if(act==='x0Pos'){pl.klPos=pl.klPos||{};if(pl.klPos['-X0']==='u')delete pl.klPos['-X0'];else pl.klPos['-X0']='u';touchPlan('Klemmen -X0 '+(pl.klPos['-X0']==='u'?'unten':'oben'))}
+    if(act==='x0Ok'){pl.x0Moved=false;touchPlan('Etagenschienen geprüft')}
+    if(act==='x0Flip'){(pl.busSeen&&(pl.x0Moved=true));pl.x0Side=x0Side(pl)==='l'?'r':'l';touchPlan('-X0 '+(pl.x0Side==='r'?'rechts':'links'))}
+    if(act==='x0Pos'){(pl.busSeen&&(pl.x0Moved=true));pl.klPos=pl.klPos||{};if(pl.klPos['-X0']==='u')delete pl.klPos['-X0'];else pl.klPos['-X0']='u';touchPlan('Klemmen -X0 '+(pl.klPos['-X0']==='u'?'unten':'oben'))}
     persistSite();render();return}
   /* harte Sperre ohne Abgangsklemmen: nur Korrigieren erlaubt */
   if(S.site&&S.screen==='plan'&&klBlock(S.site).length&&(['planNext','saveNow','schema','printSchema','printSchemaOld','print','liste','back','home','toSite'].includes(act)||(t.dataset.step&&!['klemmen','stromkreise'].includes(t.dataset.step))||t.dataset.pv!=null)){const b=$('#blockMsg');if(b){b.innerHTML=blockHTML(S.site);b.scrollIntoView({block:'center'})}return}
@@ -1688,7 +1693,7 @@ document.addEventListener('click',e=>{
   if(act==='schema'){if(t.dataset.pi!=null)S.pageIdx=+t.dataset.pi;return go('schema')}
   if(act==='backToPlan'){return go('plan')}
   if(act==='klPosOpen'){S.klPosOpen=!S.klPosOpen;render();return}
-  if(act==='klPosAll'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.klPos={};if(t.dataset.v==='u')klStrips(S.site).forEach(k=>pl.klPos[k.X]='u');touchPlan('Klemmen alle '+(t.dataset.v==='u'?'unten':'oben'));render();return}
+  if(act==='klPosAll'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);if(((pl.klPos||{})['-X0']==='u')!==(t.dataset.v==='u'))(pl.busSeen&&(pl.x0Moved=true));pl.klPos={};if(t.dataset.v==='u')klStrips(S.site).forEach(k=>pl.klPos[k.X]='u');touchPlan('Klemmen alle '+(t.dataset.v==='u'?'unten':'oben'));render();return}
   if(act==='priceAck'){S.priceAck=t.dataset.sig;const b=$('[data-act=printSchema]');if(b)b.click();return}
   if(act==='printSchema'){const mm=matList(S.site,'Sonepar').miss,sig=S.site.id+'|'+mm.map(x=>x[0]).join('|');
     if(mm.length&&S.priceAck!==sig){const w=$('#priceWarn');if(w)w.innerHTML=`<div class="msg err" style="margin-top:10px"><b>Achtung, hier ist noch kein Preis hinterlegt:</b> ${mm.map(([x,n])=>esc(manQty({t:x,n}))+' '+esc(manTxt(x))).join(', ')}. Im PDF fehlt dann der Preis für ${mm.length===1?'dieses Bauteil':'diese Bauteile'}. Den Preis kannst du in den Extras selbst eintragen.<div style="margin-top:8px"><button type="button" class="btn danger" data-act="priceAck" data-sig="${esc(sig)}">Quittieren und trotzdem PDF erstellen</button></div></div>`;return}
