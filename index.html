@@ -603,8 +603,36 @@ const relCab=n=>{const need=3+2*n;return CAB_STD.find(c=>c>=need)||need};
 function relKq(r,q){const n=r.rel.length,kb=q?((r.kab||[])[q]||{}):{};return r.relMan?{cab:+(kb.adern||r.adern)||relCab(n),qs:kb.qs||r.qs||'1.5'}:{cab:relCab(n),qs:'1.5'}}
 /* Breite eines Klemmenabgangs in Plätzen (1 Platz = 1 Rasterspalte), damit grosse Kabel nicht in die Klemmen daneben rutschen */
 const CWS=105.4;
-function spansOf(r){if(r.rel.length){const need=3+2*r.rel.length;return [...Array(r.abgN)].map((_,q)=>{const res=Math.max(0,relKq(r,q).cab-need);return q?Math.max(1,Math.ceil((10+(need+res-1)*11+10)/CWS)):Math.max(1,Math.ceil((56+res*12+10)/CWS))})}
-  const n=r.cond.length,bw=(n-1)*14;return [...Array(r.abgN)].map((_,q)=>{const kb=q?((r.kab||[])[q]||{}):{},res=Math.max(0,(+(kb.adern||r.adern)||0)-n);return Math.max(1,Math.ceil((CWS-12-bw+(n+res-1)*14+10)/CWS))})}
+const pairs=a=>{const o=[];for(let j=0;j<a.length;j+=2)o.push(a.slice(j,j+2));return o};
+function spansOf(r){if(r.rel.length){const need=3+2*r.rel.length;return pairs([...Array(r.abgN)].map((_,q)=>Math.max(0,relKq(r,q).cab-need))).map((p,j)=>{const res=Math.max(...p);return j?Math.max(1,Math.ceil((10+(need+res-1)*11+10)/CWS)):Math.max(1,Math.ceil((56+res*12+10)/CWS))})}
+  const n=r.cond.length,bw=(n-1)*14;return pairs([...Array(r.abgN)].map((_,q)=>{const kb=q?((r.kab||[])[q]||{}):{};return Math.max(0,(+(kb.adern||r.adern)||0)-n)})).map(p=>{const res=Math.max(...p);return Math.max(1,Math.ceil((CWS-12-bw+(n+res-1)*14+10)/CWS))})}
+/* Klemmen Phoenix Push-in (Preise CHF, netto = unser Preis). Zuleitung bis 10 mm²: immer PT 6-TWIN als ganzer Block, 16 und 25 mm² folgen */
+const KL={
+  'PT6T':{art:'PT 6-TWIN grau',nr:'158 324 835',mm:8.2,net:2.07,bru:2.96},
+  'PT6TBU':{art:'PT 6-TWIN BU blau',nr:'158 324 855',mm:8.2,net:2.07,bru:2.96},
+  'PT6TPE':{art:'PT 6-TWIN-PE',nr:'158 324 865',mm:8.2,net:4.94,bru:7.05},
+  'DPT6T':{art:'Deckel D-PT 6-TWIN',nr:'158 138 535',mm:2.2,net:0.51,bru:0.73},
+  /* Abgänge bis 4 mm²: PT 2,5-QUATTRO (2 Löcher pro Seite, Doppelstock), 5,2 mm */
+  'Q':{art:'PT 2,5-QUATTRO grau',nr:'158 170 135',mm:5.2,net:1.25,bru:1.78},
+  'QBU':{art:'PT 2,5-QUATTRO BU blau',nr:'158 170 155',mm:5.2,net:1.25,bru:1.78},
+  'QPE':{art:'PT 2,5-QUATTRO-PE grün/gelb',nr:'158 170 165',mm:5.2,net:3.75,bru:5.36},
+  'EH':{art:'Endhalter 5 mm',nr:'158 910 505',mm:5,net:0.67,bru:0.95},
+  'TP':{art:'Trennplatte ATP-ST QUATTRO 2 mm',nr:'158 127 035',mm:2,net:0.57,bru:0.82},
+  'BRRT':{art:'Steckbrücke 5 mm 10L rot',nr:'158 909 125',mm:0,net:3.40,bru:4.85},
+  'BRBU':{art:'Steckbrücke 5 mm 10L blau',nr:'158 909 155',mm:0,net:3.61,bru:5.15}};
+/* Klemmen der Abgänge -X1 zählen: L/T/LA/Reserve grau, N blau, PE grün/gelb. Über 4 mm² folgt ein eigener Typ */
+function klAbg(s){const L=skLayout(s),c={Q:0,QBU:0,QPE:0,big:0};
+  const add=(cond,res,qs)=>{if(qs.some(q=>q&&qsNum(q)>4)){c.big+=cond.length+res;return}cond.forEach(cn=>c[cn==='N'?'QBU':cn==='PE'?'QPE':'Q']++);c.Q+=res};
+  L.pages.forEach(q=>q.items.forEach(it=>{if(it.sk){add(it.cond||[],it.res||0,[it.qs]);(it.xgrp||[]).forEach(gp=>add(gp.cond,gp.res,gp.cabs.map(x=>x.qs)))}else if(!it.rel.length)(it.grp||[]).forEach(gp=>add(it.cond,gp.res,gp.cabs.map(x=>x.qs)))}));
+  Object.values(L.ext||{}).forEach(a=>a.forEach(r=>add(r.cond,r.res||0,[r.qs])));
+  const nT=c.Q+c.QBU+c.QPE;if(!nT&&!c.big)return null;
+  const nb=L.list.filter(r=>!r.ext&&(r.abgN||1)>2).length,br=Math.ceil(nb/3);
+  const it=[['Q',c.Q],['QBU',c.QBU],['QPE',c.QPE],['EH',nT?2:0],['TP',nT?1:0],['BRRT',br],['BRBU',br]].filter(x=>x[1]).map(([k,n])=>({...KL[k],n}));
+  return {it,big:c.big,nb,mm:it.reduce((a,x)=>a+x.mm*x.n,0),net:it.reduce((a,x)=>a+x.net*x.n,0),bru:it.reduce((a,x)=>a+x.bru*x.n,0)}}
+function klZul(s){const pl=planOf(s),five=(pl.adern||'5')==='5';if(!pl.qs||qsNum(pl.qs)>10)return null;
+  const it=[['PT6T',five?3:1],['PT6TBU',1],['PT6TPE',1],['DPT6T',1]].map(([k,n])=>({...KL[k],n}));
+  return {it,mm:it.reduce((a,x)=>a+x.mm*x.n,0),net:it.reduce((a,x)=>a+x.net*x.n,0),bru:it.reduce((a,x)=>a+x.bru*x.n,0)}}
+const chf=v=>v.toFixed(2).replace('.',',');
 function skLayout(s){
   const pl=planOf(s),five=(pl.adern||'5')==='5';
   const act=zlAct(s);
@@ -631,11 +659,14 @@ function skLayout(s){
     if(it.sk){const par=it.sk,n=par.rel.length,ix=n>1?String(it.k+1):'',need=3+2*n,man=!!par.relMan;
       /* Relaiskabel automatisch, ausser es wurde von Hand gewählt oder es gibt mehrere Abgänge */
       const kq=q=>relKq(par,q);
-      const c0=kq(0);it.K='-K'+kn++;it.cab=c0.cab;it.adern=String(it.cab);it.qs=c0.qs;it.need=need;
-      if(it.k===0){it.cond=['PE',par.cond[0],'N','T'+ix,'LA'+ix];it.w='-W'+w++}else{it.cond=['T'+ix,'LA'+ix];it.w=par.rel[0].w}
-      it.res=it.k===n-1?Math.max(0,it.cab-need):0;it.kl=kl;kl+=it.cond.length+it.res;
-      if(it.k===n-1){it.xgrp=[];const allC=par.rel.flatMap(x=>x.cond||[]);for(let q=1;q<par.abgN;q++){const c=kq(q),res=Math.max(0,c.cab-need);it.xgrp.push({kl,w:'-W'+w++,cab:c.cab,qs:c.qs,cond:allC,res});kl+=allC.length+res}}}
-    else if(!it.rel.length){it.grp=[];for(let q=0;q<it.abgN;q++){const kb=q?((it.kab||[])[q]||{}):{},ad=kb.adern||it.adern,qs=kb.qs||it.qs,res=Math.max(0,(+ad||0)-it.cond.length);it.grp.push({kl,w:'-W'+w++,adern:ad,qs,res});kl+=it.cond.length+res}it.kl=it.grp[0].kl;it.w=it.grp[0].w;it.res=it.grp[0].res}}));
+      if(it.k===0)par._cabs=[...Array(par.abgN)].map((_,q)=>{const c=kq(q);return {w:'-W'+w++,cab:c.cab,adern:String(c.cab),qs:c.qs,res:Math.max(0,c.cab-need)}});
+      const P=pairs(par._cabs),c0=par._cabs[0];it.K='-K'+kn++;it.cab=c0.cab;it.adern=String(it.cab);it.qs=c0.qs;it.need=need;it.cabs=P[0];it.w=c0.w;
+      it.cond=it.k===0?['PE',par.cond[0],'N','T'+ix,'LA'+ix]:['T'+ix,'LA'+ix];
+      it.res=it.k===n-1?Math.max(...P[0].map(c=>c.res)):0;it.kl=kl;kl+=it.cond.length+it.res;
+      if(it.k===n-1){it.xgrp=[];const allC=par.rel.flatMap(x=>x.cond||[]);P.slice(1).forEach(pp=>{const res=Math.max(...pp.map(c=>c.res));it.xgrp.push({kl,cabs:pp,w:pp[0].w,cab:pp[0].cab,qs:pp[0].qs,cond:allC,res});kl+=allC.length+res})}}
+    else if(!it.rel.length){const nC=it.cond.length,cabs=[...Array(it.abgN)].map((_,q)=>{const kb=q?((it.kab||[])[q]||{}):{},ad=kb.adern||it.adern,qs=kb.qs||it.qs;return {w:'-W'+w++,adern:ad,qs,res:Math.max(0,(+ad||0)-nC)}});
+      /* zwei Kabel auf derselben Klemme (Doppelstock), ab dem 3. Kabel ein weiterer Klemmensatz mit Steckbrücke */
+      it.grp=pairs(cabs).map(pp=>{const res=Math.max(...pp.map(c=>c.res)),g={kl,res,cabs:pp,w:pp[0].w,adern:pp[0].adern,qs:pp[0].qs};kl+=nC+res;return g});it.kl=it.grp[0].kl;it.w=it.grp[0].w;it.res=it.grp[0].res}}));
   /* Sicherungen beim Zähler: eigener Klemmenabgang im Klemmblock des Zählers, nach dem Abgang zur Wohnung */
   const ext={};list.filter(r=>r.ext).forEach(r=>{(ext[r.zid]=ext[r.zid]||[]).push(r)});
   Object.keys(ext).forEach(id=>{const z=pl.zl.find(z=>String(z.id)===id),zf=five&&(z.adern||'5')==='5';let k=(zf?5:3)+1;ext[id].forEach(r=>{r.res=Math.max(0,(+r.adern||0)-r.cond.length);r.kl=k;k+=r.cond.length+r.res;r.w='-W'+w++})});
@@ -794,6 +825,9 @@ function teBox(s,pl,dis){
   </div>
   <label class="chk"><input type="checkbox" data-ex="relSame" ${pl.relSame?'checked':''}${dis}> Relais mit auf die Sicherungsschienen setzen, wenn Platz ist</label>
   ${pl.relSame?`<div class="msg err">Relais neben Sicherungen: ${hgr?'bei Hager so keine Phasenschiene möglich.':'Phasenschiene beim Hersteller prüfen.'}</div>`:'<p class="sub">Relais bekommen eine eigene Schiene, auch wenn auf der Sicherungsschiene noch Platz wäre (Reserve für später).</p>'}
+  ${(()=>{const z=klZul(s);return `<div class="legend">Klemmen Zuleitung -X0</div>${z?`<table class="te">${z.it.map(x=>row(x.n+'× '+x.art+' <span class="sub">('+x.nr+')</span>',(x.mm*x.n).toFixed(1).replace('.',',')+' mm · '+chf(x.net*x.n)+' CHF')).join('')}${row('Zuleitungsblock -X0',z.mm.toFixed(1).replace('.',',')+' mm · netto '+chf(z.net)+' / brutto '+chf(z.bru)+' CHF','sum')}</table>`:`<p class="sub">Zuleitungsklemmen für ${pl.qs?qsTxt(pl.qs)+' mm²':'diesen Querschnitt'} folgen.</p>`}`})()}
+  ${(()=>{const a=klAbg(s),z0=klZul(s),mmT=(z0?z0.mm:0)+(a?a.mm:0);return `<div class="legend">Klemmen Abgänge -X1</div>${a?`<table class="te">${a.it.map(x=>row(x.n+'× '+x.art+' <span class="sub">('+x.nr+')</span>',(x.mm?(x.mm*x.n).toFixed(1).replace('.',',')+' mm · ':'')+chf(x.net*x.n)+' CHF')).join('')}${row('Klemmenblock -X1',a.mm.toFixed(1).replace('.',',')+' mm · netto '+chf(a.net)+' / brutto '+chf(a.bru)+' CHF','sum')}</table>${a.big?`<p class="sub">${a.big} Klemmen für Kabel über 4 mm² folgen (Klemmentyp noch offen).</p>`:''}${a.nb?`<p class="sub">${a.nb} ${a.nb===1?'Sicherung hat':'Sicherungen haben'} mehr als 2 Kabel: Klemmensätze mit Steckbrücke verbunden (1 Brücke pro 3 Sicherungen).</p>`:''}`:'<p class="sub">Noch keine Abgänge.</p>'}
+  ${mmT?`<table class="te">${row('Klemmen total',mmT.toFixed(1).replace('.',',')+' mm ≈ '+Math.ceil(mmT/18)+' TE','sum')}${row('Preis Klemmen total','netto '+chf((z0?z0.net:0)+(a?a.net:0))+' / brutto '+chf((z0?z0.bru:0)+(a?a.bru:0))+' CHF','sum')}</table><p class="sub">Die Klemmen zählen nicht zur TE-Reserve der Sicherungen.</p>`:''}`})()}
   <p class="sub">Die Schienen werden mit Reserve gefüllt (höchstens ${u.cap} von 12 TE belegt). Überspannungsschutz und Hauptschalter sind noch nicht eingerechnet.</p>`;
 }
 function skInfo(s){const L=skLayout(s),n=L.list.length,m=L.pages.length,u=L.sum;return n?n+(n===1?' Stromkreis':' Stromkreise')+', '+(u.sichTE+u.relTE)+' TE, '+m+(m===1?' Schemablatt':' Schemablätter')+'. Den Platzbedarf siehst du im letzten Schritt. Mit Enter kommt eine neue Zeile.':'Noch keine Stromkreise. Mit Enter kommt nach einer Zeile direkt die nächste.'}
@@ -812,6 +846,7 @@ function skDecor(){
       if(rl.rel)h.push('<span class="warn">Hutschiene '+rl.no+': Relais mit auf der Sicherungsschiene, '+(/hager/i.test(pl.hersteller||'')?'bei Hager keine Phasenschiene möglich':'Phasenschiene beim Hersteller prüfen')+'</span>')}
     nEl.innerHTML=h.join('');nEl.hidden=!h.length});
   const si=$('#skInfo');if(si)si.textContent=skInfo(S.site);
+  const nb=$('[data-act=planNext]');if(nb)nb.disabled=!stepOk(pl,pl.step);
 }
 function pagesOf(s){
   const pl=planOf(s),d=pl.docs||{},five=(pl.adern||'5')==='5',hv=s.art==='HV';
@@ -912,8 +947,8 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     ['Klemmblock','Nr.','Belegung','Querschnitt','Aderfarbe','Feldseite','Hinweis'].forEach((h,i)=>T(cols[i],iy0+90,h,'tb'));L(ix0+40,iy0+97,ix1-40,iy0+97,'fr2');
     const col={L1:'braun',L2:'schwarz',L3:'grau',L:'braun',N:'blau',PE:'grün-gelb'};
     const cond=five?['L1','L2','L3','N','PE']:['L','N','PE'];
-    const rows=cond.map((c,i)=>['-X0',String(i+1),c,pl.qs?qsTxt(pl.qs)+' mm²':'offen',col[c],'-W1 Zuleitung',pl.hersteller?'Klemmentyp folgt':''])
-      .concat(LL.pages.flatMap(q=>q.items).filter(it=>it.sk?it.k===0:!it.rel.length).flatMap(r=>r.sk?(()=>{const g=r.sk.rel,last=g[g.length-1],all=g.flatMap(x=>x.cond||[]).concat(Array(last.res||0).fill('Res'));return [['-X1',r.kl+'–'+(last.kl+last.cond.length+(last.res||0)-1),('PE '+r.cond[1]+' N · '+g.length+'× T/LA'+(last.res?' · '+last.res+' Res':'')),'1,5 mm²',r.cab===5?'gn-ge br bl sw gr':'gn-ge + nummeriert',(g.map(x=>x.K).join(', ')+' ('+r.sk.f+' '+r.sk.name+')').slice(0,40),r.w+' '+r.cab+'×'+qsTxt(r.qs)+' mm²'+(last.res?' · '+last.res+' Reserve':'')],...(last.xgrp||[]).map((gp,qi)=>['-X1',gp.kl+'–'+(gp.kl+gp.cond.length+gp.res-1),'PE '+r.cond[1]+' N · '+g.length+'× T/LA'+(gp.res?' · '+gp.res+' Res':''),qsTxt(gp.qs)+' mm²','',(g.map(x=>x.K).join(', ')+' ('+r.sk.f+' '+r.sk.name+' '+(qi+2)+'/'+r.sk.abgN+')').slice(0,40),gp.w+' '+gp.cab+'×'+qsTxt(gp.qs)+' mm²'])]})():(r.grp||[{kl:r.kl,w:r.w,adern:r.adern,qs:r.qs,res:r.res}]).map((gp,q,A)=>['-X1',gp.kl+'–'+(gp.kl+r.cond.length+(gp.res||0)-1),r.cond.concat(Array(gp.res||0).fill('Res')).join(' '),gp.qs?qsTxt(gp.qs)+' mm²':'offen','',(r.f+' '+r.name+(A.length>1?' ('+(q+1)+'/'+A.length+')':'')).slice(0,40),gp.w+' '+cabTxt(gp)])));
+    const rows=cond.map((c,i)=>['-X0',String(i+1),c,pl.qs?qsTxt(pl.qs)+' mm²':'offen',col[c],'-W1 Zuleitung',klZul(s)?(c==='PE'?'PT 6-TWIN-PE':c==='N'?'PT 6-TWIN BU':'PT 6-TWIN'):'Klemmentyp folgt'])
+      .concat(LL.pages.flatMap(q=>q.items).filter(it=>it.sk?it.k===0:!it.rel.length).flatMap(r=>r.sk?(()=>{const g=r.sk.rel,last=g[g.length-1],all=g.flatMap(x=>x.cond||[]).concat(Array(last.res||0).fill('Res'));return [['-X1',r.kl+'–'+(last.kl+last.cond.length+(last.res||0)-1),('PE '+r.cond[1]+' N · '+g.length+'× T/LA'+(last.res?' · '+last.res+' Res':'')),'1,5 mm²',r.cab===5?'gn-ge br bl sw gr':'gn-ge + nummeriert',(g.map(x=>x.K).join(', ')+' ('+r.sk.f+' '+r.sk.name+')').slice(0,40),(r.cabs||[]).map(c=>c.w+' '+c.cab+'×'+qsTxt(c.qs)).join(' + ')+(last.res?' · '+last.res+' Res.':'')],...(last.xgrp||[]).map((gp,qi)=>['-X1',gp.kl+'–'+(gp.kl+gp.cond.length+gp.res-1),'PE '+r.cond[1]+' N · '+g.length+'× T/LA'+(gp.res?' · '+gp.res+' Res':''),qsTxt(gp.qs)+' mm²','',(g.map(x=>x.K).join(', ')+' ('+r.sk.f+' '+r.sk.name+' '+(qi+2)+'/'+r.sk.abgN+')').slice(0,40),gp.cabs.map(c=>c.w+' '+c.cab+'×'+qsTxt(c.qs)).join(' + ')])]})():(r.grp||[{kl:r.kl,res:r.res,cabs:[{w:r.w,adern:r.adern,qs:r.qs}]}]).map((gp,q,A)=>['-X1',gp.kl+'–'+(gp.kl+r.cond.length+(gp.res||0)-1),r.cond.concat(Array(gp.res||0).fill('Res')).join(' '),gp.cabs.map(c=>c.qs?qsTxt(c.qs):'?').join(' + ')+' mm²',gp.cabs.length>1?'Doppelstock':'',(r.f+' '+r.name+(A.length>1?' ('+(q+1)+'/'+A.length+')':'')).slice(0,40),gp.cabs.map(c=>c.w+' '+cabTxt(c).replace(' mm²','')).join(' + ')])));
     if(hv)pl.zl.forEach((z,k)=>{if(!k)return;const zf=five&&(z.adern||'5')==='5',c=zf?['L1','L2','L3','N','PE']:['L','N','PE'],X='-X'+(k+1)+'0';
       rows.push([X,'1–'+c.length,c.join(' '),z.qs?qsTxt(z.qs)+' mm²':'offen',zf?'br sw gr bl gn-ge':'br bl gn-ge',(z.res?'-P'+(k+1)+' Reserve':'-P'+(k+1)+' '+(z.name||'')).slice(0,40),z.res?'':'Abgang '+(z.ziel||'')]);
       (LL.ext[z.id]||[]).forEach(r=>rows.push([X,r.kl+'–'+(r.kl+r.cond.length+(r.res||0)-1),r.cond.concat(Array(r.res||0).fill('Res')).join(' '),r.qs?qsTxt(r.qs)+' mm²':'offen','',(r.f+' '+r.name).slice(0,40),r.w+' '+cabTxt(r)]))});
@@ -943,9 +978,12 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
       if(it.sk&&it.k>0)return;
       let gw=g.w,gc=g.c;if(it.sk){const grp=it.sk.rel.filter(x=>G.has(x)),lg=G.get(grp[grp.length-1]);gw=lg.x0+lg.w-g.x0;gc=(g.xs[0]+lg.xs[lg.xs.length-1])/2}
       for(let m=0;m<3;m++)L(gc-7,yK+35+m*3,gc+7,yK+30+m*3,'w');
-      if(it.sk){T(g.x0+2,yK+34,it.w,'tm','end');T(g.x0+2,yK+44,it.cab+'×'+qsTxt(it.qs||'1.5'),'tk2','end')}else{T(g.xs[0]-BL-4,yK+34,it.w,'tm','end');T(g.xs[0]-BL-4,yK+44,cabTxt(it).replace(' mm²',''),'tk2','end')}
+      const cb=it.cabs||[];const lx2=it.sk?g.x0+2:g.xs[0]-BL-4;
+      if(cb.length>1)cb.forEach((c,m)=>T(lx2,yK+34+m*10,c.w+' '+(c.cab?c.cab+'×'+qsTxt(c.qs||'1.5'):cabTxt(c).replace(' mm²','')),'tk2','end'));
+      else if(it.sk){T(g.x0+2,yK+34,it.w,'tm','end');T(g.x0+2,yK+44,it.cab+'×'+qsTxt(it.qs||'1.5'),'tk2','end')}else{T(g.xs[0]-BL-4,yK+34,it.w,'tm','end');T(g.xs[0]-BL-4,yK+44,cabTxt(it).replace(' mm²',''),'tk2','end')}
+      if(cb.length>1)T((it.sk?gc:g.x0+g.w/2),yK+82,'2 Kabel · Doppelstock PT 2,5-QUATTRO','tm','middle');
       g={...g,w:gw};
-      const nm=it.sk?it.sk.name+(it.sk.abgN>1?' (1/'+it.sk.abgN+')':''):it.name;
+      const nS=it.sk?Math.ceil(it.sk.abgN/2):1,nm=it.sk?it.sk.name+(nS>1?' (1/'+nS+')':''):it.name;
       const mx=Math.max(8,Math.floor(g.w/7.2)),words=String(nm).split(/\s+/),lines=[''];words.forEach(wd=>{const cur=lines[lines.length-1];if((cur+' '+wd).trim().length>mx&&cur)lines.push(wd);else lines[lines.length-1]=(cur+' '+wd).trim()});
       const small=lines.some(l=>l.length>mx);lines.slice(0,2).forEach((t,m)=>T(g.x0+g.w/2,yK+60+m*11,t.slice(0,small?Math.floor(g.w/5.6):mx+2),small?'tnm2':'tb','middle'))};
     G=new Map();items.forEach(it=>G.set(it,geo(it)));
@@ -977,8 +1015,8 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
               o.push(`<circle class="term" cx="${xs2[i]}" cy="${yK+3.4}" r="3.4"/>`);T(xs2[i],yK+15,String(gp.kl+i),'tk','middle');T(xs2[i],yK+22,cn,'tk5','middle')});
             for(let q=0;q<gp.res;q++){const x=xs2[xs2.length-1]+11*(q+1);o.push(`<circle class="term" cx="${x}" cy="${yK+3.4}" r="3.4"/>`);T(x,yK+15,String(gp.kl+gp.cond.length+q),'tk','middle');T(x,yK+22,'Res','tk5','middle')}
             const cc=(xs2[0]+xs2[xs2.length-1])/2;for(let m=0;m<3;m++)L(cc-7,yK+35+m*3,cc+7,yK+30+m*3,'w');
-            T(bx+6,yK+34,gp.w,'tm','end');T(bx+6,yK+44,gp.cab+'×'+qsTxt(gp.qs),'tk2','end');
-            const nm2=par.name+' ('+(qi+2)+'/'+N+')';T(bx+cw*par.gsp[qi+1]/2,yK+60,nm2.slice(0,22),nm2.length>16?'tnm2':'tb','middle')})}
+            gp.cabs.forEach((c,m)=>T(bx+6,yK+34+m*10,c.w+' '+c.cab+'×'+qsTxt(c.qs),'tk2','end'));if(gp.cabs.length>1)T(bx+cw*par.gsp[qi+1]/2,yK+82,'2 Kabel · Doppelstock PT 2,5-QUATTRO','tm','middle');
+            const nm2=par.name+' ('+(qi+2)+'/'+Math.ceil(N/2)+')';T(bx+cw*par.gsp[qi+1]/2,yK+60,nm2.slice(0,22),nm2.length>16?'tnm2':'tb','middle')})}
         foot(it,G.get(it));return}
       const r=it,n=r.cond.length,hasRel=r.rel.length>0;
       r.cond.forEach((cn,k)=>{const x=xs[k],cls=bcls(cn),yb=busY[cn];
@@ -998,11 +1036,12 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
         if(sameR.length){const lastG=G.get(sameR[0]);L(xs[0],yF,lastG.xs[1],yF,'w');L(xN,yF+8,lastG.xs[2],yF+8,'wn');o.push(`<circle cx="${xs[0]}" cy="${yF}" r="2" fill="#111"/>`)}
         if(other.length){const pp=pageOfRail(other[0].rail),gg=geo(other[0]);L(xs[0],yF,xs[0],yF+30,'w');L(xN,yF+8,xN,yF+30,'wn');
           T(xs[0],yF+42,'→ '+other.map(x=>x.K).join(', '),'ta','middle');T(xs[0],yF+52,pp+'.'+colOf(gg.xs[0]),'tr','middle')}
-      }else{const na=r.abgN||1;
+      }else{const na=r.grp.length;
         const off=r.gsp.map((_,q)=>r.gsp.slice(0,q).reduce((a,b)=>a+b,0)*cw);
         if(na>1)r.cond.forEach((cn,k)=>{const cls=bcls(cn),yb=yK-72+k*8;o.push(`<circle cx="${xs[k]}" cy="${yb}" r="2" fill="#111"/>`);
           for(let q=1;q<na;q++){const x2=xs[k]+off[q];L(xs[k]+off[q-1],yb,x2,yb,cls);L(x2,yb,x2,yK,cls);if(q<na-1)o.push(`<circle cx="${x2}" cy="${yb}" r="2" fill="#111"/>`)}});
-        r.grp.forEach((gp,q)=>foot({...r,kl:gp.kl,w:gp.w,adern:gp.adern,qs:gp.qs,res:gp.res,name:na>1?r.name+' ('+(q+1)+'/'+na+')':r.name},{...g,x0:g.x0+off[q],w:cw*r.gsp[q],xs:xs.map(x=>x+off[q])}))}
+        if(na>1)T(xs[0]+off[1]/2,yK-76,'Steckbrücke','tm','middle');
+        r.grp.forEach((gp,q)=>foot({...r,kl:gp.kl,w:gp.w,adern:gp.adern,qs:gp.qs,res:gp.res,cabs:gp.cabs,name:na>1?r.name+' ('+(q+1)+'/'+na+')':r.name},{...g,x0:g.x0+off[q],w:cw*r.gsp[q],xs:xs.map(x=>x+off[q])}))}
       if(r.note){const mx=Math.max(10,Math.floor(w/4.8)),words=String(r.note).split(/\s+/),lines=[''];words.forEach(wd=>{const cur=lines[lines.length-1];if((cur+' '+wd).trim().length>mx&&cur)lines.push(wd);else lines[lines.length-1]=(cur+' '+wd).trim()});
         lines.slice(0,3).forEach((t,m)=>T(x0+4,462+m*11,(m===0?'Notiz: ':'')+t.slice(0,mx+4),'tnote'))}
     });
@@ -1095,7 +1134,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
   const bx=xs[0]-22,bw=xs[xs.length-1]-xs[0]+44;
   o.push(`<rect class="bxd" x="${bx}" y="${yBot-70}" width="${bw}" height="44"/>`);
   cond.forEach((c,i)=>{o.push(`<circle class="term" cx="${xs[i]}" cy="${yBot-48}" r="3.2"/>`);T(xs[i]+5,yBot-55,String(i+1),'tk','start')});
-  T(bx+bw+12,yBot-56,'-X0','tb');T(bx+bw+12,yBot-43,'Einspeiseblock','t');T(bx+bw+12,yBot-31,'Klemmentyp folgt im nächsten Schritt','tm');
+  T(bx+bw+12,yBot-56,'-X0','tb');T(bx+bw+12,yBot-43,'Einspeiseblock','t');T(bx+bw+12,yBot-31,klZul(s)?'Phoenix PT 6-TWIN, Push-in':'Klemmentyp folgt','tm');
   // Zähler nur HV
   if(hv){T(xs[0]+90,330,'Hauptverteilung: Zähler folgen ab Seite '+nx,'tm');
   }else{
