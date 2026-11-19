@@ -698,7 +698,7 @@ function skLayout(s){
       it.grp=pairs(cabs).map(pp=>{const res=Math.max(...pp.map(c=>c.res)),g={kl,res,cabs:pp,w:pp[0].w,adern:pp[0].adern,qs:pp[0].qs};kl+=nC+res;return g});it.kl=it.grp[0].kl;it.w=it.grp[0].w;it.res=it.grp[0].res}}));
   /* Sicherungen beim Zähler: eigener Klemmenabgang im Klemmblock des Zählers, nach dem Abgang zur Wohnung */
   const ext={};list.filter(r=>r.ext).forEach(r=>{(ext[r.zid]=ext[r.zid]||[]).push(r)});
-  Object.keys(ext).forEach(id=>{const z=pl.zl.find(z=>String(z.id)===id),zf=five&&(z.adern||'5')==='5';let k=(zf?5:3)+1;ext[id].forEach(r=>{r.res=Math.max(0,(+r.adern||0)-r.cond.length);r.kl=k;k+=r.cond.length+r.res;r.w='-W'+w++})});
+  Object.keys(ext).forEach(id=>{const z=pl.zl.find(z=>String(z.id)===id),zf=five&&(z.adern||'5')==='5';let k=1;ext[id].forEach(r=>{r.res=Math.max(0,(+r.adern||0)-r.cond.length);r.kl=k;k+=r.cond.length+r.res;r.w='-W'+w++})});
   const sichTE=list.reduce((a,r)=>a+r.te,0),relTE=rels.reduce((a,x)=>a+x.te,0);
   const sum={res,cap,sichTE,relTE,resTE:Math.ceil((sichTE+relTE)*res),railsSk:rails.filter(r=>r.kind==='sk').length,railsRel:rails.filter(r=>r.kind==='rel').length,rails:rails.length,place:rails.length*RAIL_TE};
   return {list,rails,pages,sum,ext};
@@ -981,7 +981,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
       .concat(LL.pages.flatMap(q=>q.items).filter(it=>it.sk?it.k===0:!it.rel.length).flatMap(r=>r.sk?(()=>{const g=r.sk.rel,last=g[g.length-1],all=g.flatMap(x=>x.cond||[]).concat(Array(last.res||0).fill('Res'));return [['-X1',r.kl+'–'+(last.kl+last.cond.length+(last.res||0)-1),('PE '+r.cond[1]+' N · '+g.length+'× T/LA'+(last.res?' · '+last.res+' Res':'')),'1,5 mm²',r.cab===5?'gn-ge br bl sw gr':'gn-ge + nummeriert',(g.map(x=>x.K).join(', ')+' ('+r.sk.f+' '+r.sk.name+')').slice(0,40),(r.cabs||[]).map(c=>c.w+' '+c.cab+'×'+qsTxt(c.qs)).join(' + ')+(last.res?' · '+last.res+' Res.':'')],...(last.xgrp||[]).map((gp,qi)=>['-X1',gp.kl+'–'+(gp.kl+gp.cond.length+gp.res-1),'PE '+r.cond[1]+' N · '+g.length+'× T/LA'+(gp.res?' · '+gp.res+' Res':''),qsTxt(gp.qs)+' mm²','',(g.map(x=>x.K).join(', ')+' ('+r.sk.f+' '+r.sk.name+' '+(qi+2)+'/'+r.sk.abgN+')').slice(0,40),gp.cabs.map(c=>c.w+' '+c.cab+'×'+qsTxt(c.qs)).join(' + ')])]})():(r.grp||[{kl:r.kl,res:r.res,cabs:[{w:r.w,adern:r.adern,qs:r.qs}]}]).map((gp,q,A)=>['-X1',gp.kl+'–'+(gp.kl+r.cond.length+(gp.res||0)-1),r.cond.concat(Array(gp.res||0).fill('Res')).join(' '),gp.cabs.map(c=>c.qs?qsTxt(c.qs):'?').join(' + ')+' mm²',gp.cabs.length>1?'Doppelstock':'',(r.f+' '+r.name+(A.length>1?' ('+(q+1)+'/'+A.length+')':'')).slice(0,40),gp.cabs.map(c=>c.w+' '+cabTxt(c).replace(' mm²','')).join(' + ')])));
     if(hv)pl.zl.forEach((z,k)=>{if(!k)return;const zf=five&&(z.adern||'5')==='5',c=zf?['L1','L2','L3','N','PE']:['L','N','PE'],X='-X'+(k+1)+'0';
       rows.push([X,'1–'+c.length,c.join(' '),z.qs?qsTxt(z.qs)+' mm²':'offen',zf?'br sw gr bl gn-ge':'br bl gn-ge',(z.res?'-P'+(k+1)+' Reserve':'-P'+(k+1)+' '+(z.name||'')).slice(0,40),z.res?'':'Abgang '+(z.ziel||'')]);
-      (LL.ext[z.id]||[]).forEach(r=>rows.push([X,r.kl+'–'+(r.kl+r.cond.length+(r.res||0)-1),r.cond.concat(Array(r.res||0).fill('Res')).join(' '),r.qs?qsTxt(r.qs)+' mm²':'offen','',(r.f+' '+r.name).slice(0,40),r.w+' '+cabTxt(r)]))});
+      (LL.ext[z.id]||[]).forEach(r=>rows.push([X.slice(0,-1)+'1',r.kl+'–'+(r.kl+r.cond.length+(r.res||0)-1),r.cond.concat(Array(r.res||0).fill('Res')).join(' '),r.qs?qsTxt(r.qs)+' mm²':'offen','',(r.f+' '+r.name).slice(0,40),r.w+' '+cabTxt(r)]))});
     const part=rows.slice((pg.part||0)*KL_PER_PAGE,((pg.part||0)+1)*KL_PER_PAGE);
     part.forEach((v,i)=>{const y=iy0+120+i*26;v.forEach((t,j)=>T(cols[j],y,t,'tk4'));L(ix0+40,y+9,ix1-40,y+9,'fr3')});
     if((pg.part||0)===nParts-1)T(ix0+40,iy0+120+part.length*26+24,sk.length?'Klemmentyp der Abgänge folgt. Die Masse der Klemmblöcke werden am Ende für den Verteilerbauer ausgegeben.':'Weitere Klemmblöcke folgen mit den Stromkreisen. Die Masse der Klemmblöcke werden am Ende für den Verteilerbauer ausgegeben.','tm');
@@ -1121,7 +1121,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
         const tx=ex[0]-BL-10;let ly=y1+6;const lab=(t,cl)=>{T(tx,ly,t,cl,'end');ly+=11};lab(r.f,'tb');lab((r.typ==='FILS'?'FI-LS ':'LS ')+r.char,'tk3');lab(r.amp+' A','tk3');if(r.typ==='FILS')lab('30 mA','tm');if(r.nt)lab('+ N-Trenner','tm');
         [...cn,'PE'].forEach((c,i)=>term(i<cn.length?ex[i]:ePE,r.kl+i,c));
         for(let q=0;q<(r.res||0);q++)term(ePE+12*(q+1),r.kl+r.cond.length+q,'Res');
-        T(ex[0]-10,yK+7,X,'tb','end');
+        T(ex[0]-10,yK+7,X.slice(0,-1)+'1','tb','end');
         const cc=(ex[0]+ePE)/2;for(let m=0;m<3;m++)L(cc-7,yK+35+m*3,cc+7,yK+30+m*3,'w');
         T(cc,yK+60,String(r.name).slice(0,20),'tb','middle');T(cc,yK+72,r.note?String(r.note).slice(0,24):r.w,'tk3','middle');T(cc,yK+83,cabTxt(r),'tk3','middle')});
     });
