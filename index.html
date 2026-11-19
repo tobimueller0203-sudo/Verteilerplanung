@@ -743,7 +743,7 @@ function busPlan(s,L,fresh){
     else if(rl.siem){o.typ='SIEM';o.part='SIEM'}
     else if(bus.some(x=>+x.pol===3)){o.why='3-polige ohne N-Trenner: keine passende Kammschiene'}
     else{o.typ=rl.big?'4P':'2P';o.part=rl.big?'S4':'S2'}
-    o.n2=bus.filter(x=>+x.pol<3).length;{let n=0;for(const x of rl.items){if(x.sk||x.nt)break;n++}o.lead=n;const ls=rl.items[rl.items.length-1];o.endOk=rl.used>=RAIL_TE&&!!ls&&!ls.sk&&!ls.nt}o.on=!!o.part;return o});
+    o.n2=bus.filter(x=>+x.pol<3).length;{let n=0;for(const x of rl.items){if(x.sk||x.nt)break;n++}o.lead=n;const ls=rl.items[rl.items.length-1];o.endOk=rl.used>=RAIL_TE&&!!ls&&!ls.sk&&!ls.nt;o.full=rl.used>=RAIL_TE&&rl.items.every(x=>!x.sk&&!x.nt)}o.on=!!o.part;return o});
   const sig=rails.map(r=>r.no+(r.typ||'-')+r.zid).join(',');
   const ov=!fresh&&pl.bus&&pl.bus.sig===sig?pl.bus:{off:{},et:{},sd:{}};const osd=ov.sd||{},opp=x=>x==='l'?'r':'l',sdT=x=>x==='l'?'links':'rechts';
   const msgs=[];
@@ -758,17 +758,15 @@ function busPlan(s,L,fresh){
   /* Seiten: X0 links -> erste Etagenschiene rechts (links bleibt frei zum Einspeisen), danach immer abwechselnd. Pro Seite einer Hutschiene nur eine Etagenschiene */
   const x0u=(pl.klPos||{})['-X0']==='u',adj=(p,e)=>p&&(x0u?p.a===e.b:p.b===e.a),shr=e=>x0u?e.b:e.a;
   /* Etagenschiene greift in die Geräte am Rand: links mind. ET_MIN zweipolige bzw. 1 vierpolige ab links, rechts muss die Reihe bis rechts voll sein. Sonst automatisch Litzenbrücke */
-  const ET_MIN=4,endBad=(r,sd)=>sd==='r'?(!r.endOk?'Hutschiene '+r.no+' ist nicht bis rechts voll belegt':''):(r.typ==='2P'?(r.lead<ET_MIN?'Hutschiene '+r.no+' hat links nur '+r.lead+' zweipolige (mindestens '+ET_MIN+' nötig)':''):(r.lead<1?'Hutschiene '+r.no+' hat links keine 4-polige':''));
+  /* Feste Regel (Tobi): Ausgangsschiene (Seite Einspeisung) muss eine volle Reihe sein, Zielschiene mind. 3 zweipolige bzw. 1 vierpolige. Gilt nach unten und nach oben. Sonst automatisch Litzenbrücke */
+  const ET_MIN=3,etBad=e=>{const rs=rails.filter(r=>r.no>=e.a&&r.no<=e.b);if(x0u)rs.reverse();const out=[];rs.forEach((r,i)=>{if(i<rs.length-1){if(!r.full)out.push('Ausgangsschiene '+r.no+' ist keine volle Reihe')}else if(r.typ==='2P'?r.lead<ET_MIN:r.lead<1)out.push('Zielschiene '+r.no+' hat nur '+r.lead+(r.typ==='2P'?' zweipolige (mindestens '+ET_MIN+' nötig)':' vierpolige'))});return out};
   const hgs=rails.filter(r=>r.on&&(r.typ==='4P'||r.typ==='2P')),x0r=x0u?hgs[hgs.length-1]:hgs[0];
   {let pe=null,pa=null;(x0u?[...ets].reverse():ets).forEach(e=>{e.exp=adj(pe,e)?opp(pe.exp):opp(side);e.side=osd[e.a]?opp(e.exp):e.exp;e.part=e.k==='44'?'E44':e.k==='444'?'E444':'E'+e.k+e.side;
-    if(e.on){const chk=sd=>rails.filter(r=>r.no>=e.a&&r.no<=e.b).map(r=>endBad(r,sd)).filter(Boolean);let why=chk(e.side);
-      /* nach einer Litzenbrücke ist die Seite frei: andere Seite versuchen (nicht an der Schiene mit Einspeisung -X0, nicht bei Handänderung) */
-      if(why.length&&!osd[e.a]&&!adj(pe,e)&&!(x0r&&x0r.no>=e.a&&x0r.no<=e.b)&&!chk(opp(e.side)).length){e.side=e.exp=opp(e.side);e.part=e.k==='44'?'E44':e.k==='444'?'E444':'E'+e.k+e.side;why=[]}
-      if(why.length){e.on=false;e.blk=true;e.why=why}}
+    if(e.on){const why=etBad(e);if(why.length){e.on=false;e.blk=true;e.why=why}}
     if(e.on){if(e.side!==e.exp)msgs.push({e:1,t:'Fehler: Etagenschiene Hutschiene '+e.a+'–'+e.b+' ist '+sdT(e.side)+', muss '+sdT(e.exp)+' sein (Einspeisung -X0 '+sdT(side)+(x0u?' unten':' oben')+', erste Etagenschiene auf der Gegenseite, dann abwechselnd).'});
       if(adj(pa,e)&&pa.side===e.side)msgs.push({e:1,t:'Fehler: Hutschiene '+shr(e)+' hat '+sdT(e.side)+' zwei Etagenschienen. Pro Seite geht nur eine.'});pe=e;pa=e}else{pe=null;pa=null}})}
   const lz='Litzenbrücke '+(pl.qs?qsTxt(pl.qs)+' mm²':'(Querschnitt Zuleitung)');
-  ets.filter(e=>e.blk).forEach(e=>msgs.push({e:1,t:'Hutschiene '+e.a+'–'+e.b+': Etagenschiene '+sdT(e.side)+' nicht möglich: '+e.why.join(', ')+'. Die Etagenschiene braucht die Geräte bis an den Rand, sonst bleibt ein Kupferstift frei, der sich nicht isolieren lässt. Automatisch ersetzt durch '+lz+'.'}));
+  ets.filter(e=>e.blk).forEach(e=>msgs.push({e:1,t:'Hutschiene '+e.a+'–'+e.b+': Etagenschiene nicht möglich: '+e.why.join(', ')+'. Eine Etagenschiene geht nur von einer vollen Reihe auf eine Schiene mit mindestens '+ET_MIN+' zweipoligen FI/LS, sonst bleibt ein Kupferstift frei, der sich nicht isolieren lässt. Automatisch ersetzt durch '+lz+'.'}));
   ets.filter(e=>e.cut).forEach(e=>msgs.push({e:1,t:'Etagenschiene zwischen Hutschiene '+e.a+' und '+e.b+' gelöscht: '+lz+' nötig.'}));
   /* Einspeisung: erste Schiene mit Sammelschiene je Einspeisung vom -X0, jede weitere über Etagenschiene oder Litzenbrücke */
   const fed=new Set();const seen=new Set();
