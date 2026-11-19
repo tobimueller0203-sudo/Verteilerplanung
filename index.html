@@ -1061,8 +1061,6 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     T(xR(0)+10,yO(0)-4,'nach Zähler '+(zf?'5×':'3×')+(z.qs?qsTxt(z.qs)+' mm²':'Querschnitt offen'),'tk3');
     T(xR(0)+10,yO(0)+8,cont&&nxt.kind==='sk'?'Stromkreise '+zlLbl(s,0)+' ab Seite '+nxt.no:'Stromkreise folgen','tm');
   }
-  {const bxX=ix1-300,ny=iy0+150;Rc(bxX,ny,288,64,'note');T(bxX+12,ny+18,pg.kind==='za'?zlLbl(s,0)+' · '+(s.geb==='MFH'?'Mehrfamilienhaus':'Einfamilienhaus'):'Messungen · '+zlSum(s),'tb');
-    T(bxX+12,ny+33,'Bezügersicherungen auf der Kupferschiene (Standard Diazed).','tm');T(bxX+12,ny+46,'LS auf Hutschiene, mit Litze eingespiesen.','tm');T(bxX+12,ny+58,'Zähler und Plombierung gemäss Werkvorschriften.','tm')}
   }else{
   /* Leiter: L1-L3 voll, N gestrichelt, PE strichpunkt */
   const cond=five?[['L1','w'],['L2','w'],['L3','w'],['N','wn'],['PE','wpe']]:[['L','w'],['N','wn'],['PE','wpe']];
