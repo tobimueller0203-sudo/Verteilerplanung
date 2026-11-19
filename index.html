@@ -734,7 +734,7 @@ const busOn=s=>{const pl=planOf(s);return !busAlu(s)&&/hager/i.test(pl.herstelle
 const busPausch=s=>busAlu(s)&&qs10(planOf(s));
 const x0Side=pl=>pl.x0Side==='r'?'r':'l';
 /* Vorschlag + Änderungen des Bedieners + elektrische Prüfung */
-function busPlan(s,L,fresh){
+function busPlan(s,L,fresh,noFix){
   const pl=planOf(s);L=L||skLayout(s);const side=x0Side(pl),etOn=pl.etag!=='nein';
   const rails=L.rails.map(rl=>{const devs=rl.items.filter(x=>!x.sk),bus=devs.filter(x=>!x.nt),o={no:rl.no,kind:rl.kind,zid:rl.zid,typ:null,why:'',part:null,on:false,devs:devs.length};
     if(rl.kind==='rel')o.why='Relais-Schiene';else if(rl.kind==='res')o.why='leere Reserveschiene';
@@ -743,9 +743,9 @@ function busPlan(s,L,fresh){
     else if(rl.siem){o.typ='SIEM';o.part='SIEM'}
     else if(bus.some(x=>+x.pol===3)){o.why='3-polige ohne N-Trenner: keine passende Kammschiene'}
     else{o.typ=rl.big?'4P':'2P';o.part=rl.big?'S4':'S2'}
-    o.n2=bus.filter(x=>+x.pol<3).length;{let n=0;for(const x of rl.items){if(x.sk||x.nt)break;n++}o.lead=n;const ls=rl.items[rl.items.length-1];o.endOk=rl.used>=RAIL_TE&&!!ls&&!ls.sk&&!ls.nt;o.full=rl.used>=RAIL_TE&&rl.items.every(x=>!x.sk&&!x.nt);o.occ=Array(RAIL_TE).fill(null);let q=0;rl.items.forEach(x=>{const t=x.sk?'rel':x.nt?'nt':x.siem?'siem':+x.pol>=3?'b4':'b2';for(let i=0;i<(x.te||1)&&q<RAIL_TE;i++)o.occ[q++]=t})}o.on=!!o.part;return o});
+    o.n2=bus.filter(x=>+x.pol<3).length;{let n=0;for(const x of rl.items){if(x.sk||x.nt)break;n++}o.lead=n;const ls=rl.items[rl.items.length-1];o.endOk=rl.used>=RAIL_TE&&!!ls&&!ls.sk&&!ls.nt;o.full=rl.used>=RAIL_TE&&rl.items.every(x=>!x.sk&&!x.nt);o.occ=Array(RAIL_TE).fill(null);let q=0;rl.items.forEach(x=>{const t=x.sk?'rel':x.nt?'nt':x.siem?'siem':+x.pol>=3?'b4':'b2';for(let i=0;i<(x.te||1)&&q<RAIL_TE;i++)o.occ[q++]=t});o.used=Math.min(RAIL_TE,rl.used);o.occL=o.occ.slice();o.al='l'}o.on=!!o.part;return o});
   const sig=rails.map(r=>r.no+(r.typ||'-')+r.zid).join(',');
-  const ov=!fresh&&pl.bus&&pl.bus.sig===sig?pl.bus:{off:{},et:{},sd:{}};const osd=ov.sd||{},opp=x=>x==='l'?'r':'l',sdT=x=>x==='l'?'links':'rechts';
+  const ov=!fresh&&pl.bus&&pl.bus.sig===sig?pl.bus:{off:{},et:{},sd:{},lz:{}};const osd=ov.sd||{},opp=x=>x==='l'?'r':'l',sdT=x=>x==='l'?'links':'rechts';
   const msgs=[];
   rails.forEach(r=>{if(r.part&&ov.off[r.no]){r.on=false;r.cut=true;msgs.push({e:1,t:'Hutschiene '+r.no+': Sammelschiene entfernt. Die Sicherungen müssen einzeln verdrahtet werden.'})}
     if(r.why==='3-polige ohne N-Trenner: keine passende Kammschiene')msgs.push({e:1,t:'Hutschiene '+r.no+': 3-polige Sicherungen ohne N-Trenner passen nicht auf die 4-polige Kammschiene. Einzeln verdrahten.'})});
@@ -763,22 +763,37 @@ function busPlan(s,L,fresh){
      Jeder Pin muss auf einem passenden Gerät landen (kein leerer Platz, kein N-Trenner, kein Relais, kein falscher Typ). Ausgangsschiene (Seite Einspeisung) zusätzlich volle Reihe (Tobi). Gilt nach unten und nach oben */
   const ET_MIN=3,occT={null:'leerer Platz (blanke Sammelschiene)',nt:'N-Trenner-Sicherung',rel:'Relais',siem:'Siemens FI/LS',b2:'2-polige Sicherung',b4:'4-polige Sicherung'},etBad=e=>{const rs=rails.filter(r=>r.no>=e.a&&r.no<=e.b);if(x0u)rs.reverse();const out=[];e.cat=e.cat||{};
     rs.forEach((r,i)=>{const arm=r.typ==='2P'?6:4,want=r.typ==='2P'?'b2':'b4',span=[...Array(arm)].map((_,k)=>e.side==='l'?k:RAIL_TE-arm+k),bad=span.filter(k=>r.occ[k]!==want);
-      if(i<rs.length-1&&!r.full){out.push('Ausgangsschiene '+r.no+' ist keine volle Reihe');e.cat.src=r.no}
+      if(i<rs.length-1&&r.typ==='2P'&&!r.full){out.push('Ausgangsschiene '+r.no+' ist keine volle Reihe');e.cat.src=r.no}
       else if(bad.length){const what=[...new Set(bad.map(k=>occT[r.occ[k]]))].join(', ');out.push('auf Hutschiene '+r.no+' landen '+bad.length+' von '+arm+' TE des Arms '+sdT(e.side)+' auf '+what);if(r.occ[span[0]]===null||r.occ[span[span.length-1]]===null)e.cat.bare=r.no;else e.cat.typ=r.no}});return out};
   const etFix=e=>{const c=e.cat||{},f=[];if(c.src)f.push('Ausgangsschiene '+c.src+' mit Sicherungen oder Reserve zu einer vollen Reihe auffüllen');
     if(c.bare){f.push('andere Sammelschiene verwenden (L1L2L3N und den Rest mit L1N/L2N/L3N auffüllen, damit Hutschiene '+c.bare+' voll wird)');f.push('mehr Sicherungen auf Hutschiene '+c.bare+' setzen, bis mindestens '+ET_MIN+' auf der Seite der Etagenschiene sitzen')}
     if(c.typ)f.push('Sicherungen auf Hutschiene '+c.typ+' umstellen, damit am Rand passende Geräte sitzen');
     if(c.bare||c.typ)f.push('Einspeiseblock -X0 auf die andere Seite setzen');f.push('mit Litzen direkt auf die Sicherungen fahren');return f.map((x,i)=>String.fromCharCode(97+i)+') '+x).join(', ')};
   const hgs=rails.filter(r=>r.on&&(r.typ==='4P'||r.typ==='2P')),x0r=x0u?hgs[hgs.length-1]:hgs[0];
-  {let pe=null,pa=null;(x0u?[...ets].reverse():ets).forEach(e=>{e.exp=adj(pe,e)?opp(pe.exp):opp(side);e.side=osd[e.a]?opp(e.exp):e.exp;e.part=e.k==='44'?'E44':e.k==='444'?'E444':'E'+e.k+e.side;
+  /* Sicherungen dürfen links- oder rechtsbündig sitzen (Tobi: Zickzack). Die App probiert die Ausrichtung der nicht vollen Schienen durch und nimmt die mit den meisten Etagenschienen */
+  const base=ets.map(e=>({on:e.on})),runSides=()=>{const lm=[];ets.forEach((e,k)=>{e.on=base[k].on;delete e.blk;delete e.why;e.cat={}});
+    let pe=null,pa=null;(x0u?[...ets].reverse():ets).forEach(e=>{e.exp=adj(pe,e)?opp(pe.exp):opp(side);e.side=osd[e.a]?opp(e.exp):e.exp;e.part=e.k==='44'?'E44':e.k==='444'?'E444':'E'+e.k+e.side;
     if(e.on){let why=etBad(e);
       /* nach einer Litzenbrücke ist die Seite frei: logisch die andere Seite nehmen, wenn sie passt (nicht an der Schiene mit -X0, nicht bei Handänderung) */
       if(why.length&&!osd[e.a]&&!adj(pe,e)&&!(x0r&&x0r.no>=e.a&&x0r.no<=e.b)){const sd0=e.side,c0=e.cat;e.side=e.exp=opp(sd0);e.cat={};const w2=etBad(e);if(w2.length){e.side=e.exp=sd0;e.cat=c0}else why=[];e.part=e.k==='44'?'E44':e.k==='444'?'E444':'E'+e.k+e.side}
       if(why.length){e.on=false;e.blk=true;e.why=why}}
-    if(e.on){if(e.side!==e.exp)msgs.push({e:1,t:'Fehler: Etagenschiene Hutschiene '+e.a+'–'+e.b+' ist '+sdT(e.side)+', muss '+sdT(e.exp)+' sein (Einspeisung -X0 '+sdT(side)+(x0u?' unten':' oben')+', erste Etagenschiene auf der Gegenseite, dann abwechselnd).'});
-      if(adj(pa,e)&&pa.side===e.side)msgs.push({e:1,t:'Fehler: Hutschiene '+shr(e)+' hat '+sdT(e.side)+' zwei Etagenschienen. Pro Seite geht nur eine.'});pe=e;pa=e}else{pe=null;pa=null}})}
+    if(e.on){if(e.side!==e.exp)lm.push({e:1,t:'Fehler: Etagenschiene Hutschiene '+e.a+'–'+e.b+' ist '+sdT(e.side)+', muss '+sdT(e.exp)+' sein (Einspeisung -X0 '+sdT(side)+(x0u?' unten':' oben')+', erste Etagenschiene auf der Gegenseite, dann abwechselnd).'});
+      if(adj(pa,e)&&pa.side===e.side)lm.push({e:1,t:'Fehler: Hutschiene '+shr(e)+' hat '+sdT(e.side)+' zwei Etagenschienen. Pro Seite geht nur eine.'});pe=e;pa=e}else{pe=null;pa=null}});return lm};
+  const setAl=(r,al)=>{r.al=al;r.occ=al==='r'?[...Array(RAIL_TE-r.used).fill(null),...r.occL.slice(0,r.used)]:r.occL.slice()};
+  const cand=rails.filter(r=>(r.typ==='2P'||r.typ==='4P')&&r.on&&r.used>0&&r.used<RAIL_TE&&ets.some(e=>e.on&&r.no>=e.a&&r.no<=e.b)).slice(0,10);
+  let best=null;for(let m=0;m<(1<<cand.length);m++){cand.forEach((r,k)=>setAl(r,m>>k&1?'r':'l'));const lm=runSides(),sc=ets.filter(e=>e.on).length*100-lm.length*10-cand.filter(r=>r.al==='r').length;if(!best||sc>best.sc)best={sc,m}}
+  cand.forEach((r,k)=>setAl(r,best.m>>k&1?'r':'l'));msgs.push(...runSides());
+  rails.filter(r=>r.al==='r').forEach(r=>msgs.push({e:0,t:'Hutschiene '+r.no+': Sicherungen nach rechts geschoben, damit die Etagenschienen im Zickzack passen.'}));
   const lz='Litzenbrücke '+(pl.qs?qsTxt(pl.qs)+' mm²':'(Querschnitt Zuleitung)');
-  ets.filter(e=>e.blk).forEach(e=>msgs.push({e:1,t:'Hutschiene '+e.a+'–'+e.b+': Etagenschiene nicht möglich: '+e.why.join('; ')+'. Sonst bleibt ein Kupferstift frei oder landet auf blanker Sammelschiene. Automatisch ersetzt durch '+lz+'. Lösungen: '+etFix(e)+'.'}));
+  const nOn=ets.filter(e=>e.on).length;
+  ets.filter(e=>e.blk).forEach(e=>{const ok=(ov.lz||{})[e.a];if(ok){msgs.push({e:0,t:'Hutschiene '+e.a+'–'+e.b+': '+lz+' statt Etagenschiene (so übernommen).'});return}
+    const m={e:1,t:'Hutschiene '+e.a+'–'+e.b+': Etagenschiene nicht möglich ('+e.why.join('; ')+'). Im Moment '+lz+'.',fix:[]};
+    if(!noFix){const sim=f=>{const s2=JSON.parse(JSON.stringify(s));f(planOf(s2));const B2=busPlan(s2,null,false,true);return B2.ets.filter(x=>x.on).length>nOn};
+      if(sim(p2=>{p2.x0Side=x0Side(p2)==='l'?'r':'l'}))m.fix.push({k:'x0',lbl:'-X0 nach '+(side==='l'?'rechts':'links')+' setzen'});
+      [...new Set([e.cat.src,e.cat.bare,e.cat.typ].filter(Boolean))].forEach(no=>{const rl=L.rails[no-1];if(!rl||rl.nt||rl.rel)return;const tp=[...rl.items].reverse().find(x=>!x.sk);if(!tp)return;
+        const te=tp.te||1;for(let n=1;n*te<=RAIL_TE-rl.used;n++){if(sim(p2=>{const o=p2.sk[tp.i];for(let q=0;q<n;q++){const r={zl:o.zl,pol:o.pol,char:o.char,amp:o.amp,typ:o.typ,adern:o.adern||'',qs:o.qs||'',kabAuto:true,name:'Reserve'};autoKab(r);p2.sk.push(r)}})){m.fix.push({k:'res',no,i:tp.i,n,lbl:'Hutschiene '+no+': '+n+'× Reserve '+(tp.typ==='FILS'?'FI/LS':'LS')+' '+(tp.char||'')+(tp.amp||'')+' dazu'});break}}});
+      m.fix.push({k:'lz',no:e.a,lbl:lz+' so lassen'})}
+    msgs.push(m)});
   ets.filter(e=>e.cut).forEach(e=>msgs.push({e:1,t:'Etagenschiene zwischen Hutschiene '+e.a+' und '+e.b+' gelöscht: '+lz+' nötig.'}));
   /* Einspeisung: erste Schiene mit Sammelschiene je Einspeisung vom -X0, jede weitere über Etagenschiene oder Litzenbrücke */
   const fed=new Set();const seen=new Set();
@@ -792,7 +807,7 @@ function busPlan(s,L,fresh){
   const cnt={};it.forEach(p=>cnt[p]=(cnt[p]||0)+1);
   const parts=Object.keys(cnt).map(p=>({...BUS_P[p],key:p,n:cnt[p]}));
   const nLz=rails.filter(r=>r.feed==='LITZE').length;return {rails,ets,msgs,parts,sig,side,etOn,nLz,lz,bru:parts.reduce((a,x)=>a+x.bru*x.n,0),net:parts.reduce((a,x)=>a+x.net*x.n,0)}}
-function busSet(fn){const s=S.site,pl=planOf(s),B=busPlan(s);if(!pl.bus||pl.bus.sig!==B.sig)pl.bus={sig:B.sig,off:{},et:{},sd:{}};pl.bus.sd=pl.bus.sd||{};fn(pl.bus)}
+function busSet(fn){const s=S.site,pl=planOf(s),B=busPlan(s,null,false,true);if(!pl.bus||pl.bus.sig!==B.sig)pl.bus={sig:B.sig,off:{},et:{},sd:{},lz:{}};pl.bus.sd=pl.bus.sd||{};pl.bus.lz=pl.bus.lz||{};fn(pl.bus)}
 /* 2D-Ansicht: Klemmen oben, Sicherungsschienen mit Sammel- und Etagenschienen, Klemmen unten. Teile anklickbar */
 function bus2D(s,raw){
   const pl=planOf(s),L=skLayout(s),B=busPlan(s,L),TE=24,W=12*TE,mx=250,rowH=104,side=B.side,ed=!raw&&canEdit(s);
@@ -815,7 +830,7 @@ function bus2D(s,raw){
   const top={},poles=it=>it.sk?1:Math.max(1,+it.pol||1);
   B.rails.forEach(br=>{const rl=L.rails[br.no-1];top[br.no]=y;const cy=y+44;
     out+=din(cy)+lbl(cy,'Schiene '+br.no,br.typ==='SIEM'?'Siemens':br.typ||'ohne Sammelschiene');
-    let x=mx;const teeth=[];
+    const off=br.al==='r'?(RAIL_TE-rl.used)*TE:0;let x=mx+off;const teeth=[];
     rl.items.forEach(it=>{const te=it.te||1,w=te*TE;
       if(it.sk){out+=dev(x,y,w,{np:1,top:it.K||'K',bot:(relInfo(it.t)||[])[0]||'',nt:true,lever:'#6b7076'})}
       else{const nt=it.nt?1:0,dw=(te-nt)*TE,np=it.siem?1:poles(it);
@@ -823,7 +838,7 @@ function bus2D(s,raw){
         if(!it.nt)for(let q=0;q<np;q++)teeth.push(x+(q+.5)*dw/np);
         if(nt)out+=dev(x+dw,y,TE,{np:1,top:'',bot:'N',nt:true,lever:'#2f6db5'})}
       x+=w});
-    for(let t=rl.used;t<12;t++)out+=`<rect x="${mx+t*TE+.5}" y="${y+10}" width="${TE-1}" height="70" fill="none" stroke="#b9bec4" stroke-dasharray="3 3"/>`;
+    for(let t=rl.used;t<12;t++)out+=`<rect x="${mx+t*TE-(off?rl.used*TE:0)+.5}" y="${y+10}" width="${TE-1}" height="70" fill="none" stroke="#b9bec4" stroke-dasharray="3 3"/>`;
     /* Sammelschiene (Gabel) in den unteren Klemmen */
     if(br.part){const P=BUS_P[br.part],on=br.on,cu=br.typ==='SIEM'?'#a7553f':'#c27a3c';let tt='';
       if(on)teeth.forEach(tx=>tt+=`<rect x="${(tx-2.5).toFixed(1)}" y="${y+72}" width="5" height="9" fill="${cu}"/>`);
@@ -890,11 +905,14 @@ function vtNeed(s){const L=skLayout(s),pl=planOf(s),ks=klStrips(s).filter(k=>k.m
   const kO=ks.filter(k=>klPos(pl,k.X)!=='unten'),kU=ks.filter(k=>klPos(pl,k.X)==='unten');
   return {L,rails:L.rails.length,maxUsed:Math.max(0,...L.rails.map(r=>r.used)),kO,kU,ko:rows(kO),ku:rows(kU)}}
 function vtFits(v,N){if(v.te<12)return N.rails<=1&&N.maxUsed<=v.te&&!N.ko&&!N.ku;
-  const kin=Math.min(N.ko,(v.kr||0)*v.f);return N.rails+(N.ko-kin)+N.ku<=v.f*v.r}
+  /* Klemmen immer über (bzw. unter) allen Sicherungen, auch im Nachbarfeld: oben t Reihen über die ganze Breite, unten b Reihen, dazwischen nur Sicherungsschienen */
+  return vtRows(v,N).ok}
+function vtRows(v,N){const kin=Math.min(N.ko,(v.kr||0)*v.f),t=Math.ceil((N.ko-kin)/v.f),b=Math.ceil(N.ku/v.f),per=v.r-t-b;return {t,b,per,ok:per>0&&N.rails<=per*v.f,split:N.rails>per}}
 function vtChoice(s){const pl=planOf(s),N=vtNeed(s),fit=VT.filter(v=>vtFits(v,N));
   const mmAny=fit.some(v=>v.mm),mmOn=mmAny&&pl.vtMM==='ja',pool=fit.filter(v=>!!v.mm===mmOn);
-  const best={};pool.forEach(v=>{if(!best[v.ser]||v.bru<best[v.ser].bru)best[v.ser]=v});
-  const sers=Object.values(best).sort((a,b)=>a.bru-b.bru),sel=sers.find(v=>v.ser===pl.vtSer)||sers[0]||null;
+  /* zuerst Verteiler, in denen alle Sicherungsschienen in einem Feld untereinander passen (Etagenschienen), sonst den günstigsten */
+  const rk=v=>(vtRows(v,N).split?1e6:0)+v.bru,best={};pool.forEach(v=>{if(!best[v.ser]||rk(v)<rk(best[v.ser]))best[v.ser]=v});
+  const sers=Object.values(best).sort((a,b)=>rk(a)-rk(b)),sel=sers.find(v=>v.ser===pl.vtSer)||sers[0]||null;
   return {N,fit,mmAny,mmOn,sers,sel}}
 /* Platzierung der Schienen im Verteiler: Klemmraum oben, dann Feld für Feld von oben nach unten */
 function vtPlace(v,N){const slots=[],kslots=[];for(let f=0;f<v.f;f++){for(let k=0;k<(v.kr||0);k++)kslots.push({f,row:k});for(let r=0;r<v.r;r++)slots.push({f,row:(v.kr||0)+r})}
@@ -921,7 +939,7 @@ function vtSVG(s,v,N){const k=24/18,B=busPlan(s,N.L),pl=planOf(s),W=v.B*k,H=v.H*
     if(sl.kind==='kl'){sl.kl.it.forEach(kk=>{const x=fx+kk.x*24,w=kk.te*24,n=Math.max(2,Math.round(w/6));let sl2='';for(let i=0;i<n;i++){const c=i>=n-1?'#5aa05a':i>=n-2?'#3f7fc4':'#9ea3a9';sl2+=`<rect x="${(x+1+i*(w-2)/n).toFixed(1)}" y="${ry+14}" width="${((w-2)/n-0.6).toFixed(1)}" height="44" fill="${c}"/>`}
         o+=`<rect x="${x}" y="${ry+12}" width="${w}" height="48" fill="#6b7076"/>${sl2}<rect x="${x}" y="${ry+60}" width="${w}" height="13" fill="${kk.X==='-X0'?'#ffd400':'#fff'}" stroke="#6b7076" stroke-width=".8"/><text x="${x+w/2}" y="${ry+70}" text-anchor="middle" class="b2t">${kk.X}</text>`});
       if(sl.row<(v.kr||0))o+=`<text x="${fx+PL+8}" y="${ry+40}" class="b2t" style="fill:#555">Klemmraum</text>`;return}
-    const rl=sl.rl,br=B.rails[rl.no-1];pos[rl.no]={x:fx,y:ry,f:sl.f};let x=fx;const teeth=[];
+    const rl=sl.rl,br=B.rails[rl.no-1];pos[rl.no]={x:fx,y:ry,f:sl.f};let x=fx+(br&&br.al==='r'?(RAIL_TE-rl.used)*24:0);const teeth=[];
     rl.items.forEach(it=>{const te=it.te||1,w=te*24;if(it.sk)o+=devSVG(x,ry,w,{np:1,top:it.K||'K',bot:'',nt:true,lever:'#6b7076'});
       else{const nt=it.nt?1:0,dw=(te-nt)*24,np=it.siem?1:Math.max(1,+it.pol||1);o+=devSVG(x,ry,dw,{np:Math.max(np,te-nt),top:it.f,bot:(it.char||'')+(it.amp||''),fi:it.typ==='FILS',tint:it.siem?'#fbefed':''});if(!it.nt)for(let q=0;q<np;q++)teeth.push(x+(q+.5)*dw/np);if(nt)o+=devSVG(x+dw,ry,24,{np:1,bot:'N',nt:true,lever:'#2f6db5'})}
       x+=w});
@@ -945,15 +963,13 @@ function vtSVG(s,v,N){const k=24/18,B=busPlan(s,N.L),pl=planOf(s),W=v.B*k,H=v.H*
   const VW=SX+D+30,VH=Y0+H+20;
   return {svg:`<svg class="b2d" viewBox="0 0 ${VW} ${VH}" width="100%" role="img" aria-label="Verteiler fertig, Front und Seite"><style>.b2b{font:700 11px sans-serif}.b2s{font:10px sans-serif}.b2t{font:700 8px sans-serif}</style>${o}</svg>`,warn,placed:pl2.length}}
 function vtBody(p,pl,dis){const C=vtChoice(p),v=C.sel;
-  let h=`<h2>Verteiler</h2><p class="sub">Die App sucht den kleinsten Hager-Aufputzverteiler, in den alles passt: ${C.N.rails} Sicherungs-/Reserveschienen${C.N.ko+C.N.ku?' und '+(C.N.ko+C.N.ku)+' Klemmenschiene'+(C.N.ko+C.N.ku>1?'n':''):''}, je 12 TE.</p>`;
+  let h=`<h2>Verteiler-Empfehlung</h2><p class="sub">Die App sucht den kleinsten Hager-Aufputzverteiler, in den alles passt: ${C.N.rails} Sicherungs-/Reserveschienen${C.N.ko+C.N.ku?' und '+(C.N.ko+C.N.ku)+' Klemmenschiene'+(C.N.ko+C.N.ku>1?'n':''):''}, je 12 TE.</p>`;
   if(!C.fit.length)return h+`<div class="msg err"><b>Kein passender Hager-Aufputzverteiler hinterlegt.</b> Für diese Planung (${C.N.rails} Sicherungsschienen${C.N.ko+C.N.ku?' + '+(C.N.ko+C.N.ku)+' Klemmenschienen':''}) passt keiner der hinterlegten Verteiler. Bitte den Verteiler von Hand suchen.</div>`;
   if(C.mmAny)h+=`<div class="legend">Multimedia-Feld</div><div class="tiles two-col"><button type="button" class="tile" data-plv="vtMM" data-v="nein" aria-pressed="${!C.mmOn}"${dis}><b>Ohne Multimedia-Feld</b><span>alle Felder mit Hutschienen</span></button><button type="button" class="tile" data-plv="vtMM" data-v="ja" aria-pressed="${C.mmOn}"${dis}><b>Mit Multimedia-Feld</b><span>ein Feld frei für Multimedia</span></button></div>`;
   if(!C.sers.length)return h+`<div class="msg err">Mit Multimedia-Feld passt kein hinterlegter Verteiler. Bitte «Ohne Multimedia-Feld» wählen oder den Verteiler von Hand suchen.</div>`;
   if(C.sers.length>1)h+=`<div class="legend">Serie wählen <span class="hint">es passen ${C.sers.length} Serien</span></div><div class="tiles">${C.sers.map(x=>`<button type="button" class="tile" data-plv="vtSer" data-v="${esc(x.ser)}" aria-pressed="${x===v}"${dis} style="align-items:center;text-align:center">${vtIcon(x)}<b>${esc(x.ser)}</b><span>${x.B}×${x.H}×${x.T} mm</span><span>brutto ${chf(x.bru)} CHF</span></button>`).join('')}</div>`;
-  const R=vtSVG(p,v,C.N);
-  h+=`<div class="legend">Gewählter Verteiler</div><table class="te"><tr><td>${esc('Hager '+v.art)} <span class="sub">(${v.nr})</span></td><td>netto ${chf(v.net)} / brutto ${chf(v.bru)} CHF</td></tr><tr><td>Masse B×H×T</td><td>${v.B} × ${v.H} × ${v.T} mm</td></tr><tr><td>Platz</td><td>${v.f*v.r*v.te} TE (${v.f} ${v.f>1?'Felder':'Feld'} × ${v.r} Reihen × ${v.te} TE)${v.kr?', oben '+v.kr+' Reihen Klemmraum':''}${v.mm?', 1 Multimedia-Feld':''}</td></tr><tr><td>Belegt</td><td>${R.placed} von ${v.f*(v.r+(v.kr||0))} Reihen</td></tr></table>
-  <div class="legend">Fertig in 2D, ohne Abdeckung</div><div class="b2wrap">${R.svg}</div>${R.warn.map(w=>`<div class="msg err">${esc(w)}</div>`).join('')}
-  <p class="sub">Aufbau der Felder (Feldbreite 250 mm, Reihenabstand ${v.p} mm) nach Hager-Raster. Bitte am Datenblatt prüfen.</p>
+  h+=`<div class="legend">Gewählter Verteiler</div><table class="te"><tr><td>${esc('Hager '+v.art)} <span class="sub">(${v.nr})</span></td><td>netto ${chf(v.net)} / brutto ${chf(v.bru)} CHF</td></tr><tr><td>Masse B×H×T</td><td>${v.B} × ${v.H} × ${v.T} mm</td></tr><tr><td>Platz</td><td>${v.f*v.r*v.te} TE (${v.f} ${v.f>1?'Felder':'Feld'} × ${v.r} Reihen × ${v.te} TE)${v.kr?', oben '+v.kr+' Reihen Klemmraum':''}${v.mm?', 1 Multimedia-Feld':''}</td></tr></table>
+  ${vtRows(v,C.N).split?`<div class="msg err">In diesem Verteiler passen pro Feld nur ${vtRows(v,C.N).per} Sicherungsschienen untereinander. Die Schienen verteilen sich auf mehrere Felder, zwischen den Feldern geht keine Etagenschiene (Litzenbrücke).</div>`:''}  <div class="msg info">Das ist nur eine <b>Empfehlung</b> nach Anzahl Reihen. Die Belegung im Verteiler bitte selbst festlegen und am Hager-Datenblatt prüfen.</div>
   <div class="row" style="margin-top:10px"><button type="button" class="btn primary" data-act="schema" data-pi="0">Weiter zu Druck / PDF →</button></div>`;
   return h}
 function busEdit(p,B,dis){const sdT=x=>x==='l'?'links':'rechts',bt=(act,no,txt,cl)=>`<button type="button" class="btn small${cl?' '+cl:''}" data-act="${act}" data-no="${no}"${dis}>${txt}</button>`;
@@ -962,7 +978,7 @@ function busEdit(p,B,dis){const sdT=x=>x==='l'?'links':'rechts',bt=(act,no,txt,c
   return `<div class="legend">Schienen bearbeiten</div><p class="sub">Hier löschst du einzelne Schienen oder setzt sie wieder ein. -X0 verschiebst du mit dem schwarzen Knopf in der Ansicht (links/rechts) oder durch Antippen des gelben -X0 (oben/unten).</p><table class="te">${[...rs,...es].join('')||'<tr><td>Keine Schienen</td><td></td></tr>'}</table>`}
 function busList(B){const row=(a,b,cl)=>`<tr${cl?` class="${cl}"`:''}><td>${a}</td><td>${b}</td></tr>`;
   return B.parts.length?`<table class="te">${B.parts.map(x=>row(x.n+'× '+esc((x.hst||'Hager')+' '+x.art)+' <span class="sub">('+x.nr+')</span>',chf(x.net*x.n)+' CHF')).join('')}${row('Schienen zusammen','netto '+chf(B.net)+' / brutto '+chf(B.bru)+' CHF','sum')}</table>`:'<p class="sub">Noch keine Sammelschienen nötig.</p>'}
-function busMsgs(B){return B.msgs.map(m=>`<div class="msg ${m.e?'err':'info'}">${m.warn?'⚠ ':''}${esc(m.t)}${m.warn&&canEdit(S.site)?' <button type="button" class="btn small" data-act="x0Ok">Geprüft</button>':''}</div>`).join('')}
+function busMsgs(B){return B.msgs.map(m=>`<div class="msg ${m.e?'err':'info'}">${m.warn?'⚠ ':''}${esc(m.t)}${m.warn&&canEdit(S.site)?' <button type="button" class="btn small" data-act="x0Ok">Geprüft</button>':''}${m.fix&&m.fix.length&&canEdit(S.site)?'<div class="fixes">'+m.fix.map((f,k)=>`<button type="button" class="btn small" data-act="busFix" data-k="${f.k}" data-no="${f.no||''}" data-i="${f.i==null?'':f.i}" data-n="${f.n||''}"><b>Lösung ${String.fromCharCode(65+k)}:</b> ${esc(f.lbl)}</button>`).join('')+'</div>':''}</div>`).join('')}
 function busBody(p,pl,dis){if(canEdit(p))pl.busSeen=true;const B=busPlan(p),tile=(key,val,label,sub)=>`<button type="button" class="tile" data-plv="${key}" data-v="${esc(val)}" aria-pressed="${(pl[key]||(key==='etag'?'ja':key==='x0Side'?'l':'o'))===val}"${dis}><b>${esc(label)}</b>${sub?`<span>${esc(sub)}</span>`:''}</button>`;
   const edited=pl.bus&&pl.bus.sig===B.sig&&(Object.keys(pl.bus.off).length||Object.keys(pl.bus.et).length);
   return `<h2>Sammel- und Etagenschienen</h2><p class="sub">Hager-Verteiler bis 10 mm². Die App macht einen Vorschlag und prüft ihn laufend. Du kannst ihn unten in der Ansicht ändern.</p>
@@ -1785,12 +1801,16 @@ document.addEventListener('submit',async e=>{
 document.addEventListener('click',e=>{
   const t=e.target.closest('button,g[data-act]');if(!t)return;
   const act=t.dataset.act;
-  if(['busTog','etTog','etSide','x0Flip','x0Pos','busReset','x0Ok'].includes(act)&&S.site&&canEdit(S.site)){const pl=planOf(S.site),no=t.dataset.no;
+  if(['busTog','etTog','etSide','x0Flip','x0Pos','busReset','x0Ok','busFix'].includes(act)&&S.site&&canEdit(S.site)){const pl=planOf(S.site),no=t.dataset.no;
     if(act==='busTog')busSet(b=>{if(b.off[no])delete b.off[no];else b.off[no]=1;touchPlan('Sammelschiene Hutschiene '+no+(b.off[no]?' entfernt':' eingesetzt'))});
     if(act==='etTog')busSet(b=>{if(b.et[no])delete b.et[no];else b.et[no]=1;touchPlan('Etagenschiene ab Hutschiene '+no+(b.et[no]?' gelöscht':' eingesetzt'))});
     if(act==='etSide')busSet(b=>{if(b.sd[no])delete b.sd[no];else b.sd[no]=1;touchPlan('Etagenschiene ab Hutschiene '+no+' Seite gewechselt')});
     if(act==='busReset'){delete pl.bus;touchPlan('Schienen: Vorschlag wiederhergestellt')}
     if(act==='x0Ok'){pl.x0Moved=false;touchPlan('Etagenschienen geprüft')}
+    if(act==='busFix'){const k=t.dataset.k;
+      if(k==='x0'){pl.x0Side=x0Side(pl)==='l'?'r':'l';touchPlan('Lösung: -X0 '+(pl.x0Side==='r'?'rechts':'links'))}
+      if(k==='res'){const o=pl.sk[+t.dataset.i],n=+t.dataset.n;if(o){for(let q=0;q<n;q++){const r={zl:o.zl,pol:o.pol,char:o.char,amp:o.amp,typ:o.typ,adern:o.adern||'',qs:o.qs||'',kabAuto:true,name:'Reserve'};autoKab(r);pl.sk.push(r)}touchPlan('Lösung: '+n+'× Reserve auf Hutschiene '+no)}}
+      if(k==='lz')busSet(b=>{b.lz[no]=1;touchPlan('Lösung: Litzenbrücke ab Hutschiene '+no+' übernommen')})}
     if(act==='x0Flip'){(pl.busSeen&&(pl.x0Moved=true));pl.x0Side=x0Side(pl)==='l'?'r':'l';touchPlan('-X0 '+(pl.x0Side==='r'?'rechts':'links'))}
     if(act==='x0Pos'){(pl.busSeen&&(pl.x0Moved=true));pl.klPos=pl.klPos||{};if(pl.klPos['-X0']==='u')delete pl.klPos['-X0'];else pl.klPos['-X0']='u';touchPlan('Klemmen -X0 '+(pl.klPos['-X0']==='u'?'unten':'oben'))}
     persistSite();render();return}
