@@ -570,7 +570,7 @@ function zlSum(s){const a=zlAll(s),r=a.filter(z=>z.res).length;return (a.length-
 const zlLbl=(s,k)=>k===0?(s.geb==='MFH'?'Allgemeinzähler':'Hauptzähler'):'Zähler';
 function zlSelId(s){const act=zlAct(s),z=act.find(z=>z.id===S.zlSel)||act[0];return z?z.id:''}
 const rowZid=(s,r)=>{const act=zlAct(s),z=act.find(z=>String(z.id)===String(r.zl))||act[0];return z?z.id:''};
-const stepsOf=s=>{const b=s&&s.art==='HV'?[...STEPS.slice(0,4),['zaehler','Zähler'],...STEPS.slice(4)]:[...STEPS.slice(0,4),['klemmen','Klemmen'],...STEPS.slice(4)];if(s&&busOn(s))b.splice(b.length-1,0,['schienen','Schienen']);return b};
+const stepsOf=s=>{const b=s&&s.art==='HV'?[...STEPS.slice(0,4),['zaehler','Zähler'],...STEPS.slice(4)]:[...STEPS.slice(0,4),['klemmen','Klemmen'],...STEPS.slice(4)];if(s&&busOn(s))b.splice(b.length-1,0,['schienen','Schienen']);if(s&&vtOn(s))b.push(['verteiler','Verteiler']);return b};
 /* UV ohne Abgangsklemmen: Kabel direkt an der Sicherung, -X0 bleibt immer */
 const noKl=s=>!!s&&s.art!=='HV'&&planOf(s).klAbg==='nein';
 /* harte Sperre ohne Abgangsklemmen: höchstens 2 Kabel pro Sicherung, alle mit gleichem Querschnitt */
@@ -702,6 +702,7 @@ function matList(s,lf){const pl=planOf(s),hst=pl.hersteller||'',L=skLayout(s),m=
   const kz=P.find(x=>x.k==='KZ'),bon=busOn(s),B=bon?busPlan(s,L):null;
   if(B&&B.nLz){const nl=(pl.adern||'5')==='5'?4:2,len=Math.round(B.nLz*nl*0.2*10)/10,lp=LITZE[pl.qs];if(lp&&lf==='Sonepar')m.set('LZB',{...lp,art:'T-Litze '+qsTxt(pl.qs)+' mm² für Litzenbrücken ('+B.nLz+' × '+nl+' Leiter × 20 cm)',lf,hst:'',k:'LZ',n:len,u:'m'});else miss.set('T-Litze '+(pl.qs?qsTxt(pl.qs):'?')+' mm² für Litzenbrücken, 20 cm pro Leiter und Sprung (Meter)',len)}
   if(B){B.parts.forEach(x=>{const o={lf,hst:x.hst||'Hager',k:'BUS',nr:x.nr,art:x.art,net:x.net,bru:x.bru};for(let i=0;i<x.n;i++)put(o,'')});if(kz)B.rails.filter(r=>r.on&&r.typ!=='SIEM').forEach(r=>{const rl=L.rails[r.no-1];if(rl.used<RAIL_TE)for(let i=0;i<Math.ceil((RAIL_TE-rl.used)/kz.te);i++)put(kz,'')})}
+  if(vtOn(s)){const C=vtChoice(s);if(C.sel)put(C.sel.prod||(C.sel.prod={lf,hst:'Hager',k:'VT',nr:C.sel.nr,art:C.sel.art.replace(/^AP-/,'AP-'),net:C.sel.net,bru:C.sel.bru}),'');else if(C.N.rails)miss.set('Hager AP-Verteiler (kein passender hinterlegt, von Hand suchen)',1)}
   if(busPausch(s)){const Q=busPlan(s,L,true);if(Q.bru)put({lf,hst:'',k:'PAU',nr:'Pauschale',art:'Phasen-/Etagenschienen für den Verteilerbauer (unsere Bruttopreise)',net:Q.bru,bru:Q.bru},'')}
   if(kz&&!bon)L.rails.filter(rl=>rl.kind==='sk'&&!rl.nt&&!rl.rel&&rl.used>0&&rl.used<RAIL_TE).forEach(rl=>{for(let i=0;i<Math.ceil((RAIL_TE-rl.used)/kz.te);i++)put(kz,'')});
   /* Extras ohne hinterlegtes Produkt */
@@ -742,7 +743,7 @@ function busPlan(s,L,fresh){
     else if(rl.siem){o.typ='SIEM';o.part='SIEM'}
     else if(bus.some(x=>+x.pol===3)){o.why='3-polige ohne N-Trenner: keine passende Kammschiene'}
     else{o.typ=rl.big?'4P':'2P';o.part=rl.big?'S4':'S2'}
-    o.n2=bus.filter(x=>+x.pol<3).length;o.on=!!o.part;return o});
+    o.n2=bus.filter(x=>+x.pol<3).length;{let n=0;for(const x of rl.items){if(x.sk||x.nt)break;n++}o.lead=n;const ls=rl.items[rl.items.length-1];o.endOk=rl.used>=RAIL_TE&&!!ls&&!ls.sk&&!ls.nt}o.on=!!o.part;return o});
   const sig=rails.map(r=>r.no+(r.typ||'-')+r.zid).join(',');
   const ov=!fresh&&pl.bus&&pl.bus.sig===sig?pl.bus:{off:{},et:{},sd:{}};const osd=ov.sd||{},opp=x=>x==='l'?'r':'l',sdT=x=>x==='l'?'links':'rechts';
   const msgs=[];
@@ -751,17 +752,23 @@ function busPlan(s,L,fresh){
   /* Etagenschienen zwischen zwei benachbarten Hager-Schienen derselben Einspeisung */
   const hg=r=>r&&r.on&&(r.typ==='4P'||r.typ==='2P'),ets=[];
   for(let i=0;i+1<rails.length;i++){const a=rails[i],b=rails[i+1];if(!hg(a)||!hg(b)||a.zid!==b.zid)continue;
-    const k=(a.typ==='4P'?'4':'2')+(b.typ==='4P'?'4':'2'),part=null;const few=[a,b].filter(r=>r.typ==='2P'&&r.n2<3);if(few.length){ets.push({a:a.no,b:b.no,k,part,on:false,cut:false,blk:etOn,few});continue}
-    ets.push({a:a.no,b:b.no,k,part,on:etOn&&!ov.et[a.no],cut:etOn&&!!ov.et[a.no]})}
+    const k=(a.typ==='4P'?'4':'2')+(b.typ==='4P'?'4':'2'),part=null;    ets.push({a:a.no,b:b.no,k,part,on:etOn&&!ov.et[a.no],cut:etOn&&!!ov.et[a.no]})}
   /* drei 4-polige Schienen untereinander: eine KCF668S statt zwei KCF663S */
   for(let i=0;i+1<ets.length;i++){const x=ets[i],y=ets[i+1];if(x.on&&y.on&&x.k==='44'&&y.k==='44'&&x.b===y.a&&!x.m&&!osd[x.a]&&!osd[y.a]){x.k='444';x.b=y.b;x.m=true;ets.splice(i+1,1)}}
   /* Seiten: X0 links -> erste Etagenschiene rechts (links bleibt frei zum Einspeisen), danach immer abwechselnd. Pro Seite einer Hutschiene nur eine Etagenschiene */
   const x0u=(pl.klPos||{})['-X0']==='u',adj=(p,e)=>p&&(x0u?p.a===e.b:p.b===e.a),shr=e=>x0u?e.b:e.a;
+  /* Etagenschiene greift in die Geräte am Rand: links mind. ET_MIN zweipolige bzw. 1 vierpolige ab links, rechts muss die Reihe bis rechts voll sein. Sonst automatisch Litzenbrücke */
+  const ET_MIN=4,endBad=(r,sd)=>sd==='r'?(!r.endOk?'Hutschiene '+r.no+' ist nicht bis rechts voll belegt':''):(r.typ==='2P'?(r.lead<ET_MIN?'Hutschiene '+r.no+' hat links nur '+r.lead+' zweipolige (mindestens '+ET_MIN+' nötig)':''):(r.lead<1?'Hutschiene '+r.no+' hat links keine 4-polige':''));
+  const hgs=rails.filter(r=>r.on&&(r.typ==='4P'||r.typ==='2P')),x0r=x0u?hgs[hgs.length-1]:hgs[0];
   {let pe=null,pa=null;(x0u?[...ets].reverse():ets).forEach(e=>{e.exp=adj(pe,e)?opp(pe.exp):opp(side);e.side=osd[e.a]?opp(e.exp):e.exp;e.part=e.k==='44'?'E44':e.k==='444'?'E444':'E'+e.k+e.side;
+    if(e.on){const chk=sd=>rails.filter(r=>r.no>=e.a&&r.no<=e.b).map(r=>endBad(r,sd)).filter(Boolean);let why=chk(e.side);
+      /* nach einer Litzenbrücke ist die Seite frei: andere Seite versuchen (nicht an der Schiene mit Einspeisung -X0, nicht bei Handänderung) */
+      if(why.length&&!osd[e.a]&&!adj(pe,e)&&!(x0r&&x0r.no>=e.a&&x0r.no<=e.b)&&!chk(opp(e.side)).length){e.side=e.exp=opp(e.side);e.part=e.k==='44'?'E44':e.k==='444'?'E444':'E'+e.k+e.side;why=[]}
+      if(why.length){e.on=false;e.blk=true;e.why=why}}
     if(e.on){if(e.side!==e.exp)msgs.push({e:1,t:'Fehler: Etagenschiene Hutschiene '+e.a+'–'+e.b+' ist '+sdT(e.side)+', muss '+sdT(e.exp)+' sein (Einspeisung -X0 '+sdT(side)+(x0u?' unten':' oben')+', erste Etagenschiene auf der Gegenseite, dann abwechselnd).'});
       if(adj(pa,e)&&pa.side===e.side)msgs.push({e:1,t:'Fehler: Hutschiene '+shr(e)+' hat '+sdT(e.side)+' zwei Etagenschienen. Pro Seite geht nur eine.'});pe=e;pa=e}else{pe=null;pa=null}})}
   const lz='Litzenbrücke '+(pl.qs?qsTxt(pl.qs)+' mm²':'(Querschnitt Zuleitung)');
-  ets.filter(e=>e.blk).forEach(e=>msgs.push({e:0,t:'Hutschiene '+e.a+'–'+e.b+': keine Etagenschiene möglich, weil auf '+e.few.map(r=>'Hutschiene '+r.no+' nur '+r.n2+(r.n2===1?' zweipolige Sicherung':' zweipolige Sicherungen')).join(' und ')+' sitzen (mindestens 3 nötig). Sonst bleibt ein Kupferstift der Etagenschiene frei, der sich nicht isolieren lässt. Stattdessen '+lz+'.'}));
+  ets.filter(e=>e.blk).forEach(e=>msgs.push({e:1,t:'Hutschiene '+e.a+'–'+e.b+': Etagenschiene '+sdT(e.side)+' nicht möglich: '+e.why.join(', ')+'. Die Etagenschiene braucht die Geräte bis an den Rand, sonst bleibt ein Kupferstift frei, der sich nicht isolieren lässt. Automatisch ersetzt durch '+lz+'.'}));
   ets.filter(e=>e.cut).forEach(e=>msgs.push({e:1,t:'Etagenschiene zwischen Hutschiene '+e.a+' und '+e.b+' gelöscht: '+lz+' nötig.'}));
   /* Einspeisung: erste Schiene mit Sammelschiene je Einspeisung vom -X0, jede weitere über Etagenschiene oder Litzenbrücke */
   const fed=new Set();const seen=new Set();
@@ -787,19 +794,7 @@ function bus2D(s,raw){
   const g=(act,attrs,inner,tip)=>ed?`<g data-act="${act}" ${attrs} style="cursor:pointer"><title>${esc(tip)}</title>${inner}</g>`:inner;
   const din=yy=>`<rect x="${CL+6}" y="${yy-9}" width="${CR-CL-12}" height="18" fill="#c3c7cc" stroke="#9aa0a6" stroke-width=".8"/><line x1="${CL+6}" y1="${yy-5}" x2="${CR-6}" y2="${yy-5}" stroke="#e4e7ea" stroke-width="1"/><line x1="${CL+6}" y1="${yy+5}" x2="${CR-6}" y2="${yy+5}" stroke="#a6abb1" stroke-width="1"/>`;
   /* Reiheneinbaugerät in Frontansicht (nachgezeichnet): Klemmen oben/unten mit Schrauben, Frontteil, Kipphebel, Schaltstellungsanzeige */
-  const dev=(x,y,w,o)=>{const np=Math.max(1,o.np||1),T=y+10,Hh=70;let h=`<rect x="${x+.5}" y="${T}" width="${w-1}" height="${Hh}" fill="${o.tint||'#f3f3f1'}" stroke="#8a9097" stroke-width=".9"/>`;
-    h+=`<rect x="${x+1.5}" y="${T+1}" width="${w-3}" height="13" fill="#e4e5e3"/><rect x="${x+1.5}" y="${T+Hh-14}" width="${w-3}" height="13" fill="#e4e5e3"/>`;
-    for(let q=0;q<np;q++){const cx=x+(q+.5)*w/np;[T+7.5,T+Hh-7.5].forEach(cy=>{h+=`<rect x="${(cx-3.5).toFixed(1)}" y="${cy-4}" width="7" height="8" fill="#5c6167"/><circle cx="${cx.toFixed(1)}" cy="${cy}" r="2.6" fill="#c8ccd1" stroke="#6f757c" stroke-width=".5"/><line x1="${(cx-1.8).toFixed(1)}" y1="${cy+1.2}" x2="${(cx+1.8).toFixed(1)}" y2="${cy-1.2}" stroke="#5c6167" stroke-width=".7"/>`})}
-    /* erhöhtes Frontteil */
-    h+=`<rect x="${x+2.5}" y="${T+16}" width="${w-5}" height="${Hh-32}" fill="${o.tint?'#fff7f5':'#fafaf9'}" stroke="#c4c8cc" stroke-width=".6"/><line x1="${x+3}" y1="${T+Hh-16.5}" x2="${x+w-3}" y2="${T+Hh-16.5}" stroke="#b3b8bd" stroke-width=".8"/>`;
-    /* Kipphebel in Mulde, bei mehrpoligen durchgehender Bügel */
-    const lw=np>1?w-10:Math.min(10,w-8),lx=x+w/2-lw/2;
-    h+=`<rect x="${lx-1.5}" y="${T+24}" width="${lw+3}" height="21" fill="#3a3e43"/><rect x="${lx}" y="${T+25}" width="${lw}" height="11" fill="${o.lever||'#24272b'}"/><rect x="${lx}" y="${T+25}" width="${lw}" height="2.5" fill="${o.lever?'#5b8fd0':'#4a4e54'}"/>`;
-    if(np>1)for(let q=1;q<np;q++){const cx=x+q*w/np;h+=`<line x1="${cx.toFixed(1)}" y1="${T+16}" x2="${cx.toFixed(1)}" y2="${T+23}" stroke="#c4c8cc" stroke-width=".6"/>`}
-    if(!o.nt)h+=`<rect x="${x+4}" y="${T+48}" width="5" height="3.5" fill="#d0312d"/>`;
-    if(o.fi)h+=`<rect x="${x+w-11}" y="${T+46}" width="7" height="7" fill="#e3c34a" stroke="#9c8424" stroke-width=".5"/><text x="${x+w-7.5}" y="${T+52}" text-anchor="middle" class="b2t" style="font-size:5.5px">T</text>`;
-    h+=`<text x="${x+w/2}" y="${T+22}" text-anchor="middle" class="${w>TE?'b2b':'b2t'}" style="font-size:${w>TE?9:7}px">${esc(o.top||'')}</text><text x="${x+w/2}" y="${T+Hh-19}" text-anchor="middle" class="b2t" style="font-size:${w>TE?8:6.5}px">${esc(o.bot||'')}</text>`;
-    return h};
+  const dev=devSVG;
   const lbl=(yy,a,b)=>`<text x="${CL-20}" y="${yy-2}" text-anchor="end" class="b2b">${a}</text><text x="${CL-20}" y="${yy+11}" text-anchor="end" class="b2s">${b}</text>`;
   const klRow=r=>{const cy=y+36;let h=din(cy)+lbl(cy,'Klemmen',r.it.map(k=>k.X).join(' '));
     r.it.forEach(k=>{const x=mx+k.x*TE,w=k.te*TE,x0=k.X==='-X0',n=Math.max(2,Math.round(w/6));let sl='';
@@ -847,9 +842,113 @@ function bus2D(s,raw){
   const VW=CR+170,HH=H+(x0u?22:4);
   if(raw)return {inner:cab+out+flip,VW,H:HH};
   return `<svg class="b2d" viewBox="0 0 ${VW} ${HH}" width="100%" role="img" aria-label="2D-Ansicht Verteiler"><style>.b2b{font:700 11px sans-serif}.b2s{font:10px sans-serif}.b2t{font:700 8px sans-serif}</style>${cab}${out}${flip}</svg>`}
+function devSVG(x,y,w,o){const TE=24;const np=Math.max(1,o.np||1),T=y+10,Hh=70;let h=`<rect x="${x+.5}" y="${T}" width="${w-1}" height="${Hh}" fill="${o.tint||'#f3f3f1'}" stroke="#8a9097" stroke-width=".9"/>`;
+    h+=`<rect x="${x+1.5}" y="${T+1}" width="${w-3}" height="13" fill="#e4e5e3"/><rect x="${x+1.5}" y="${T+Hh-14}" width="${w-3}" height="13" fill="#e4e5e3"/>`;
+    for(let q=0;q<np;q++){const cx=x+(q+.5)*w/np;[T+7.5,T+Hh-7.5].forEach(cy=>{h+=`<rect x="${(cx-3.5).toFixed(1)}" y="${cy-4}" width="7" height="8" fill="#5c6167"/><circle cx="${cx.toFixed(1)}" cy="${cy}" r="2.6" fill="#c8ccd1" stroke="#6f757c" stroke-width=".5"/><line x1="${(cx-1.8).toFixed(1)}" y1="${cy+1.2}" x2="${(cx+1.8).toFixed(1)}" y2="${cy-1.2}" stroke="#5c6167" stroke-width=".7"/>`})}
+    /* erhöhtes Frontteil */
+    h+=`<rect x="${x+2.5}" y="${T+16}" width="${w-5}" height="${Hh-32}" fill="${o.tint?'#fff7f5':'#fafaf9'}" stroke="#c4c8cc" stroke-width=".6"/><line x1="${x+3}" y1="${T+Hh-16.5}" x2="${x+w-3}" y2="${T+Hh-16.5}" stroke="#b3b8bd" stroke-width=".8"/>`;
+    /* Kipphebel in Mulde, bei mehrpoligen durchgehender Bügel */
+    const lw=np>1?w-10:Math.min(10,w-8),lx=x+w/2-lw/2;
+    h+=`<rect x="${lx-1.5}" y="${T+24}" width="${lw+3}" height="21" fill="#3a3e43"/><rect x="${lx}" y="${T+25}" width="${lw}" height="11" fill="${o.lever||'#24272b'}"/><rect x="${lx}" y="${T+25}" width="${lw}" height="2.5" fill="${o.lever?'#5b8fd0':'#4a4e54'}"/>`;
+    if(np>1)for(let q=1;q<np;q++){const cx=x+q*w/np;h+=`<line x1="${cx.toFixed(1)}" y1="${T+16}" x2="${cx.toFixed(1)}" y2="${T+23}" stroke="#c4c8cc" stroke-width=".6"/>`}
+    if(!o.nt)h+=`<rect x="${x+4}" y="${T+48}" width="5" height="3.5" fill="#d0312d"/>`;
+    if(o.fi)h+=`<rect x="${x+w-11}" y="${T+46}" width="7" height="7" fill="#e3c34a" stroke="#9c8424" stroke-width=".5"/><text x="${x+w-7.5}" y="${T+52}" text-anchor="middle" class="b2t" style="font-size:5.5px">T</text>`;
+    h+=`<text x="${x+w/2}" y="${T+22}" text-anchor="middle" class="${w>TE?'b2b':'b2t'}" style="font-size:${w>TE?9:7}px">${esc(o.top||'')}</text><text x="${x+w/2}" y="${T+Hh-19}" text-anchor="middle" class="b2t" style="font-size:${w>TE?8:6.5}px">${esc(o.bot||'')}</text>`;
+    return h}
+/* Hager-AP-Verteiler (nur UV + Hager + Aufputz + Herstellerverteiler). f = Felder mit Hutschienen, r = Reihen, kr = Reihen Klemmraum oben, mm = Multimedia-Feld, te = TE pro Reihe, p = Reihenabstand mm */
+const VT=[
+  {id:'mg1',ser:'mini gamma',nr:'822 112 114',art:'AP-Kleinverteiler mini gamma 1-reihig 4TE IP30',B:110,H:180,T:82,f:1,r:1,te:4,p:125,net:8.33,bru:15.15},
+  {id:'g2',ser:'gamma',nr:'822 022 304',art:'AP-Kleinverteiler gamma 2-reihig 13TE IP30',B:250,H:375,T:103,f:1,r:2,te:13,p:125,net:33.88,bru:61.60},
+  {id:'v2',ser:'volta',nr:'822 120 034',art:'AP-Kleinverteiler volta 2-reihig Tür IP30',B:305,H:370,T:96.5,f:1,r:2,te:12,p:125,net:62.43,bru:113.50},
+  {id:'v3',ser:'volta',nr:'822 130 034',art:'AP-Kleinverteiler volta 3-reihig Tür IP30',B:305,H:515,T:96.5,f:1,r:3,te:12,p:125,net:81.95,bru:149.00},
+  {id:'v4',ser:'volta',nr:'822 140 034',art:'AP-Kleinverteiler volta 4-reihig Tür IP30',B:305,H:640,T:96.5,f:1,r:4,te:12,p:125,net:89.93,bru:163.50},
+  {id:'u313',ser:'univers',nr:'822 130 214',art:'AP-Feldverteiler univers 3-reihig 36TE Tür IP44',B:300,H:500,T:160,f:1,r:3,te:12,p:150,net:162.25,bru:295.00},
+  {id:'u323',ser:'univers',nr:'822 130 224',art:'AP-Feldverteiler univers 3-reihig 72TE Tür IP44',B:550,H:500,T:160,f:2,r:3,te:12,p:150,net:246.40,bru:448.00},
+  {id:'u414m',ser:'univers',nr:'822 040 134',art:'AP-Feldverteiler univers 4-reihig 48TE Tür IP44',B:550,H:650,T:160,f:1,r:4,mm:1,te:12,p:150,net:306.35,bru:557.00},
+  {id:'u424',ser:'univers',nr:'822 140 224',art:'AP-Feldverteiler univers 4-reihig 96TE Tür IP44',B:550,H:650,T:160,f:2,r:4,te:12,p:150,net:276.10,bru:502.00},
+  {id:'u515m',ser:'univers',nr:'822 050 134',art:'AP-Feldverteiler univers 5-reihig 60TE Tür IP44',B:550,H:800,T:160,f:1,r:5,mm:1,te:12,p:150,net:324.50,bru:590.00},
+  {id:'u624k',ser:'univers',nr:'822 160 324',art:'AP-Feldverteiler univers 6-reihig 96TE Tür IP44',B:550,H:950,T:160,f:2,r:4,kr:2,te:12,p:150,net:269.50,bru:490.00},
+  {id:'u525m',ser:'univers',nr:'822 050 144',art:'AP-Feldverteiler univers 5-reihig 120TE Tür IP44',B:800,H:800,T:160,f:2,r:5,mm:1,te:12,p:150,net:411.40,bru:748.00},
+  {id:'u535',ser:'univers',nr:'822 150 234',art:'AP-Feldverteiler univers 5-reihig 180TE Tür IP44',B:800,H:800,T:160,f:3,r:5,te:12,p:150,net:386.65,bru:703.00},
+  {id:'u634k',ser:'univers',nr:'822 160 334',art:'AP-Feldverteiler univers 6-reihig 144TE Tür IP44',B:800,H:950,T:160,f:3,r:4,kr:2,te:12,p:150,net:402.60,bru:732.00},
+  {id:'u626m',ser:'univers',nr:'822 040 144',art:'AP-Feldverteiler univers 6-reihig 144TE Tür IP44',B:800,H:950,T:160,f:2,r:6,mm:1,te:12,p:150,net:443.85,bru:807.00},
+  {id:'u735k',ser:'univers',nr:'822 170 334',art:'AP-Feldverteiler univers 7-reihig 180TE Deckel IP44',B:800,H:1100,T:160,f:3,r:5,kr:2,te:12,p:150,net:441.10,bru:802.00}];
+const vtOn=s=>{const pl=planOf(s);return s.art!=='HV'&&/hager/i.test(pl.hersteller||'')&&pl.montage==='AP'&&pl.gehaeuse==='hersteller'};
+/* Bedarf: Sicherungsschienen (inkl. Reserve) + Klemmenschienen oben/unten, je 12 TE */
+function vtNeed(s){const L=skLayout(s),pl=planOf(s),ks=klStrips(s).filter(k=>k.mm||k.offen||k.X==='-X0');
+  const te=k=>Math.max(1,k.mm?klTE(k.mm):2),rows=arr=>{let n=0,u=0;arr.forEach(k=>{const t=te(k);if(!n||u+t>12){n++;u=0}u+=t});return n};
+  const kO=ks.filter(k=>klPos(pl,k.X)!=='unten'),kU=ks.filter(k=>klPos(pl,k.X)==='unten');
+  return {L,rails:L.rails.length,maxUsed:Math.max(0,...L.rails.map(r=>r.used)),kO,kU,ko:rows(kO),ku:rows(kU)}}
+function vtFits(v,N){if(v.te<12)return N.rails<=1&&N.maxUsed<=v.te&&!N.ko&&!N.ku;
+  const kin=Math.min(N.ko,(v.kr||0)*v.f);return N.rails+(N.ko-kin)+N.ku<=v.f*v.r}
+function vtChoice(s){const pl=planOf(s),N=vtNeed(s),fit=VT.filter(v=>vtFits(v,N));
+  const mmAny=fit.some(v=>v.mm),mmOn=mmAny&&pl.vtMM==='ja',pool=fit.filter(v=>!!v.mm===mmOn);
+  const best={};pool.forEach(v=>{if(!best[v.ser]||v.bru<best[v.ser].bru)best[v.ser]=v});
+  const sers=Object.values(best).sort((a,b)=>a.bru-b.bru),sel=sers.find(v=>v.ser===pl.vtSer)||sers[0]||null;
+  return {N,fit,mmAny,mmOn,sers,sel}}
+/* Platzierung der Schienen im Verteiler: Klemmraum oben, dann Feld für Feld von oben nach unten */
+function vtPlace(v,N){const slots=[],kslots=[];for(let f=0;f<v.f;f++){for(let k=0;k<(v.kr||0);k++)kslots.push({f,row:k});for(let r=0;r<v.r;r++)slots.push({f,row:(v.kr||0)+r})}
+  const out=[];let si=0,ki=0;const ko=[];{let r=null;N.kO.forEach(k=>{const t=Math.max(1,k.mm?klTE(k.mm):2);if(!r||r.te+t>12){r={te:0,it:[]};ko.push(r)}r.it.push({...k,te:t,x:r.te});r.te+=t})}
+  const ku=[];{let r=null;N.kU.forEach(k=>{const t=Math.max(1,k.mm?klTE(k.mm):2);if(!r||r.te+t>12){r={te:0,it:[]};ku.push(r)}r.it.push({...k,te:t,x:r.te});r.te+=t})}
+  ko.forEach(r=>{const sl=ki<kslots.length?kslots[ki++]:slots[si++];if(sl)out.push({...sl,kind:'kl',kl:r})});
+  N.L.rails.forEach(rl=>{const sl=slots[si++];if(sl)out.push({...sl,kind:'sk',rl})});
+  ku.forEach(r=>{const sl=slots[si++];if(sl)out.push({...sl,kind:'kl',kl:r})});
+  return out}
+/* kleines Vergleichsbild einer Serie (selbst gezeichnet) */
+function vtIcon(v){const k=90/Math.max(v.H,v.B*0.8),w=v.B*k,h=v.H*k,uni=v.ser==='univers';let o=`<svg viewBox="0 0 ${w+8} ${h+8}" width="${(w+8).toFixed(0)}" height="${(h+8).toFixed(0)}" aria-hidden="true"><rect x="4" y="4" width="${w}" height="${h}" fill="${uni?'#eceeef':'#f7f7f5'}" stroke="#7f858c"/>`;
+  const fw=(w-8)/(v.f+(v.mm?1:0)),rows=(v.kr||0)+v.r;for(let f=0;f<v.f+(v.mm?1:0);f++){const fx=8+f*fw;o+=`<rect x="${fx}" y="8" width="${fw-3}" height="${h-8}" fill="${f>=v.f?'#dfe6ee':'#fff'}" stroke="#b9bec4" stroke-width=".6"/>`;
+    if(f<v.f)for(let r=0;r<rows;r++){const ry=8+(r+.5)*(h-8)/rows;o+=`<rect x="${fx+2}" y="${ry-2.5}" width="${fw-7}" height="5" fill="${r<(v.kr||0)?'#9ea3a9':'#3b3f44'}"/>`}else o+=`<text x="${fx+fw/2-1}" y="${8+(h-8)/2}" text-anchor="middle" style="font:7px sans-serif;fill:#3f6fa5">MM</text>`}
+  return o+'</svg>'}
+/* Schlussansicht: Front und Seite ohne Abdeckung, massstäblich (1 mm = 1,333 px, 1 TE = 18 mm) */
+function vtSVG(s,v,N){const k=24/18,B=busPlan(s,N.L),pl=planOf(s),W=v.B*k,H=v.H*k,FW=250*k,fieldsT=v.f+(v.mm?1:0),ox=(W-fieldsT*FW)/2,rowsT=(v.kr||0)+v.r,P=v.p*k,oy=(H-rowsT*P)/2,PL=v.te*24;
+  const pl2=vtPlace(v,N),X0=60,Y0=40;let o='';
+  o+=`<rect x="${X0}" y="${Y0}" width="${W}" height="${H}" fill="#e9eaec" stroke="#6f757c" stroke-width="1.5"/><rect x="${X0+8}" y="${Y0+8}" width="${W-16}" height="${H-16}" fill="#f7f7f5" stroke="#a9aeb4"/>`;
+  for(let f=0;f<fieldsT;f++){const fx=X0+ox+f*FW;o+=`<rect x="${fx+3}" y="${Y0+oy-6}" width="${FW-6}" height="${rowsT*P+12}" fill="${f>=v.f?'#e6ecf2':'none'}" stroke="#c4c8cc" stroke-dasharray="${f>=v.f?'':'4 3'}"/>`;
+    if(f>=v.f)o+=`<text x="${fx+FW/2}" y="${Y0+oy+rowsT*P/2}" text-anchor="middle" class="b2b" style="fill:#3f6fa5">Multimedia-Feld</text>`}
+  const pos={};
+  pl2.forEach(sl=>{const fx=X0+ox+sl.f*FW+(FW-PL)/2,ry=Y0+oy+sl.row*P+(P-90)/2,cy=ry+44;
+    o+=`<rect x="${fx-6}" y="${cy-9}" width="${PL+12}" height="18" fill="#c3c7cc" stroke="#9aa0a6" stroke-width=".8"/><line x1="${fx-6}" y1="${cy-5}" x2="${fx+PL+6}" y2="${cy-5}" stroke="#e4e7ea"/>`;
+    if(sl.kind==='kl'){sl.kl.it.forEach(kk=>{const x=fx+kk.x*24,w=kk.te*24,n=Math.max(2,Math.round(w/6));let sl2='';for(let i=0;i<n;i++){const c=i>=n-1?'#5aa05a':i>=n-2?'#3f7fc4':'#9ea3a9';sl2+=`<rect x="${(x+1+i*(w-2)/n).toFixed(1)}" y="${ry+14}" width="${((w-2)/n-0.6).toFixed(1)}" height="44" fill="${c}"/>`}
+        o+=`<rect x="${x}" y="${ry+12}" width="${w}" height="48" fill="#6b7076"/>${sl2}<rect x="${x}" y="${ry+60}" width="${w}" height="13" fill="${kk.X==='-X0'?'#ffd400':'#fff'}" stroke="#6b7076" stroke-width=".8"/><text x="${x+w/2}" y="${ry+70}" text-anchor="middle" class="b2t">${kk.X}</text>`});
+      if(sl.row<(v.kr||0))o+=`<text x="${fx+PL+8}" y="${ry+40}" class="b2t" style="fill:#555">Klemmraum</text>`;return}
+    const rl=sl.rl,br=B.rails[rl.no-1];pos[rl.no]={x:fx,y:ry,f:sl.f};let x=fx;const teeth=[];
+    rl.items.forEach(it=>{const te=it.te||1,w=te*24;if(it.sk)o+=devSVG(x,ry,w,{np:1,top:it.K||'K',bot:'',nt:true,lever:'#6b7076'});
+      else{const nt=it.nt?1:0,dw=(te-nt)*24,np=it.siem?1:Math.max(1,+it.pol||1);o+=devSVG(x,ry,dw,{np:Math.max(np,te-nt),top:it.f,bot:(it.char||'')+(it.amp||''),fi:it.typ==='FILS',tint:it.siem?'#fbefed':''});if(!it.nt)for(let q=0;q<np;q++)teeth.push(x+(q+.5)*dw/np);if(nt)o+=devSVG(x+dw,ry,24,{np:1,bot:'N',nt:true,lever:'#2f6db5'})}
+      x+=w});
+    if(br&&br.on){const cu=br.typ==='SIEM'?'#a7553f':'#c27a3c';teeth.forEach(tx=>o+=`<rect x="${(tx-2.5).toFixed(1)}" y="${ry+72}" width="5" height="9" fill="${cu}"/>`);o+=`<rect x="${fx}" y="${ry+81}" width="${PL}" height="7" fill="${cu}" stroke="#7d4a22" stroke-width=".9"/>`}
+    o+=`<text x="${fx-10}" y="${ry+48}" text-anchor="end" class="b2t">${rl.no}</text>`});
+  /* Etagenschienen nur innerhalb eines Feldes */
+  const warn=[];
+  if(B.etOn)B.ets.filter(e=>e.on).forEach(e=>{const a=pos[e.a],b=pos[e.b];if(!a||!b)return;if(a.f!==b.f){warn.push('Hutschiene '+e.a+' und '+e.b+' liegen in verschiedenen Feldern: dort geht keine Etagenschiene, Litzenbrücke nötig.');return}
+    const vx=e.side==='l'?a.x-22:a.x+PL+8,y1=a.y+78,y2=b.y+90;o+=`<rect x="${vx}" y="${y1}" width="14" height="${y2-y1}" fill="#d9dcdf" stroke="#7f858c" stroke-width=".9"/>`;
+    B.rails.filter(r=>r.no>=e.a&&r.no<=e.b&&pos[r.no]).forEach(r=>{const ry=pos[r.no].y+84,ax=e.side==='l'?vx+14:a.x+PL-16,aw=e.side==='l'?a.x+16-(vx+14):vx-(a.x+PL-16);o+=`<rect x="${ax}" y="${ry-5}" width="${aw}" height="10" fill="#cfd3d7" stroke="#7f858c" stroke-width=".7"/><rect x="${vx}" y="${ry-8}" width="14" height="16" fill="#c4c8cc" stroke="#7f858c" stroke-width=".7"/>`})});
+  /* Masse */
+  o+=`<line x1="${X0}" y1="${Y0-14}" x2="${X0+W}" y2="${Y0-14}" stroke="#333"/><text x="${X0+W/2}" y="${Y0-19}" text-anchor="middle" class="b2s">${v.B} mm</text><line x1="${X0-14}" y1="${Y0}" x2="${X0-14}" y2="${Y0+H}" stroke="#333"/><text x="${X0-19}" y="${Y0+H/2}" text-anchor="middle" class="b2s" transform="rotate(-90 ${X0-19} ${Y0+H/2})">${v.H} mm</text>`;
+  /* Seitenansicht */
+  const SX=X0+W+90,D=v.T*k;o+=`<text x="${SX}" y="${Y0-19}" class="b2b">Seite (${v.T} mm tief)</text><rect x="${SX}" y="${Y0}" width="${D}" height="${H}" fill="#f7f7f5" stroke="#6f757c" stroke-width="1.5"/><rect x="${SX}" y="${Y0}" width="6" height="${H}" fill="#cfd2d6"/>`;
+  const rd=Math.min(D-6-70*k,30*k),seen=new Set();
+  pl2.forEach(sl=>{const key=sl.row;if(seen.has(key))return;seen.add(key);const ry=Y0+oy+sl.row*P+(P-90)/2,cy=ry+44,bx=SX+6+Math.max(4,rd);
+    o+=`<rect x="${bx-8}" y="${cy-9}" width="8" height="18" fill="#c3c7cc" stroke="#9aa0a6" stroke-width=".7"/>`;
+    if(sl.kind==='kl')o+=`<rect x="${bx}" y="${ry+14}" width="${48*k}" height="60" fill="#9ea3a9" stroke="#6b7076"/>`;
+    else{const dd=Math.min(70*k,D-(bx-SX)-4);o+=`<path d="M${bx} ${ry+8} h${dd*0.62} v16 h${dd*0.38} v42 h-${dd*0.38} v16 h-${dd*0.62} z" fill="#f3f3f1" stroke="#8a9097"/>`;
+      if(B.rails[sl.rl.no-1]&&B.rails[sl.rl.no-1].on)o+=`<rect x="${bx+dd*0.2}" y="${ry+80}" width="${dd*0.3}" height="7" fill="#c27a3c" stroke="#7d4a22" stroke-width=".7"/>`}});
+  const VW=SX+D+30,VH=Y0+H+20;
+  return {svg:`<svg class="b2d" viewBox="0 0 ${VW} ${VH}" width="100%" role="img" aria-label="Verteiler fertig, Front und Seite"><style>.b2b{font:700 11px sans-serif}.b2s{font:10px sans-serif}.b2t{font:700 8px sans-serif}</style>${o}</svg>`,warn,placed:pl2.length}}
+function vtBody(p,pl,dis){const C=vtChoice(p),v=C.sel;
+  let h=`<h2>Verteiler</h2><p class="sub">Die App sucht den kleinsten Hager-Aufputzverteiler, in den alles passt: ${C.N.rails} Sicherungs-/Reserveschienen${C.N.ko+C.N.ku?' und '+(C.N.ko+C.N.ku)+' Klemmenschiene'+(C.N.ko+C.N.ku>1?'n':''):''}, je 12 TE.</p>`;
+  if(!C.fit.length)return h+`<div class="msg err"><b>Kein passender Hager-Aufputzverteiler hinterlegt.</b> Für diese Planung (${C.N.rails} Sicherungsschienen${C.N.ko+C.N.ku?' + '+(C.N.ko+C.N.ku)+' Klemmenschienen':''}) passt keiner der hinterlegten Verteiler. Bitte den Verteiler von Hand suchen.</div>`;
+  if(C.mmAny)h+=`<div class="legend">Multimedia-Feld</div><div class="tiles two-col"><button type="button" class="tile" data-plv="vtMM" data-v="nein" aria-pressed="${!C.mmOn}"${dis}><b>Ohne Multimedia-Feld</b><span>alle Felder mit Hutschienen</span></button><button type="button" class="tile" data-plv="vtMM" data-v="ja" aria-pressed="${C.mmOn}"${dis}><b>Mit Multimedia-Feld</b><span>ein Feld frei für Multimedia</span></button></div>`;
+  if(!C.sers.length)return h+`<div class="msg err">Mit Multimedia-Feld passt kein hinterlegter Verteiler. Bitte «Ohne Multimedia-Feld» wählen oder den Verteiler von Hand suchen.</div>`;
+  if(C.sers.length>1)h+=`<div class="legend">Serie wählen <span class="hint">es passen ${C.sers.length} Serien</span></div><div class="tiles">${C.sers.map(x=>`<button type="button" class="tile" data-plv="vtSer" data-v="${esc(x.ser)}" aria-pressed="${x===v}"${dis} style="align-items:center;text-align:center">${vtIcon(x)}<b>${esc(x.ser)}</b><span>${x.B}×${x.H}×${x.T} mm</span><span>brutto ${chf(x.bru)} CHF</span></button>`).join('')}</div>`;
+  const R=vtSVG(p,v,C.N);
+  h+=`<div class="legend">Gewählter Verteiler</div><table class="te"><tr><td>${esc('Hager '+v.art)} <span class="sub">(${v.nr})</span></td><td>netto ${chf(v.net)} / brutto ${chf(v.bru)} CHF</td></tr><tr><td>Masse B×H×T</td><td>${v.B} × ${v.H} × ${v.T} mm</td></tr><tr><td>Platz</td><td>${v.f*v.r*v.te} TE (${v.f} ${v.f>1?'Felder':'Feld'} × ${v.r} Reihen × ${v.te} TE)${v.kr?', oben '+v.kr+' Reihen Klemmraum':''}${v.mm?', 1 Multimedia-Feld':''}</td></tr><tr><td>Belegt</td><td>${R.placed} von ${v.f*(v.r+(v.kr||0))} Reihen</td></tr></table>
+  <div class="legend">Fertig in 2D, ohne Abdeckung</div><div class="b2wrap">${R.svg}</div>${R.warn.map(w=>`<div class="msg err">${esc(w)}</div>`).join('')}
+  <p class="sub">Aufbau der Felder (Feldbreite 250 mm, Reihenabstand ${v.p} mm) nach Hager-Raster. Bitte am Datenblatt prüfen.</p>
+  <div class="row" style="margin-top:10px"><button type="button" class="btn primary" data-act="schema" data-pi="0">Weiter zu Druck / PDF →</button></div>`;
+  return h}
 function busEdit(p,B,dis){const sdT=x=>x==='l'?'links':'rechts',bt=(act,no,txt,cl)=>`<button type="button" class="btn small${cl?' '+cl:''}" data-act="${act}" data-no="${no}"${dis}>${txt}</button>`;
   const rs=B.rails.filter(r=>r.part).map(r=>`<tr><td><b>Sammelschiene Hutschiene ${r.no}</b><br><span class="sub">${r.on?esc(BUS_P[r.part].kurz)+' · '+BUS_P[r.part].nr:'entfernt, Sicherungen einzeln verdrahten'}</span></td><td>${r.on?bt('busTog',r.no,'✕ Löschen','danger'):bt('busTog',r.no,'+ Wieder einsetzen')}</td></tr>`);
-  const es=B.etOn?B.ets.map(e=>`<tr><td><b>Etagenschiene Hutschiene ${e.a}–${e.b}</b> · ${sdT(e.side)}${e.on&&e.side!==e.exp?' <span style="color:#b42318;font-weight:700">(falsch, muss '+sdT(e.exp)+')</span>':''}<br><span class="sub">${e.on?esc(BUS_P[e.part].kurz)+' · '+BUS_P[e.part].nr:e.blk?'nicht möglich (weniger als 3 zweipolige): '+esc(B.lz):'gelöscht: '+esc(B.lz)+' nötig'}</span></td><td style="white-space:nowrap">${e.blk?'':e.on?bt('etSide',e.a,'⇄ Seite')+' '+bt('etTog',e.a,'✕ Löschen','danger'):bt('etTog',e.a,'+ Wieder einsetzen')}</td></tr>`):[];
+  const es=B.etOn?B.ets.map(e=>`<tr><td><b>Etagenschiene Hutschiene ${e.a}–${e.b}</b> · ${sdT(e.side)}${e.on&&e.side!==e.exp?' <span style="color:#b42318;font-weight:700">(falsch, muss '+sdT(e.exp)+')</span>':''}<br><span class="sub">${e.on?esc(BUS_P[e.part].kurz)+' · '+BUS_P[e.part].nr:e.blk?'nicht möglich ('+esc((e.why||[]).join(', '))+'): '+esc(B.lz):'gelöscht: '+esc(B.lz)+' nötig'}</span></td><td style="white-space:nowrap">${e.blk?'':e.on?bt('etSide',e.a,'⇄ Seite')+' '+bt('etTog',e.a,'✕ Löschen','danger'):bt('etTog',e.a,'+ Wieder einsetzen')}</td></tr>`):[];
   return `<div class="legend">Schienen bearbeiten</div><p class="sub">Hier löschst du einzelne Schienen oder setzt sie wieder ein. -X0 verschiebst du mit dem schwarzen Knopf in der Ansicht (links/rechts) oder durch Antippen des gelben -X0 (oben/unten).</p><table class="te">${[...rs,...es].join('')||'<tr><td>Keine Schienen</td><td></td></tr>'}</table>`}
 function busList(B){const row=(a,b,cl)=>`<tr${cl?` class="${cl}"`:''}><td>${a}</td><td>${b}</td></tr>`;
   return B.parts.length?`<table class="te">${B.parts.map(x=>row(x.n+'× '+esc((x.hst||'Hager')+' '+x.art)+' <span class="sub">('+x.nr+')</span>',chf(x.net*x.n)+' CHF')).join('')}${row('Schienen zusammen','netto '+chf(B.net)+' / brutto '+chf(B.bru)+' CHF','sum')}</table>`:'<p class="sub">Noch keine Sammelschienen nötig.</p>'}
@@ -921,7 +1020,7 @@ function skLayout(s){
 }
 const skSorted=s=>skLayout(s).list;
 const stepIdx=k=>stepsOf(S.site).findIndex(x=>x[0]===k);
-function stepOk(pl,k){return {schienen:true,klemmen:true,unterlagen:true,hersteller:!!pl.hersteller,gehaeuse:!!pl.gehaeuse&&!!pl.montage,zuleitung:!!pl.qs&&qsNum(pl.qs)<=QS_MAX,stromkreise:(pl.sk||[]).some(r=>(r.name||'').trim())||(pl.zl||[]).length>1,zaehler:(pl.zl||[]).some(z=>!z.res),extras:true}[k]}
+function stepOk(pl,k){return {verteiler:true,schienen:true,klemmen:true,unterlagen:true,hersteller:!!pl.hersteller,gehaeuse:!!pl.gehaeuse&&!!pl.montage,zuleitung:!!pl.qs&&qsNum(pl.qs)<=QS_MAX,stromkreise:(pl.sk||[]).some(r=>(r.name||'').trim())||(pl.zl||[]).length>1,zaehler:(pl.zl||[]).some(z=>!z.res),extras:true}[k]}
 function stepper(pl){
   const cur=stepIdx(pl.step);
   const ST=stepsOf(S.site);
@@ -930,7 +1029,7 @@ function stepper(pl){
 }
 function vPlan(){
   const p=S.site,pl=planOf(p),ed=canEdit(p),dis=ed?'':' disabled';
-  if(stepIdx(pl.step)<0)pl.step=pl.step==='zaehler'?'zuleitung':pl.step==='schienen'?'stromkreise':'unterlagen';
+  if(stepIdx(pl.step)<0)pl.step=pl.step==='zaehler'?'zuleitung':pl.step==='schienen'?'stromkreise':pl.step==='verteiler'?'extras':'unterlagen';
   const k=pl.step,i=stepIdx(k),hv=p.art==='HV';
   const tile=(key,val,label,sub)=>`<button type="button" class="tile" data-plv="${key}" data-v="${esc(val)}" aria-pressed="${pl[key]===val}"${dis}><b>${esc(label)}</b>${sub?`<span>${esc(sub)}</span>`:''}</button>`;
   let body='';
@@ -1028,6 +1127,8 @@ function vPlan(){
     ${ed?'<div><button type="button" class="btn" data-act="skAdd">+ Stromkreis</button></div>':''}
     ${five?'':'<p class="sub">Bei 3-adriger Zuleitung gibt es nur 1- und 2-polige Sicherungen.</p>'}
     <p class="sub" id="skInfo">${skInfo(p)}</p><div id="blockMsg">${blockHTML(p)}</div>${(()=>{const M=matList(p,'Sonepar');return M.miss.length?`<div class="msg err">Noch nicht hinterlegt: ${M.miss.map(([t,n])=>n+'× '+esc(t)).join(', ')}. Erscheint in der Materialliste ohne Artikelnummer.</div>`:''})()}`;
+  }else if(k==='verteiler'){
+    body=vtBody(p,pl,dis);
   }else if(k==='schienen'){
     body=busBody(p,pl,dis);
   }else{
@@ -1053,7 +1154,7 @@ function vPlan(){
     ${body}
     <div class="actions">
       <button type="button" class="btn" data-act="planPrev">← ${pk2?ST.find(x=>x[0]===pk2)[1]:'Baustellendaten'}</button>
-      <div class="row">${ed?'<button type="button" class="btn" data-act="saveNow">Speichern</button>':''}${last?'<span class="saved">Nächster Schritt folgt</span>':`<button type="button" class="btn primary" data-act="planNext"${stepOk(pl,k)?'':' disabled'}>Weiter</button>`}</div>
+      <div class="row">${ed?'<button type="button" class="btn" data-act="saveNow">Speichern</button>':''}${last?(k==='verteiler'?'':'<span class="saved">Nächster Schritt folgt</span>'):`<button type="button" class="btn primary" data-act="planNext"${stepOk(pl,k)?'':' disabled'}>Weiter</button>`}</div>
     </div>
   </section>
   ${schemaPreview()}
@@ -1694,7 +1795,7 @@ document.addEventListener('click',e=>{
   if(act==='planNext'){const pl=planOf(S.site),i=stepIdx(pl.step);if(!stepOk(pl,pl.step))return;if(canEdit(S.site)){if(pl.step==='zuleitung'&&S.site.art==='HV'&&pl.nb&&S.site.plz){D.nbMap=D.nbMap||{};D.nbMap[S.site.land+':'+S.site.plz.trim()]=pl.nb}}pl.step=stepNext(S.site,pl.step);if(pl.step==='zaehler'&&S.site.geb==='MFH'&&pl.zl.length<2&&canEdit(S.site))pl.zl.push(zlNew(S.site));if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
   if(act==='planPrev'){const pl=planOf(S.site),pv=stepPrev(S.site,pl.step);if(!pv)return go('baustelle');pl.step=pv;if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
   if(t.dataset.step){const pl=planOf(S.site);pl.step=t.dataset.step;if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
-  if(t.dataset.plv&&S.site&&canEdit(S.site)){const pl=planOf(S.site),k=t.dataset.plv;pl[k]=t.dataset.v;if(k==='montage'&&t.dataset.v==='UP')pl.gehaeuse='hersteller';touchPlan(k==='etag'?'Etagenschienen '+t.dataset.v:k==='big4'?'4-polige '+(t.dataset.v==='u'?'unten':'oben'):k==='x0Side'?'-X0 '+(t.dataset.v==='r'?'rechts':'links'):k==='klAbg'?(t.dataset.v==='nein'?'Ohne Abgangsklemmen':'Mit Abgangsklemmen'):{hersteller:'Hersteller ',gehaeuse:'Gehäuse ',montage:'Montage '}[k]+(k==='gehaeuse'?(t.dataset.v==='alu'?'Alu':'Hersteller'):t.dataset.v));render();return}
+  if(t.dataset.plv&&S.site&&canEdit(S.site)){const pl=planOf(S.site),k=t.dataset.plv;pl[k]=t.dataset.v;if(k==='montage'&&t.dataset.v==='UP')pl.gehaeuse='hersteller';touchPlan(k==='vtMM'?(t.dataset.v==='ja'?'Mit':'Ohne')+' Multimedia-Feld':k==='vtSer'?'Verteiler-Serie '+t.dataset.v:k==='etag'?'Etagenschienen '+t.dataset.v:k==='big4'?'4-polige '+(t.dataset.v==='u'?'unten':'oben'):k==='x0Side'?'-X0 '+(t.dataset.v==='r'?'rechts':'links'):k==='klAbg'?(t.dataset.v==='nein'?'Ohne Abgangsklemmen':'Mit Abgangsklemmen'):{hersteller:'Hersteller ',gehaeuse:'Gehäuse ',montage:'Montage '}[k]+(k==='gehaeuse'?(t.dataset.v==='alu'?'Alu':'Hersteller'):t.dataset.v));render();return}
   if(t.dataset.page){S.pageIdx=+t.dataset.page;render();return}
   if(t.dataset.pv){S.prevSel={step:planOf(S.site).step,idx:+t.dataset.pv};refreshPreview();return}
   if(act==='skAdd'&&S.site&&canEdit(S.site)){skAddRow();return}
