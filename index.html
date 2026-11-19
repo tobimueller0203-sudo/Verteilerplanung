@@ -760,8 +760,8 @@ function busPlan(s,L,fresh){
   return {rails,ets,msgs,parts,sig,side,etOn,bru:parts.reduce((a,x)=>a+x.bru*x.n,0),net:parts.reduce((a,x)=>a+x.net*x.n,0)}}
 function busSet(fn){const s=S.site,pl=planOf(s),B=busPlan(s);if(!pl.bus||pl.bus.sig!==B.sig)pl.bus={sig:B.sig,off:{},et:{}};fn(pl.bus)}
 /* 2D-Ansicht: Klemmen oben, Sicherungsschienen mit Sammel- und Etagenschienen, Klemmen unten. Teile anklickbar */
-function bus2D(s){
-  const pl=planOf(s),L=skLayout(s),B=busPlan(s,L),TE=24,W=12*TE,mx=110,rowH=92,side=B.side,ed=canEdit(s);
+function bus2D(s,raw){
+  const pl=planOf(s),L=skLayout(s),B=busPlan(s,L),TE=24,W=12*TE,mx=110,rowH=92,side=B.side,ed=!raw&&canEdit(s);
   const ks=klStrips(s).filter(k=>k.mm||k.offen||k.X==='-X0'),kU=ks.filter(k=>klPos(pl,k.X)==='unten'),kO=ks.filter(k=>klPos(pl,k.X)!=='unten');
   const klRows=arr=>{const rows=[];let r=null;arr.forEach(k=>{const te=Math.max(1,k.mm?klTE(k.mm):2);if(!r||r.te+te>12){r={te:0,it:[]};rows.push(r)}r.it.push({...k,te,x:r.te});r.te+=te});return rows};
   const rO=klRows(kO),rU=klRows(kU);let y=14,out='';
@@ -793,8 +793,9 @@ function bus2D(s){
   rU.forEach(r=>out+=klRow(r));
   /* -X0 Einspeisung: Seite links/rechts umschaltbar */
   const x0y=klPos(pl,'-X0')==='unten'?y+4:4,fx=side==='l'?4:mx+W+30;
-  out+=g('x0Flip','',`<rect x="${fx}" y="${x0y}" width="52" height="22" rx="11" fill="#ffd400" stroke="#b58900"/><text x="${fx+26}" y="${x0y+15}" text-anchor="middle" class="b2b">X0 ${side==='l'?'→':'←'}</text>`,'-X0 auf die '+(side==='l'?'rechte':'linke')+' Seite verschieben');
+  out+=g('x0Flip','',`<rect x="${fx}" y="${x0y}" width="52" height="22" rx="11" fill="#ffd400" stroke="#b58900"/><text x="${fx+26}" y="${x0y+15}" text-anchor="middle" class="b2b">${raw?'-X0':'X0 '+(side==='l'?'→':'←')}</text>`,'-X0 auf die '+(side==='l'?'rechte':'linke')+' Seite verschieben');
   const H=y+(klPos(pl,'-X0')==='unten'?34:10),VW=mx+W+170;
+  if(raw)return {inner:out,VW,H};
   return `<svg class="b2d" viewBox="0 0 ${VW} ${H}" width="100%" role="img" aria-label="2D-Ansicht Verteiler"><style>.b2b{font:700 11px sans-serif}.b2s{font:10px sans-serif}.b2t{font:700 8px sans-serif}</style>${out}</svg>`}
 function busList(B){const row=(a,b,cl)=>`<tr${cl?` class="${cl}"`:''}><td>${a}</td><td>${b}</td></tr>`;
   return B.parts.length?`<table class="te">${B.parts.map(x=>row(x.n+'× '+esc((x.hst||'Hager')+' '+x.art)+' <span class="sub">('+x.nr+')</span>',chf(x.net*x.n)+' CHF')).join('')}${row('Schienen zusammen','netto '+chf(B.net)+' / brutto '+chf(B.bru)+' CHF','sum')}</table>`:'<p class="sub">Noch keine Sammelschienen nötig.</p>'}
@@ -1066,6 +1067,7 @@ function pagesOf(s){
     a.filter(q=>q.kind==='zm').forEach(q=>{const f=q.bl[0].k+1,l=q.bl[q.bl.length-1].k+1;q.sub=(f===l?'Zähler -P'+f+' '+(pl.zl[f-1].name||''):'Zähler -P'+f+' bis -P'+l).trim()});
     a.push({kind:'za',title:s.geb==='MFH'?'Messung Allgemein':'Messung',sub:'-P1 '+(pl.zl[0].name||zlLbl(s,0))})}
   L.pages.forEach(q=>{const fs=q.items.filter(it=>!it.sk).map(it=>it.f),zk=hv?pl.zl.findIndex(z=>z.id===q.zid):-1,zt=zk>=0?'-P'+(zk+1)+(pl.zl[zk].name?' '+pl.zl[zk].name:'')+' · ':'';a.push({kind:'sk',title:'Stromkreise',sub:zt+(fs.length?fs[0]+(fs.length>1?' bis '+fs[fs.length-1]:''):'Relais'),dp:q,zid:q.zid})});
+  if(busOn(s)&&L.list.length)a.push({kind:'bus2d',title:'Verteileransicht',sub:'Sammel- und Etagenschienen'});
   if(d.klemmen){const n=(five?5:3)+(hv?pl.zl.length-1+Object.values(L.ext).reduce((a,x)=>a+x.length,0):0)+L.pages.reduce((a,q)=>a+q.items.filter(it=>it.sk?it.k===0:!it.rel.length).reduce((b,it)=>b+(it.sk?it.sk.abgN||1:it.abgN||1),0),0),c=Math.max(1,Math.ceil(n/KL_PER_PAGE));for(let i=0;i<c;i++)a.push({kind:'klemmen',title:'Klemmenliste',sub:sk.length&&!noKl(s)?'-X0 Einspeisung, '+(L.nX>1?'-X1 bis -X'+L.nX:'-X1')+' Abgänge':'Klemmblock -X0',part:i})}
   a.forEach((p,i)=>p.no=i+1);return a;
 }
@@ -1157,6 +1159,15 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
       if(ks.length)box(lx,y+18,rx-lx-40,'Klemmenleisten, Position und Breite',ks.length<=5?[...ks.map(k=>[k.X+' · '+klPos(pl,k.X),kr(k)]),['Total',mmTxt(kt)+' = '+klTE(kt)+' TE']]:[[ks[0].X+' bis '+ks[ks.length-1].X,ks.length+' Leisten, Breiten und Position siehe Klemmenliste'],['Total',mmTxt(kt)+' = '+klTE(kt)+' TE']])}
     y=box(rx,iy0+40,rw,'Baustelle',[['Kommission',s.kom],['Bauherrschaft',s.bauherr],['Bereich',s.bereich],['Stockwerk',s.stock],['Strasse',s.adr],[s.land==='DE'?'PLZ / Stadt':'PLZ / Ort',[s.plz,s.ort].filter(Boolean).join(' ')],...(s.land==='CH'?[['Kanton',s.kanton?s.kanton+' · '+kantonName(s.kanton):'']]:[]),['Land',landName(s.land)]]);
     box(rx,y+18,rw,'Verteilung',[['Art',hv?'Hauptverteilung (HV)':'Unterverteilung (UV)'],['Norm',s.norm==='VDE'?'DIN VDE 0100':'NIN SN 411000'],['Hersteller',pl.hersteller],['Gehäuse',pl.gehaeuse?(pl.gehaeuse==='alu'?'Alu-Verteiler':'Herstellerverteiler')+(pl.montage?' · '+(pl.montage==='AP'?'Aufputz':'Unterputz'):''):''],['Zuleitung',pl.qs?(five?'5×':'3×')+qsTxt(pl.qs)+' mm² Cu':''],...(hv?[['Gebäude',s.geb==='MFH'?'Mehrfamilienhaus':'Einfamilienhaus'],['Zähler',zlSum(s)],['Bezügersicherung',pl.zl.length===1?bezTxt(pl.zl[0]):'je Zähler, siehe Zählerschrank']]:[]),...(hv?[['Netzbetreiber',pl.nb]]:[]),['Stromkreise',sk.length?sk.length+' (Blätter '+all.filter(p=>p.kind==='sk').map(p=>p.no).join(', ')+')':''],...(sk.length?[['Platzbedarf',(()=>{const u=skLayout(s).sum;const ku=klUnten(s);return (u.sichTE+u.relTE)+' TE + '+u.resTE+' TE Reserve = '+(u.sichTE+u.relTE+u.resTE)+' TE → '+(u.rails+ku.rails)+' Hutschienen à 12 TE'+(ku.rails?' (inkl. '+ku.rails+' für Klemmen unten)':'')})()]]:[]),...(sk.some(r=>(r.relais||[]).length)?[['Relais',String(sk.reduce((a,r)=>a+(r.relais||[]).length,0))]]:[]),...((siemOn(pl)||(!hv&&(pl.spd||pl.hs)))?[['Extras',[siemOn(pl)?'FI/LS Siemens':'',!hv&&pl.spd?'Überspannungsschutz':'',!hv&&pl.hs?'Hauptschalter'+(pl.hsA?' '+pl.hsA+' A':''):''].filter(Boolean).join(', ')]]:[]),['Blätter',String(all.length)]]);
+  }else if(pg.kind==='bus2d'){
+    const R=bus2D(s,true),B=busPlan(s),aw=640,ah=iy1-iy0-80,sc=Math.min(aw/R.VW,ah/R.H,1.6);
+    T(ix0+40,iy0+50,'Verteileransicht · Sammel- und Etagenschienen','tdeck2');
+    T(ix0+40,iy0+70,'Hager, Etagenschienen '+(B.etOn?'ja':'nein')+', Einspeisung -X0 '+(B.side==='r'?'rechts':'links')+', 4-polige '+(pl.big4==='u'?'unten':'oben'),'tk4');
+    o.push(`<g transform="translate(${ix0+30} ${iy0+86}) scale(${sc.toFixed(3)})">${R.inner}</g>`);
+    const rx=ix0+720;let yy=iy0+100;T(rx,yy,'Schienen-Material','tb');yy+=8;L(rx,yy,ix1-30,yy,'fr2');
+    B.parts.forEach(x=>{yy+=20;T(rx,yy,x.n+'× '+(x.hst||'Hager')+' '+x.kurz,'tk4');T(rx+190,yy,x.nr,'tk4')});
+    if(!B.parts.length){yy+=20;T(rx,yy,'Keine Sammelschienen','tk4')}
+    yy+=30;if(B.msgs.length){T(rx,yy,'Hinweise','tb');yy+=8;L(rx,yy,ix1-30,yy,'fr2');B.msgs.forEach(m=>wrapTxt(m.t,52).forEach((ln,j)=>{yy+=j?13:18;T(rx,yy,ln,m.e?'twarn':'tk4')}))}
   }else if(pg.kind==='toc'){
     T(ix0+40,iy0+50,'Inhaltsverzeichnis','tdeck2');
     const pages=pagesOf(s);const cols=[ix0+40,ix0+130,ix0+380,ix0+700,ix0+800];
@@ -1440,7 +1451,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
   .fr{stroke:#111;stroke-width:1.2;fill:none}.fr2{stroke:#111;stroke-width:.6}.bx{stroke:#111;stroke-width:.8;fill:#fff}.bxw{stroke:#111;stroke-width:1;fill:#fff}
   .bxd{stroke:#111;stroke-width:.9;fill:none;stroke-dasharray:10 3 2 3}.note{stroke:#bbb;stroke-width:.8;fill:#fff}.term{fill:#fff;stroke:#111;stroke-width:1}
   text{font-family:"DejaVu Sans",Inter,Arial,sans-serif;fill:#111}.t{font-size:10px}.tb{font-size:10.5px;font-weight:700}.tm{font-size:8.5px;fill:#555}.ta{font-size:9.5px;fill:#1f4fa0}
-  .tg{font-size:10px}.tr{font-size:8px;font-family:"DejaVu Sans Mono",monospace}.tk{font-size:6.5px}.tk2{font-size:8.5px}.tk3{font-size:9.5px}.th{font-size:11px;font-weight:700;fill:#444}.tbig{font-size:20px;font-weight:700}.tdeck{font-size:34px;font-weight:700}.tdeck2{font-size:16px;font-weight:700}.tm2{font-size:10px;fill:#666}.tk4{font-size:10.5px}.fr3{stroke:#ccc;stroke-width:.6}.cp{stroke:#111;stroke-width:.8;stroke-dasharray:3 2}.dbox{stroke:#111;stroke-width:.9;fill:#fff}.tbw{font-size:11px;font-weight:700;fill:#ffed00;letter-spacing:.06em}.tlab{font-size:11px;font-weight:700;letter-spacing:.18em;fill:#555}.tdeck3{font-size:14px;font-weight:700}.tk5{font-size:5.5px;fill:#555}.cpl{stroke:#111;stroke-width:.7}.kb{stroke:#111;stroke-width:3.2}.kbn{stroke:#111;stroke-width:2.6;stroke-dasharray:8 4}.kbpe{stroke:#111;stroke-width:2.6;stroke-dasharray:14 3 3 3}.twarn{font-size:9.5px;font-weight:700;fill:#b42318;paint-order:stroke;stroke:#fff;stroke-width:3px}.tnm2{font-size:8.5px;font-weight:700}.wc{stroke:#111;stroke-width:1.1}.bxr{fill:none;stroke:#111;stroke-width:.7;stroke-dasharray:3 2}.trel{font-size:7.5px;fill:#444}.tbh{font-size:10px;font-weight:700;paint-order:stroke;stroke:#fff;stroke-width:3px}.tnote{font-size:8px;font-style:italic;fill:#1f4fa0;paint-order:stroke;stroke:#fff;stroke-width:3px}.thalo{font-size:7.5px;fill:#555;paint-order:stroke;stroke:#fff;stroke-width:3px}
+  .tg{font-size:10px}.tr{font-size:8px;font-family:"DejaVu Sans Mono",monospace}.tk{font-size:6.5px}.tk2{font-size:8.5px}.tk3{font-size:9.5px}.th{font-size:11px;font-weight:700;fill:#444}.tbig{font-size:20px;font-weight:700}.tdeck{font-size:34px;font-weight:700}.tdeck2{font-size:16px;font-weight:700}.tm2{font-size:10px;fill:#666}.tk4{font-size:10.5px}.fr3{stroke:#ccc;stroke-width:.6}.cp{stroke:#111;stroke-width:.8;stroke-dasharray:3 2}.dbox{stroke:#111;stroke-width:.9;fill:#fff}.tbw{font-size:11px;font-weight:700;fill:#ffed00;letter-spacing:.06em}.tlab{font-size:11px;font-weight:700;letter-spacing:.18em;fill:#555}.tdeck3{font-size:14px;font-weight:700}.tk5{font-size:5.5px;fill:#555}.cpl{stroke:#111;stroke-width:.7}.kb{stroke:#111;stroke-width:3.2}.kbn{stroke:#111;stroke-width:2.6;stroke-dasharray:8 4}.kbpe{stroke:#111;stroke-width:2.6;stroke-dasharray:14 3 3 3}.twarn{font-size:9.5px;font-weight:700;fill:#b42318;paint-order:stroke;stroke:#fff;stroke-width:3px}.tnm2{font-size:8.5px;font-weight:700}.wc{stroke:#111;stroke-width:1.1}.bxr{fill:none;stroke:#111;stroke-width:.7;stroke-dasharray:3 2}.trel{font-size:7.5px;fill:#444}.tbh{font-size:10px;font-weight:700;paint-order:stroke;stroke:#fff;stroke-width:3px}.tnote{font-size:8px;font-style:italic;fill:#1f4fa0;paint-order:stroke;stroke:#fff;stroke-width:3px}.thalo{font-size:7.5px;fill:#555;paint-order:stroke;stroke:#fff;stroke-width:3px}.b2b{font-size:11px;font-weight:700}.b2s{font-size:10px}.b2t{font-size:8px;font-weight:700}
   </style>${o.join('')}</svg>`;
 }
 
