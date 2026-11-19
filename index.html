@@ -668,6 +668,7 @@ const PROD=[
   {lf:'Sonepar',hst:'Hager',k:'LS',p:4,c:'C',a:25,nr:'805 690 344',art:'LS MCB 4P C25 6 kA',te:4,net:48.66,bru:114.50},
   {lf:'Sonepar',hst:'Hager',k:'NT',nr:'804 990 044',art:'N-Trenner 63 A 0,5 TE',te:0.5,net:6.16,bru:14.50},
   {lf:'Sonepar',hst:'Hager',k:'REL',t:'TLZ',nr:'533 041 004',art:'Treppenhausautomat elektronisch 16 A',te:1,net:44.66,bru:81.20},
+  {lf:'Sonepar',hst:'Hager',k:'KZ',nr:'804 998 364',art:'Berührungsschutzkappe KZ 059, 5 Module',te:5,net:1.27,bru:2.30},
   {lf:'Sonepar',hst:'Hager',k:'REL',t:'SS',nr:'534 804 600',art:'Schrittschalter 1 TE 230 VAC 1 Schliesser',te:1,net:41.80,bru:76.00}];
 /* Material Sicherungen, N-Trenner und Relais aus den Stromkreisen zählen */
 function matList(s,lf){const pl=planOf(s),hst=pl.hersteller||'',L=skLayout(s),m=new Map(),miss=new Map();
@@ -677,6 +678,8 @@ function matList(s,lf){const pl=planOf(s),hst=pl.hersteller||'',L=skLayout(s),m=
     put(P.find(x=>x.k===r.typ&&x.p===p&&x.c===r.char&&x.a===+r.amp),(r.typ==='FILS'?'FI/LS ':'LS ')+r.char+r.amp+' '+p+'P');
     if(r.nt)put(P.find(x=>x.k==='NT'),'N-Trenner');
     (r.relais||[]).forEach(t=>put(P.find(x=>x.k==='REL'&&x.t===t),relInfo(t)[1]))});
+  /* Hager: freie Plätze auf Sicherungsschienen mit Phasenschiene abdecken, 1 Kappe pro 5 freie TE (aufgerundet). Nicht bei N-Trennern, Relais oder leeren Reserveschienen */
+  const kz=P.find(x=>x.k==='KZ');if(kz)L.rails.filter(rl=>rl.kind==='sk'&&!rl.nt&&!rl.rel&&rl.used>0&&rl.used<RAIL_TE).forEach(rl=>{for(let i=0;i<Math.ceil((RAIL_TE-rl.used)/kz.te);i++)put(kz,'')});
   const it=[...m.values()];return {it,miss:[...miss],net:it.reduce((a,x)=>a+x.net*x.n,0),bru:it.reduce((a,x)=>a+x.bru*x.n,0),hst}}
 const chf=v=>v.toFixed(2).replace('.',',');
 const KL_SICH=6;
