@@ -668,11 +668,11 @@ function skLayout(s){
   const list=(pl.sk||[]).map((r,i)=>({...r,i})).filter(r=>(r.name||'').trim()).map(r=>{const z=act.find(z=>String(z.id)===String(r.zl))||act[0],zf=five&&(!z||(z.adern||'5')==='5');const ext=s.art==='HV'&&!!z&&z!==act[0];return {...r,zid:z?z.id:0,zi:z?act.indexOf(z):0,zf,ext,relais:ext?[]:r.relais,pol:!zf&&+r.pol>2?'2':r.pol}});
   list.sort((a,b)=>a.zi-b.zi||(+b.pol>=3)-(+a.pol>=3)||(+b.pol)-(+a.pol)||a.i-b.i);
   let ph=0,phz=null;
-  const res=pl.resOff?0:Math.max(10,+pl.resPct||10)/100,cap=Math.max(4,Math.floor(RAIL_TE/(1+res)));
+  const res=pl.resOff?0:Math.max(10,+pl.resPct||10)/100,cap=RAIL_TE;
   list.forEach((r,n)=>{r.f='-F'+(n+1);const p=+r.pol;if(phz!==r.zid){phz=r.zid;ph=0}r.nt=needsNT(s,r);r.siem=r.typ==='FILS'&&p<=2&&siemOn(pl);r.te=teOf(s,pl,r);
     r.cond=p===4?['L1','L2','L3','N','PE']:p===3?(r.nt?['L1','L2','L3','N','PE']:['L1','L2','L3','PE']):[r.zf?['L1','L2','L3'][ph++%3]:'L','N','PE'];
     r.poles=p===1?1:p;r.rel=(r.relais||[]).map((t,k)=>({t,k,te:relInfo(t)[3],sk:r,same:true}))});
-  /* Hutschienen à 12 TE, mit Reserve gefüllt; Relais standardmässig auf eigenen Schienen */
+  /* Hutschienen à 12 TE zuerst ganz gefüllt, Rest auf die letzte Schiene; Relais standardmässig auf eigenen Schienen */
   const rails=[];const newRail=(kind,zid)=>{const r={no:rails.length+1,used:0,items:[],kind,zid,nt:false,siem:false,rel:false};rails.push(r);return r};
   let cur=null;
   list.forEach(r=>{if(!cur||cur.used+r.te>cap||cur.zid!==r.zid)cur=newRail('sk',r.zid);r.rail=cur.no;cur.used+=r.te;cur.items.push(r);if(r.nt)cur.nt=true;if(r.siem)cur.siem=true});
@@ -699,8 +699,10 @@ function skLayout(s){
   /* Sicherungen beim Zähler: eigener Klemmenabgang im Klemmblock des Zählers, nach dem Abgang zur Wohnung */
   const ext={};list.filter(r=>r.ext).forEach(r=>{(ext[r.zid]=ext[r.zid]||[]).push(r)});
   Object.keys(ext).forEach(id=>{const z=pl.zl.find(z=>String(z.id)===id),zf=five&&(z.adern||'5')==='5';let k=1;ext[id].forEach(r=>{r.res=Math.max(0,(+r.adern||0)-r.cond.length);r.kl=k;k+=r.cond.length+r.res;r.w='-W'+w++})});
-  const sichTE=list.reduce((a,r)=>a+r.te,0),relTE=rels.reduce((a,x)=>a+x.te,0);
-  const sum={res,cap,sichTE,relTE,resTE:Math.ceil((sichTE+relTE)*res),railsSk:rails.filter(r=>r.kind==='sk').length,railsRel:rails.filter(r=>r.kind==='rel').length,rails:rails.length,place:rails.length*RAIL_TE};
+  const sichTE=list.reduce((a,r)=>a+r.te,0),relTE=rels.reduce((a,x)=>a+x.te,0),resTE=Math.ceil((sichTE+relTE)*res);
+  /* Reicht der freie Platz nicht für die Reserve, kommt eine leere Hutschiene dazu */
+  while(list.length&&rails.length*RAIL_TE-(sichTE+relTE)<resTE)newRail('res',0);
+  const sum={res,cap,sichTE,relTE,resTE,free:rails.length*RAIL_TE-(sichTE+relTE),railsSk:rails.filter(r=>r.kind==='sk').length,railsRel:rails.filter(r=>r.kind==='rel').length,railsRes:rails.filter(r=>r.kind==='res').length,rails:rails.length,place:rails.length*RAIL_TE};
   return {list,rails,pages,sum,ext};
 }
 const skSorted=s=>skLayout(s).list;
@@ -847,8 +849,8 @@ function teBox(s,pl,dis){
   return `<div class="legend">Platzbedarf</div>
   ${(()=>{const n=skLayout(s).list.filter(r=>r.nt).length;return n?`<div class="msg info">Hinweis N-Trenner: ${n} ${n===1?'N-Trenner ist':'N-Trenner sind'} mit je 1 TE gerechnet. Effektiv hat ein N-Trenner nur 0,5 TE, zusammen also ${String(n*0.5).replace('.',',')} TE statt ${n} TE.</div>`:''})()}
   <table class="te">${row('Sicherungen inkl. N-Trenner',u.sichTE+' TE')}${row('Relais',u.relTE+' TE')}${row('Reserve '+(pct?pct+' %':'abgewählt'),'+ '+u.resTE+' TE')}
-  ${row('Hutschienen à 12 TE',u.rails+(u.rails?' ('+u.railsSk+' Sicherungen'+(u.railsRel?', '+u.railsRel+' Relais':'')+')':''),'sum')}
-  ${row('Platz total',u.place+' TE, davon '+(u.sichTE+u.relTE)+' TE belegt','sum')}</table>
+  ${row('Hutschienen à 12 TE',u.rails+(u.rails?' ('+u.railsSk+' Sicherungen'+(u.railsRel?', '+u.railsRel+' Relais':'')+(u.railsRes?', '+u.railsRes+' leer als Reserve':'')+')':''),'sum')}
+  ${row('Platz total',u.place+' TE, davon '+(u.sichTE+u.relTE)+' TE belegt, '+u.free+' TE frei','sum')}</table>
   <div class="row" style="gap:14px;flex-wrap:wrap">
     <label class="chk"><input type="checkbox" data-ex="res" ${pl.resOff?'':'checked'}${dis}> Reserve einplanen</label>
     ${pl.resOff?'':`<label class="chk">mind. <input type="number" class="pct" data-ex="resPct" min="10" step="5" value="${pct}"${dis}> %</label>`}
@@ -859,7 +861,7 @@ function teBox(s,pl,dis){
   ${(()=>{const a=klAbg(s),z0=klZul(s),mmT=(z0?z0.mm:0)+(a?a.mm:0);return `<div class="legend">Klemmen Abgänge -X1</div>${a?`<table class="te">${a.it.map(x=>row(x.n+'× '+x.art+' <span class="sub">('+x.nr+')</span>',(x.mm?(x.mm*x.n).toFixed(1).replace('.',',')+' mm · ':'')+chf(x.net*x.n)+' CHF')).join('')}${row('Klemmenblock -X1',a.mm.toFixed(1).replace('.',',')+' mm · netto '+chf(a.net)+' / brutto '+chf(a.bru)+' CHF','sum')}</table>${a.big?`<p class="sub">${a.big} Klemmen für Kabel über 4 mm² folgen (Klemmentyp noch offen).</p>`:''}${a.nb?`<p class="sub">${a.nb} ${a.nb===1?'Sicherung hat':'Sicherungen haben'} mehr als 2 Kabel: Klemmensätze mit Steckbrücke verbunden (pauschal 1 rote und 1 blaue Steckbrücke pro 3 solcher Fälle).</p>`:''}`:'<p class="sub">Noch keine Abgänge.</p>'}
   ${mmT?`<table class="te">${row('Klemmen total',mmT.toFixed(1).replace('.',',')+' mm ≈ '+Math.ceil(mmT/18)+' TE','sum')}${row('Preis Klemmen total','netto '+chf((z0?z0.net:0)+(a?a.net:0))+' / brutto '+chf((z0?z0.bru:0)+(a?a.bru:0))+' CHF','sum')}</table><p class="sub">Die Klemmen zählen nicht zur TE-Reserve der Sicherungen.</p>`:''}`})()}
   ${(()=>{const M=matList(s,'Sonepar');if(!M.it.length&&!M.miss.length)return '';return `<div class="legend">Material Sicherungen und Relais · Sonepar</div>${M.it.length?`<table class="te">${M.it.map(x=>row(x.n+'× '+esc(x.hst+' '+x.art)+' <span class="sub">('+x.nr+')</span>',chf(x.net*x.n)+' CHF')).join('')}${row('Total Sonepar','netto '+chf(M.net)+' / brutto '+chf(M.bru)+' CHF','sum')}</table>`:''}${M.miss.length?`<p class="sub">Noch kein Preis hinterlegt${/hager/i.test(M.hst)?'':' (Preise gibt es bisher nur für Hager)'}: ${M.miss.map(([t,n])=>n+'× '+esc(t)).join(', ')}.</p>`:''}<p class="sub">Preise von Sonepar. EM folgt für den Preisvergleich.</p>`})()}
-  <p class="sub">Die Schienen werden mit Reserve gefüllt (höchstens ${u.cap} von 12 TE belegt). Überspannungsschutz und Hauptschalter sind noch nicht eingerechnet.</p>`;
+  <p class="sub">Die Hutschienen werden zuerst ganz gefüllt (12 TE), der Rest kommt auf die letzte Schiene. Reicht der freie Platz nicht für die Reserve, kommt eine leere Hutschiene dazu. Überspannungsschutz und Hauptschalter sind noch nicht eingerechnet.</p>`;
 }
 function skInfo(s){const L=skLayout(s),n=L.list.length,m=L.pages.length,u=L.sum;return n?n+(n===1?' Stromkreis':' Stromkreise')+', '+(u.sichTE+u.relTE)+' TE, '+m+(m===1?' Schemablatt':' Schemablätter')+'. Den Platzbedarf siehst du im letzten Schritt. Mit Enter kommt eine neue Zeile.':'Noch keine Stromkreise. Mit Enter kommt nach einer Zeile direkt die nächste.'}
 /* Schienen-Info und Hinweise in den Zeilen nachführen, ohne die Eingabe zu stören */
