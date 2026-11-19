@@ -570,7 +570,7 @@ function zlSum(s){const a=zlAll(s),r=a.filter(z=>z.res).length;return (a.length-
 const zlLbl=(s,k)=>k===0?(s.geb==='MFH'?'Allgemeinzähler':'Hauptzähler'):'Zähler';
 function zlSelId(s){const act=zlAct(s),z=act.find(z=>z.id===S.zlSel)||act[0];return z?z.id:''}
 const rowZid=(s,r)=>{const act=zlAct(s),z=act.find(z=>String(z.id)===String(r.zl))||act[0];return z?z.id:''};
-const stepsOf=s=>{const b=s&&s.art==='HV'?[...STEPS.slice(0,4),['zaehler','Zähler'],...STEPS.slice(4)]:[...STEPS.slice(0,4),['klemmen','Klemmen'],...STEPS.slice(4)];if(s&&busOn(s))b.splice(b.length-1,0,['schienen','Schienen']);if(s&&vtOn(s))b.push(['verteiler','Verteiler']);return b};
+const stepsOf=s=>{const b=s&&s.art==='HV'?[...STEPS.slice(0,4),['zaehler','Zähler'],...STEPS.slice(4)]:[...STEPS.slice(0,4),['klemmen','Klemmen'],...STEPS.slice(4)];if(s&&busOn(s))b.splice(b.length-1,0,['schienen','Schienen']);return b};
 /* UV ohne Abgangsklemmen: Kabel direkt an der Sicherung, -X0 bleibt immer */
 const noKl=s=>!!s&&s.art!=='HV'&&planOf(s).klAbg==='nein';
 /* harte Sperre ohne Abgangsklemmen: höchstens 2 Kabel pro Sicherung, alle mit gleichem Querschnitt */
@@ -702,7 +702,7 @@ function matList(s,lf){const pl=planOf(s),hst=pl.hersteller||'',L=skLayout(s),m=
   const kz=P.find(x=>x.k==='KZ'),bon=busOn(s),B=bon?busPlan(s,L):null;
   if(B&&B.nLz){const nl=(pl.adern||'5')==='5'?4:2,len=Math.round(B.nLz*nl*0.2*10)/10,lp=LITZE[pl.qs];if(lp&&lf==='Sonepar')m.set('LZB',{...lp,art:'T-Litze '+qsTxt(pl.qs)+' mm² für Litzenbrücken ('+B.nLz+' × '+nl+' Leiter × 20 cm)',lf,hst:'',k:'LZ',n:len,u:'m'});else miss.set('T-Litze '+(pl.qs?qsTxt(pl.qs):'?')+' mm² für Litzenbrücken, 20 cm pro Leiter und Sprung (Meter)',len)}
   if(B){B.parts.forEach(x=>{const o={lf,hst:x.hst||'Hager',k:'BUS',nr:x.nr,art:x.art,net:x.net,bru:x.bru};for(let i=0;i<x.n;i++)put(o,'')});if(kz)B.rails.filter(r=>r.on&&r.typ!=='SIEM').forEach(r=>{const rl=L.rails[r.no-1];if(rl.used<RAIL_TE)for(let i=0;i<Math.ceil((RAIL_TE-rl.used)/kz.te);i++)put(kz,'')})}
-  if(vtOn(s)){const C=vtChoice(s);if(C.sel)put(C.sel.prod||(C.sel.prod={lf,hst:'Hager',k:'VT',nr:C.sel.nr,art:C.sel.art.replace(/^AP-/,'AP-'),net:C.sel.net,bru:C.sel.bru}),'');else if(C.N.rails)miss.set('Hager AP-Verteiler (kein passender hinterlegt, von Hand suchen)',1)}
+  if(false&&vtOn(s)){const C=vtChoice(s);if(C.sel)put(C.sel.prod||(C.sel.prod={lf,hst:'Hager',k:'VT',nr:C.sel.nr,art:C.sel.art.replace(/^AP-/,'AP-'),net:C.sel.net,bru:C.sel.bru}),'');else if(C.N.rails)miss.set('Hager AP-Verteiler (kein passender hinterlegt, von Hand suchen)',1)}
   if(busPausch(s)){const Q=busPlan(s,L,true);if(Q.bru)put({lf,hst:'',k:'PAU',nr:'Pauschale',art:'Phasen-/Etagenschienen für den Verteilerbauer (unsere Bruttopreise)',net:Q.bru,bru:Q.bru},'')}
   if(kz&&!bon)L.rails.filter(rl=>rl.kind==='sk'&&!rl.nt&&!rl.rel&&rl.used>0&&rl.used<RAIL_TE).forEach(rl=>{for(let i=0;i<Math.ceil((RAIL_TE-rl.used)/kz.te);i++)put(kz,'')});
   /* Extras ohne hinterlegtes Produkt */
