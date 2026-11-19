@@ -644,6 +644,8 @@ const klTE=mm=>Math.ceil(mm/18-1e-9);
 function klStrips(s){const z=klZul(s),a=klAbg(s),pl=planOf(s);return [{X:'-X0',mm:z?z.mm:0,offen:!z},...(a?a.strips:[])]}
 /* Position der Klemmenleisten: Standard oben (oberste Hutschiene), einzeln auf unten setzbar */
 const klPos=(pl,X)=>(pl.klPos||{})[X]==='u'?'unten':'oben';
+/* Text umbrechen statt abschneiden: ganze Wörter, überlange Wörter werden geteilt */
+function wrapTxt(str,mx){mx=Math.max(4,mx);const out=[''];String(str||'').split(/\s+/).filter(Boolean).forEach(wd=>{while(wd.length>mx){if(out[out.length-1])out.push('');out[out.length-1]=wd.slice(0,mx);wd=wd.slice(mx);out.push('')}const cur=out[out.length-1];if(cur&&(cur+' '+wd).length>mx)out.push(wd);else out[out.length-1]=(cur+' '+wd).trim()});return out.filter((l,i)=>l||i===0)}
 const mmTxt=v=>v.toFixed(1).replace('.',',')+' mm';
 /* Hager-Herstellerverteiler: Klemmen auf Hutschiene UT22B, 206 mm. Preis aus dem Internet (Conrad), nicht unser Preis */
 const KL_UT={art:'Hager UT22B Hutschiene für Klemmen',nr:'UT22B',mm:206,bru:23.95};
@@ -1028,12 +1030,12 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
       kab2=(cb,t)=>cb.length>1&&cb.every(c=>t(c)===t(cb[0]))?'2 Kabel: '+cb.map(c=>c.w).join(' + ')+' je '+t(cb[0]):(cb.length>1?'2 Kabel: ':'')+cb.map(c=>c.w+' '+t(c)).join(' + ');
     const cond=five?['L1','L2','L3','N','PE']:['L','N','PE'];
     const rows=cond.map((c,i)=>['-X0',String(i+1),c,pl.qs?qsTxt(pl.qs)+' mm²':'offen',col[c],'-W1 Zuleitung',klZulTyp(s)?klZulTyp(s)+(c==='PE'?'-PE':c==='N'?' BU':''):'Klemmentyp folgt'])
-      .concat(LL.pages.flatMap(q=>q.items).filter(it=>it.sk?it.k===0:!it.rel.length).flatMap(r=>r.sk?(()=>{const g=r.sk.rel,last=g[g.length-1],all=g.flatMap(x=>x.cond||[]).concat(Array(last.res||0).fill('Res'));return [[r.X||'-X1',r.kl+'–'+(last.kl+last.cond.length+(last.res||0)-1),('PE '+r.cond[1]+' N · '+g.length+'× T/LA'+(last.res?' · '+last.res+' Res':'')),'1,5 mm²',r.cab===5?'gn-ge br bl sw gr':'gn-ge + nummeriert',(g.map(x=>x.K).join(', ')+' ('+r.sk.f+' '+r.sk.name+')').slice(0,40),kab2(r.cabs||[],c=>c.cab+'×'+qsTxt(c.qs))+(last.res?' · '+last.res+' Res.':'')],...(last.xgrp||[]).map((gp,qi)=>[r.X||'-X1',gp.kl+'–'+(gp.kl+gp.cond.length+gp.res-1),'PE '+r.cond[1]+' N · '+g.length+'× T/LA'+(gp.res?' · '+gp.res+' Res':''),qsTxt(gp.qs)+' mm²','',(g.map(x=>x.K).join(', ')+' ('+r.sk.f+' '+r.sk.name+' '+(qi+2)+'/'+r.sk.abgN+')').slice(0,40),kab2(gp.cabs,c=>c.cab+'×'+qsTxt(c.qs))])]})():(r.grp||[{kl:r.kl,res:r.res,cabs:[{w:r.w,adern:r.adern,qs:r.qs}]}]).map((gp,q,A)=>[r.X||'-X1',gp.kl+'–'+(gp.kl+r.cond.length+(gp.res||0)-1),r.cond.concat(Array(gp.res||0).fill('Res')).join(' '),gp.cabs.map(c=>c.qs?qsTxt(c.qs):'?').join(' + ')+' mm²',cols2(r.cond),(r.f+' '+r.name+(A.length>1?' ('+(q+1)+'/'+A.length+')':'')).slice(0,40),kab2(gp.cabs,c=>cabTxt(c).replace(' mm²',''))])));
+      .concat(LL.pages.flatMap(q=>q.items).filter(it=>it.sk?it.k===0:!it.rel.length).flatMap(r=>r.sk?(()=>{const g=r.sk.rel,last=g[g.length-1],all=g.flatMap(x=>x.cond||[]).concat(Array(last.res||0).fill('Res'));return [[r.X||'-X1',r.kl+'–'+(last.kl+last.cond.length+(last.res||0)-1),('PE '+r.cond[1]+' N · '+g.length+'× T/LA'+(last.res?' · '+last.res+' Res':'')),'1,5 mm²',r.cab===5?'gn-ge br bl sw gr':'gn-ge + nummeriert',(g.map(x=>x.K).join(', ')+' ('+r.sk.f+' '+r.sk.name+')'),kab2(r.cabs||[],c=>c.cab+'×'+qsTxt(c.qs))+(last.res?' · '+last.res+' Res.':'')],...(last.xgrp||[]).map((gp,qi)=>[r.X||'-X1',gp.kl+'–'+(gp.kl+gp.cond.length+gp.res-1),'PE '+r.cond[1]+' N · '+g.length+'× T/LA'+(gp.res?' · '+gp.res+' Res':''),qsTxt(gp.qs)+' mm²','',(g.map(x=>x.K).join(', ')+' ('+r.sk.f+' '+r.sk.name+' '+(qi+2)+'/'+r.sk.abgN+')'),kab2(gp.cabs,c=>c.cab+'×'+qsTxt(c.qs))])]})():(r.grp||[{kl:r.kl,res:r.res,cabs:[{w:r.w,adern:r.adern,qs:r.qs}]}]).map((gp,q,A)=>[r.X||'-X1',gp.kl+'–'+(gp.kl+r.cond.length+(gp.res||0)-1),r.cond.concat(Array(gp.res||0).fill('Res')).join(' '),gp.cabs.map(c=>c.qs?qsTxt(c.qs):'?').join(' + ')+' mm²',cols2(r.cond),(r.f+' '+r.name+(A.length>1?' ('+(q+1)+'/'+A.length+')':'')),kab2(gp.cabs,c=>cabTxt(c).replace(' mm²',''))])));
     if(hv)pl.zl.forEach((z,k)=>{if(!k)return;const zf=five&&(z.adern||'5')==='5',c=zf?['L1','L2','L3','N','PE']:['L','N','PE'],X='-X'+(k+1)+'0';
-      rows.push([X,'1–'+c.length,c.join(' '),z.qs?qsTxt(z.qs)+' mm²':'offen',zf?'br sw gr bl gn-ge':'br bl gn-ge',(z.res?'-P'+(k+1)+' Reserve':'-P'+(k+1)+' '+(z.name||'')).slice(0,40),z.res?'':'Abgang '+(z.ziel||'')]);
-      (LL.ext[z.id]||[]).forEach(r=>rows.push([X.slice(0,-1)+'1',r.kl+'–'+(r.kl+r.cond.length+(r.res||0)-1),r.cond.concat(Array(r.res||0).fill('Res')).join(' '),r.qs?qsTxt(r.qs)+' mm²':'offen',cols2(r.cond),(r.f+' '+r.name).slice(0,40),r.w+' '+cabTxt(r)]))});
+      rows.push([X,'1–'+c.length,c.join(' '),z.qs?qsTxt(z.qs)+' mm²':'offen',zf?'br sw gr bl gn-ge':'br bl gn-ge',(z.res?'-P'+(k+1)+' Reserve':'-P'+(k+1)+' '+(z.name||'')),z.res?'':'Abgang '+(z.ziel||'')]);
+      (LL.ext[z.id]||[]).forEach(r=>rows.push([X.slice(0,-1)+'1',r.kl+'–'+(r.kl+r.cond.length+(r.res||0)-1),r.cond.concat(Array(r.res||0).fill('Res')).join(' '),r.qs?qsTxt(r.qs)+' mm²':'offen',cols2(r.cond),(r.f+' '+r.name),r.w+' '+cabTxt(r)]))});
     const part=rows.slice((pg.part||0)*KL_PER_PAGE,((pg.part||0)+1)*KL_PER_PAGE);
-    part.forEach((v,i)=>{const y=iy0+120+i*26;v.forEach((t,j)=>T(cols[j],y,t,'tk4'));L(ix0+40,y+9,ix1-40,y+9,'fr3')});
+    part.forEach((v,i)=>{const y=iy0+120+i*26;v.forEach((t,j)=>{t=String(t);if(j===5&&t.length>40){if(t.length<=48)T(cols[j],y,t,'tk2');else{const ll=wrapTxt(t,48);[ll[0],ll.slice(1).join(' ')].forEach((u,m)=>T(cols[j],y-5+m*10,u,'tk2'))}}else T(cols[j],y,t,'tk4')});L(ix0+40,y+9,ix1-40,y+9,'fr3')});
     if((pg.part||0)===nParts-1){const ks=klStrips(s).filter(k=>k.mm||k.offen),kt=ks.reduce((a,k)=>a+k.mm,0);T(ix0+40,iy0+120+part.length*26+4,'Klemmenleisten (Breite mit Endhalter + Deckel): '+ks.map(k=>k.X+' '+klPos(pl,k.X)+' '+(k.offen&&!k.mm?'folgt':mmTxt(k.mm))).join(' · ')+' · Total '+mmTxt(kt)+' = '+klTE(kt)+' TE','tb')}
     if((pg.part||0)===nParts-1)T(ix0+40,iy0+120+part.length*26+24,sk.length?'Abgänge: Phoenix PT 2,5-QUATTRO bis 4 mm², PT 6-TWIN 6 bis 10 mm². Bei «2 Kabel» werden zwei Kabel an denselben Klemmen angeschlossen. Die Masse der Klemmblöcke werden am Ende für den Verteilerbauer ausgegeben.':'Weitere Klemmblöcke folgen mit den Stromkreisen. Die Masse der Klemmblöcke werden am Ende für den Verteilerbauer ausgegeben.','tm');
   }else if(pg.kind==='sk'){
@@ -1052,7 +1054,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     T(xs0-8,yK+9,(pg.dp.items[0]||{}).X||'-X1','tb','end');
     const RX={PE:10,N:30},rx=cn=>cn==='PE'?10:cn==='N'?30:/^T/.test(cn)?44:/^LA/.test(cn)?56:20;
     const geo=it=>{if(it.sk){const x0=xs0+it.slot*cw;return {x0,w:cw,c:x0+33,xs:it.cond.map(cn=>x0+rx(cn))}}const x0=xs0+it.slot*cw,w=cw*(it.rel&&it.rel.length?1:(it.span||1)),n=it.cond.length,dx=14,bw=(n-1)*dx,c=x0+cw-bw/2-12;return {x0,w,c,xs:it.cond.map((_,k)=>c+(k-(n-1)/2)*dx)}};
-    let G;const foot=(it,g)=>{
+    let G,nmBot=0;const foot=(it,g)=>{
       it.cond.forEach((cn,k)=>{const x=g.xs[k];o.push(`<circle class="term" cx="${x}" cy="${yK+3.4}" r="3.4"/>`);T(x,yK+15,String(it.kl+k),'tk','middle');T(x,yK+22,cn,'tk5','middle')});
       /* Reserveklemmen für überzählige Adern */
       for(let q=0;q<(it.res||0);q++){const lx=g.xs[g.xs.length-1],st=it.sk?12:Math.max(10,(g.xs[1]-g.xs[0])||10),x=lx+st*(q+1),nr=it.kl+it.cond.length+q;o.push(`<circle class="term" cx="${x}" cy="${yK+3.4}" r="3.4"/>`);T(x,yK+15,String(nr),'tk','middle');T(x,yK+22,'Res','tk5','middle')}
@@ -1062,11 +1064,12 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
       const cb=it.cabs||[];const lx2=it.sk?g.x0+2:g.xs[0]-BL-4;
       if(cb.length>1)cb.forEach((c,m)=>T(lx2,yK+34+m*10,c.w+' '+(c.cab?c.cab+'×'+qsTxt(c.qs||'1.5'):cabTxt(c).replace(' mm²','')),'tk2','end'));
       else if(it.sk){T(g.x0+2,yK+34,it.w,'tm','end');T(g.x0+2,yK+44,it.cab+'×'+qsTxt(it.qs||'1.5'),'tk2','end')}else{T(g.xs[0]-BL-4,yK+34,it.w,'tm','end');T(g.xs[0]-BL-4,yK+44,cabTxt(it).replace(' mm²',''),'tk2','end')}
-      if(cb.length>1)T((it.sk?gc:g.x0+g.w/2),yK+82,'2 Kabel angeschlossen','tm','middle');
       g={...g,w:gw};
       const nS=it.sk?Math.ceil(it.sk.abgN/2):1,nm=it.sk?it.sk.name+(nS>1?' (1/'+nS+')':''):it.name;
-      const mx=Math.max(8,Math.floor(g.w/7.2)),words=String(nm).split(/\s+/),lines=[''];words.forEach(wd=>{const cur=lines[lines.length-1];if((cur+' '+wd).trim().length>mx&&cur)lines.push(wd);else lines[lines.length-1]=(cur+' '+wd).trim()});
-      const small=lines.some(l=>l.length>mx);lines.slice(0,2).forEach((t,m)=>T(g.x0+g.w/2,yK+60+m*11,t.slice(0,small?Math.floor(g.w/5.6):mx+2),small?'tnm2':'tb','middle'))};
+      /* ganzer Sicherungsbeschrieb, nie abschneiden: bis 2 Zeilen fett, sonst kleiner und so viele Zeilen wie nötig */
+      const mxB=Math.floor(g.w/7.2);let lines=wrapTxt(nm,mxB),cls='tb',st=11;if(lines.length>2||String(nm).split(/\s+/).some(wd=>wd.length>mxB)){lines=wrapTxt(nm,Math.floor(g.w/5.4));cls='tnm2';st=9.5}
+      lines.forEach((t,m)=>T(g.x0+g.w/2,yK+60+m*st,t,cls,'middle'));nmBot=Math.max(nmBot,yK+60+(lines.length-1)*st);
+      if(cb.length>1){const y2k=Math.max(yK+82,yK+60+lines.length*st+2);T((it.sk?gc:g.x0+g.w/2),y2k,'2 Kabel angeschlossen','tm','middle');nmBot=Math.max(nmBot,y2k)}};
     G=new Map();items.forEach(it=>G.set(it,geo(it)));
     /* neue Klemmenleiste mitten auf der Seite: Trennstrich (Endhalter + Deckel) und Name der Leiste */
     items.forEach((it,k)=>{if(!k||it.sk||it.X===items[k-1].X)return;const g=G.get(it.rel&&it.rel.length&&G.has(it.rel[0])?it.rel[0]:it),xl=Math.min(...g.xs)-12;L(xl,yK-22,xl,yK+26,'w');T(xl-4,yK-14,it.X,'tb','end')});
@@ -1099,7 +1102,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
             for(let q=0;q<gp.res;q++){const x=xs2[xs2.length-1]+11*(q+1);o.push(`<circle class="term" cx="${x}" cy="${yK+3.4}" r="3.4"/>`);T(x,yK+15,String(gp.kl+gp.cond.length+q),'tk','middle');T(x,yK+22,'Res','tk5','middle')}
             const cc=(xs2[0]+xs2[xs2.length-1])/2;for(let m=0;m<3;m++)L(cc-7,yK+35+m*3,cc+7,yK+30+m*3,'w');
             gp.cabs.forEach((c,m)=>T(bx+6,yK+34+m*10,c.w+' '+c.cab+'×'+qsTxt(c.qs),'tk2','end'));if(gp.cabs.length>1)T(bx+cw*par.gsp[qi+1]/2,yK+82,'2 Kabel angeschlossen','tm','middle');
-            const nm2=par.name+' ('+(qi+2)+'/'+Math.ceil(N/2)+')';T(bx+cw*par.gsp[qi+1]/2,yK+60,nm2.slice(0,22),nm2.length>16?'tnm2':'tb','middle')})}
+            const nm2=par.name+' ('+(qi+2)+'/'+Math.ceil(N/2)+')',wq=cw*par.gsp[qi+1];wrapTxt(nm2,Math.floor(wq/5.4)).forEach((t,m)=>{T(bx+wq/2,yK+60+m*9.5,t,'tnm2','middle');nmBot=Math.max(nmBot,yK+60+m*9.5)})})}
         foot(it,G.get(it));return}
       const r=it,n=r.cond.length,hasRel=r.rel.length>0;
       r.cond.forEach((cn,k)=>{const x=xs[k],cls=bcls(cn),yb=busY[cn];
@@ -1126,9 +1129,9 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
         if(na>1)T(xs[0]+off[1]/2,yK-76,'Steckbrücke','tm','middle');
         r.grp.forEach((gp,q)=>foot({...r,kl:gp.kl,w:gp.w,adern:gp.adern,qs:gp.qs,res:gp.res,cabs:gp.cabs,name:na>1?r.name+' ('+(q+1)+'/'+na+')':r.name},{...g,x0:g.x0+off[q],w:cw*r.gsp[q],xs:xs.map(x=>x+off[q])}))}
       if(r.note){const mx=Math.max(10,Math.floor(w/4.8)),words=String(r.note).split(/\s+/),lines=[''];words.forEach(wd=>{const cur=lines[lines.length-1];if((cur+' '+wd).trim().length>mx&&cur)lines.push(wd);else lines[lines.length-1]=(cur+' '+wd).trim()});
-        lines.slice(0,3).forEach((t,m)=>T(x0+4,462+m*11,(m===0?'Notiz: ':'')+t.slice(0,mx+4),'tnote'))}
+        lines.forEach((t,m)=>T(x0+4,462+m*11,(m===0?'Notiz: ':'')+t,'tnote'))}
     });
-    let hy=yK+86;const hint=t=>{T(ix0+10,hy,'⚠ Hinweis: '+t,'twarn');hy+=9};
+    let hy=Math.max(yK+86,nmBot+11);if(hy+3*9>iy1)hy=busY.PE+30;/* lange Beschriebe: Hinweise unter die PE-Schiene statt über den Rahmen */const hint=t=>{T(ix0+10,hy,'⚠ Hinweis: '+t,'twarn');hy+=9};
     const rs=[...new Set(items.filter(it=>!it.sk).map(it=>it.rail))].map(railOf),fl=k=>rs.filter(r=>r[k]).map(r=>r.no).join(', ');
     if(fl('nt')){hint('N-Trenner auf Hutschiene '+fl('nt')+'. Dort keine Phasen- und keine Etagenschiene möglich, gilt für alle Sicherungen mit ⚠.');hint('N-Trenner mit 1 TE gerechnet, effektiv 0,5 TE.')}
     if(fl('siem'))hint('1-polige FI/LS von Siemens auf Hutschiene '+fl('siem')+'. Etagen- sowie Kammschienen von '+(pl.hersteller||'Hersteller')+' sind NICHT kompatibel.');
@@ -1176,7 +1179,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
         for(let q=0;q<(r.res||0);q++)term(ePE+12*(q+1),r.kl+r.cond.length+q,'Res');
         T(ex[0]-10,yK+7,X.slice(0,-1)+'1','tb','end');
         const cc=(ex[0]+ePE)/2;for(let m=0;m<3;m++)L(cc-7,yK+35+m*3,cc+7,yK+30+m*3,'w');
-        T(cc,yK+60,String(r.name).slice(0,20),'tb','middle');T(cc,yK+72,r.note?String(r.note).slice(0,24):r.w,'tk3','middle');T(cc,yK+83,cabTxt(r),'tk3','middle')});
+        const nl=wrapTxt(r.name,20);nl.forEach((t,m)=>T(cc,yK+60+m*11,t,'tb','middle'));const yN=yK+60+nl.length*11;const ntl=r.note?wrapTxt(r.note,26):[r.w];ntl.forEach((t,m)=>T(cc,yN+1+m*10,t,'tk3','middle'));T(cc,yN+2+ntl.length*10,cabTxt(r),'tk3','middle')});
     });
   }else{
     /* Allgemeinzähler: Leiter von links auf den Zähler, Zählerausgang wird zu den Leitern nach rechts (Stromkreise Allgemein) */
@@ -1284,7 +1287,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
   .fr{stroke:#111;stroke-width:1.2;fill:none}.fr2{stroke:#111;stroke-width:.6}.bx{stroke:#111;stroke-width:.8;fill:#fff}.bxw{stroke:#111;stroke-width:1;fill:#fff}
   .bxd{stroke:#111;stroke-width:.9;fill:none;stroke-dasharray:10 3 2 3}.note{stroke:#bbb;stroke-width:.8;fill:#fff}.term{fill:#fff;stroke:#111;stroke-width:1}
   text{font-family:"DejaVu Sans",Inter,Arial,sans-serif;fill:#111}.t{font-size:10px}.tb{font-size:10.5px;font-weight:700}.tm{font-size:8.5px;fill:#555}.ta{font-size:9.5px;fill:#1f4fa0}
-  .tg{font-size:10px}.tr{font-size:8px;font-family:"DejaVu Sans Mono",monospace}.tk{font-size:6.5px}.tk2{font-size:8.5px}.tk3{font-size:9.5px}.th{font-size:11px;font-weight:700;fill:#444}.tbig{font-size:20px;font-weight:700}.tdeck{font-size:34px;font-weight:700}.tdeck2{font-size:16px;font-weight:700}.tm2{font-size:10px;fill:#666}.tk4{font-size:10.5px}.fr3{stroke:#ccc;stroke-width:.6}.cp{stroke:#111;stroke-width:.8;stroke-dasharray:3 2}.dbox{stroke:#111;stroke-width:.9;fill:#fff}.tbw{font-size:11px;font-weight:700;fill:#ffed00;letter-spacing:.06em}.tlab{font-size:11px;font-weight:700;letter-spacing:.18em;fill:#555}.tdeck3{font-size:14px;font-weight:700}.tk5{font-size:5.5px;fill:#555}.cpl{stroke:#111;stroke-width:.7}.kb{stroke:#111;stroke-width:3.2}.kbn{stroke:#111;stroke-width:2.6;stroke-dasharray:8 4}.kbpe{stroke:#111;stroke-width:2.6;stroke-dasharray:14 3 3 3}.twarn{font-size:9.5px;font-weight:700;fill:#b42318}.tnm2{font-size:8.5px;font-weight:700}.wc{stroke:#111;stroke-width:1.1}.bxr{fill:none;stroke:#111;stroke-width:.7;stroke-dasharray:3 2}.trel{font-size:7.5px;fill:#444}.tbh{font-size:10px;font-weight:700;paint-order:stroke;stroke:#fff;stroke-width:3px}.tnote{font-size:8px;font-style:italic;fill:#1f4fa0;paint-order:stroke;stroke:#fff;stroke-width:3px}.thalo{font-size:7.5px;fill:#555;paint-order:stroke;stroke:#fff;stroke-width:3px}
+  .tg{font-size:10px}.tr{font-size:8px;font-family:"DejaVu Sans Mono",monospace}.tk{font-size:6.5px}.tk2{font-size:8.5px}.tk3{font-size:9.5px}.th{font-size:11px;font-weight:700;fill:#444}.tbig{font-size:20px;font-weight:700}.tdeck{font-size:34px;font-weight:700}.tdeck2{font-size:16px;font-weight:700}.tm2{font-size:10px;fill:#666}.tk4{font-size:10.5px}.fr3{stroke:#ccc;stroke-width:.6}.cp{stroke:#111;stroke-width:.8;stroke-dasharray:3 2}.dbox{stroke:#111;stroke-width:.9;fill:#fff}.tbw{font-size:11px;font-weight:700;fill:#ffed00;letter-spacing:.06em}.tlab{font-size:11px;font-weight:700;letter-spacing:.18em;fill:#555}.tdeck3{font-size:14px;font-weight:700}.tk5{font-size:5.5px;fill:#555}.cpl{stroke:#111;stroke-width:.7}.kb{stroke:#111;stroke-width:3.2}.kbn{stroke:#111;stroke-width:2.6;stroke-dasharray:8 4}.kbpe{stroke:#111;stroke-width:2.6;stroke-dasharray:14 3 3 3}.twarn{font-size:9.5px;font-weight:700;fill:#b42318;paint-order:stroke;stroke:#fff;stroke-width:3px}.tnm2{font-size:8.5px;font-weight:700}.wc{stroke:#111;stroke-width:1.1}.bxr{fill:none;stroke:#111;stroke-width:.7;stroke-dasharray:3 2}.trel{font-size:7.5px;fill:#444}.tbh{font-size:10px;font-weight:700;paint-order:stroke;stroke:#fff;stroke-width:3px}.tnote{font-size:8px;font-style:italic;fill:#1f4fa0;paint-order:stroke;stroke:#fff;stroke-width:3px}.thalo{font-size:7.5px;fill:#555;paint-order:stroke;stroke:#fff;stroke-width:3px}
   </style>${o.join('')}</svg>`;
 }
 
