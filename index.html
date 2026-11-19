@@ -736,16 +736,20 @@ function busPlan(s,L,fresh){
     else{o.typ=rl.big?'4P':'2P';o.part=rl.big?'S4':'S2'}
     o.on=!!o.part;return o});
   const sig=rails.map(r=>r.no+(r.typ||'-')+r.zid).join(',');
-  const ov=!fresh&&pl.bus&&pl.bus.sig===sig?pl.bus:{off:{},et:{}};
+  const ov=!fresh&&pl.bus&&pl.bus.sig===sig?pl.bus:{off:{},et:{},sd:{}};const osd=ov.sd||{},opp=x=>x==='l'?'r':'l',sdT=x=>x==='l'?'links':'rechts';
   const msgs=[];
   rails.forEach(r=>{if(r.part&&ov.off[r.no]){r.on=false;r.cut=true;msgs.push({e:1,t:'Hutschiene '+r.no+': Sammelschiene entfernt. Die Sicherungen müssen einzeln verdrahtet werden.'})}
     if(r.why==='3-polige ohne N-Trenner: keine passende Kammschiene')msgs.push({e:1,t:'Hutschiene '+r.no+': 3-polige Sicherungen ohne N-Trenner passen nicht auf die 4-polige Kammschiene. Einzeln verdrahten.'})});
   /* Etagenschienen zwischen zwei benachbarten Hager-Schienen derselben Einspeisung */
   const hg=r=>r&&r.on&&(r.typ==='4P'||r.typ==='2P'),ets=[];
   for(let i=0;i+1<rails.length;i++){const a=rails[i],b=rails[i+1];if(!hg(a)||!hg(b)||a.zid!==b.zid)continue;
-    const k=(a.typ==='4P'?'4':'2')+(b.typ==='4P'?'4':'2'),part=k==='44'?'E44':'E'+k+side;ets.push({a:a.no,b:b.no,part,on:etOn&&!ov.et[a.no],cut:etOn&&!!ov.et[a.no]})}
+    const k=(a.typ==='4P'?'4':'2')+(b.typ==='4P'?'4':'2'),part=null;ets.push({a:a.no,b:b.no,k,part,on:etOn&&!ov.et[a.no],cut:etOn&&!!ov.et[a.no]})}
   /* drei 4-polige Schienen untereinander: eine KCF668S statt zwei KCF663S */
-  for(let i=0;i+1<ets.length;i++){const x=ets[i],y=ets[i+1];if(x.on&&y.on&&x.part==='E44'&&y.part==='E44'&&x.b===y.a&&!x.m){x.part='E444';x.b=y.b;x.m=true;ets.splice(i+1,1)}}
+  for(let i=0;i+1<ets.length;i++){const x=ets[i],y=ets[i+1];if(x.on&&y.on&&x.k==='44'&&y.k==='44'&&x.b===y.a&&!x.m&&!osd[x.a]&&!osd[y.a]){x.k='444';x.b=y.b;x.m=true;ets.splice(i+1,1)}}
+  /* Seiten: X0 links -> erste Etagenschiene rechts (links bleibt frei zum Einspeisen), danach immer abwechselnd. Pro Seite einer Hutschiene nur eine Etagenschiene */
+  {let pe=null,pa=null;ets.forEach(e=>{e.exp=pe&&pe.b===e.a?opp(pe.exp):opp(side);e.side=osd[e.a]?opp(e.exp):e.exp;e.part=e.k==='44'?'E44':e.k==='444'?'E444':'E'+e.k+e.side;
+    if(e.on){if(e.side!==e.exp)msgs.push({e:1,t:'Fehler: Etagenschiene Hutschiene '+e.a+'–'+e.b+' ist '+sdT(e.side)+', muss '+sdT(e.exp)+' sein (Einspeisung -X0 '+sdT(side)+', erste Etagenschiene auf der Gegenseite, dann abwechselnd).'});
+      if(pa&&pa.b===e.a&&pa.side===e.side)msgs.push({e:1,t:'Fehler: Hutschiene '+e.a+' hat '+sdT(e.side)+' zwei Etagenschienen. Pro Seite geht nur eine.'});pe=e;pa=e}else{pe=null;pa=null}})}
   ets.filter(e=>e.cut).forEach(e=>msgs.push({e:1,t:'Etagenschiene zwischen Hutschiene '+e.a+' und '+e.b+' gelöscht: Litzenbrücke nötig.'}));
   /* Einspeisung: erste Schiene mit Sammelschiene je Einspeisung vom -X0, jede weitere über Etagenschiene oder Litzenbrücke */
   const fed=new Set();const seen=new Set();
@@ -758,45 +762,68 @@ function busPlan(s,L,fresh){
   const cnt={};it.forEach(p=>cnt[p]=(cnt[p]||0)+1);
   const parts=Object.keys(cnt).map(p=>({...BUS_P[p],key:p,n:cnt[p]}));
   return {rails,ets,msgs,parts,sig,side,etOn,bru:parts.reduce((a,x)=>a+x.bru*x.n,0),net:parts.reduce((a,x)=>a+x.net*x.n,0)}}
-function busSet(fn){const s=S.site,pl=planOf(s),B=busPlan(s);if(!pl.bus||pl.bus.sig!==B.sig)pl.bus={sig:B.sig,off:{},et:{}};fn(pl.bus)}
+function busSet(fn){const s=S.site,pl=planOf(s),B=busPlan(s);if(!pl.bus||pl.bus.sig!==B.sig)pl.bus={sig:B.sig,off:{},et:{},sd:{}};pl.bus.sd=pl.bus.sd||{};fn(pl.bus)}
 /* 2D-Ansicht: Klemmen oben, Sicherungsschienen mit Sammel- und Etagenschienen, Klemmen unten. Teile anklickbar */
 function bus2D(s,raw){
-  const pl=planOf(s),L=skLayout(s),B=busPlan(s,L),TE=24,W=12*TE,mx=110,rowH=92,side=B.side,ed=!raw&&canEdit(s);
+  const pl=planOf(s),L=skLayout(s),B=busPlan(s,L),TE=24,W=12*TE,mx=200,rowH=104,side=B.side,ed=!raw&&canEdit(s);
+  const CL=mx-50,CR=mx+W+50;/* Schrank innen */
   const ks=klStrips(s).filter(k=>k.mm||k.offen||k.X==='-X0'),kU=ks.filter(k=>klPos(pl,k.X)==='unten'),kO=ks.filter(k=>klPos(pl,k.X)!=='unten');
   const klRows=arr=>{const rows=[];let r=null;arr.forEach(k=>{const te=Math.max(1,k.mm?klTE(k.mm):2);if(!r||r.te+te>12){r={te:0,it:[]};rows.push(r)}r.it.push({...k,te,x:r.te});r.te+=te});return rows};
-  const rO=klRows(kO),rU=klRows(kU);let y=14,out='';
+  const rO=klRows(kO),rU=klRows(kU);let y=56,out='';
+  const ico=(x,y,on)=>ed?`<rect x="${x}" y="${y}" width="14" height="14" fill="${on?'#b42318':'#2e7d32'}"/><text x="${x+7}" y="${y+11}" text-anchor="middle" class="b2b" style="fill:#fff">${on?'✕':'+'}</text>`:'';
   const g=(act,attrs,inner,tip)=>ed?`<g data-act="${act}" ${attrs} style="cursor:pointer"><title>${esc(tip)}</title>${inner}</g>`:inner;
-  const klRow=r=>{let h=`<rect x="${mx}" y="${y+22}" width="${W}" height="6" fill="#c9ccd1"/><text x="${mx-(side==='l'?30:8)}" y="${y+28}" text-anchor="end" class="b2s">Klemmen</text>`;
-    r.it.forEach(k=>{const x=mx+k.x*TE,w=k.te*TE,x0=k.X==='-X0';
-      const box=`<rect x="${x+1}" y="${y+6}" width="${w-2}" height="38" rx="2" fill="${x0?'#ffe27a':'#e6eefb'}" stroke="${x0?'#b58900':'#5577aa'}"/><text x="${x+w/2}" y="${y+24}" text-anchor="middle" class="b2b">${k.X}</text><text x="${x+w/2}" y="${y+37}" text-anchor="middle" class="b2s">${k.mm?k.te+' TE':'folgt'}</text>`;
-      h+=x0?g('x0Pos','',box,'-X0 nach '+(klPos(pl,'-X0')==='unten'?'oben':'unten')+' verschieben'):box});y+=54;return h};
+  const din=yy=>`<rect x="${CL+6}" y="${yy-9}" width="${CR-CL-12}" height="18" fill="#c3c7cc" stroke="#9aa0a6" stroke-width=".8"/><line x1="${CL+6}" y1="${yy-5}" x2="${CR-6}" y2="${yy-5}" stroke="#e4e7ea" stroke-width="1"/><line x1="${CL+6}" y1="${yy+5}" x2="${CR-6}" y2="${yy+5}" stroke="#a6abb1" stroke-width="1"/>`;
+  const lbl=(yy,a,b)=>`<text x="${CL-20}" y="${yy-2}" text-anchor="end" class="b2b">${a}</text><text x="${CL-20}" y="${yy+11}" text-anchor="end" class="b2s">${b}</text>`;
+  const klRow=r=>{const cy=y+36;let h=din(cy)+lbl(cy,'Klemmen',r.it.map(k=>k.X).join(' '));
+    r.it.forEach(k=>{const x=mx+k.x*TE,w=k.te*TE,x0=k.X==='-X0',n=Math.max(2,Math.round(w/6));let sl='';
+      for(let i=0;i<n;i++){const c=i>=n-1?'#5aa05a':i>=n-2?'#3f7fc4':'#9ea3a9';sl+=`<rect x="${(x+1+i*(w-2)/n).toFixed(1)}" y="${y+14}" width="${((w-2)/n-0.6).toFixed(1)}" height="44" fill="${c}"/>`}
+      const box=`<rect x="${x}" y="${y+12}" width="${w}" height="48" fill="#6b7076"/>${sl}<rect x="${x}" y="${y+60}" width="${w}" height="13" fill="${x0?'#ffd400':'#fff'}" stroke="#6b7076" stroke-width=".8"/><text x="${x+w/2}" y="${y+70}" text-anchor="middle" class="b2t">${k.X} · ${k.mm?k.te+' TE':'folgt'}</text>`;
+      h+=x0?g('x0Pos','',box,'-X0 nach '+(klPos(pl,'-X0')==='unten'?'oben':'unten')+' verschieben'):box});y+=86;return h};
   rO.forEach(r=>out+=klRow(r));
-  const top={};
-  B.rails.forEach(br=>{const rl=L.rails[br.no-1];top[br.no]=y;
-    out+=`<rect x="${mx}" y="${y+40}" width="${W}" height="8" fill="#c9ccd1"/><text x="${mx-(side==='l'?30:8)}" y="${y+30}" text-anchor="end" class="b2b">Schiene ${br.no}</text><text x="${mx-(side==='l'?30:8)}" y="${y+43}" text-anchor="end" class="b2s">${br.typ==='SIEM'?'Siemens':br.typ||'–'}</text>`;
-    let x=mx;rl.items.forEach(it=>{const te=it.te||1,w=te*TE;
-      if(it.sk){out+=`<rect x="${x+1}" y="${y+8}" width="${w-2}" height="58" rx="2" fill="#f1e8ff" stroke="#7a52b3"/><text x="${x+w/2}" y="${y+34}" text-anchor="middle" class="b2b">${esc(it.K||'K')}</text>`}
-      else{const nt=it.nt?1:0,dw=(te-nt)*TE;out+=`<rect x="${x+1}" y="${y+8}" width="${dw-2}" height="58" rx="2" fill="${it.siem?'#ffe9e6':'#fff'}" stroke="#333"/><text x="${x+dw/2}" y="${y+26}" text-anchor="middle" class="${dw>TE?'b2b':'b2t'}">${it.f}</text><text x="${x+dw/2}" y="${y+38}" text-anchor="middle" class="b2s">${esc((it.char||'')+(it.amp||''))}</text><text x="${x+dw/2}" y="${y+60}" text-anchor="middle" class="b2s">${it.poles}P</text>`;
-        if(nt)out+=`<rect x="${x+dw+1}" y="${y+8}" width="${TE-2}" height="58" rx="2" fill="#eef6ff" stroke="#3a6ea5"/><text x="${x+dw+TE/2}" y="${y+40}" text-anchor="middle" class="b2s">N</text>`}
+  const top={},poles=it=>it.sk?1:Math.max(1,+it.pol||1);
+  B.rails.forEach(br=>{const rl=L.rails[br.no-1];top[br.no]=y;const cy=y+44;
+    out+=din(cy)+lbl(cy,'Schiene '+br.no,br.typ==='SIEM'?'Siemens':br.typ||'ohne Sammelschiene');
+    let x=mx;const teeth=[];
+    rl.items.forEach(it=>{const te=it.te||1,w=te*TE;
+      if(it.sk){out+=`<rect x="${x+.5}" y="${y+10}" width="${w-1}" height="70" fill="#f2f2f0" stroke="#8d939a" stroke-width=".9"/><rect x="${x+w/2-5}" y="${y+36}" width="10" height="16" fill="#6b7076"/><text x="${x+w/2}" y="${y+26}" text-anchor="middle" class="b2t">${esc(it.K||'K')}</text>`}
+      else{const nt=it.nt?1:0,dw=(te-nt)*TE,lw=Math.min(12,dw-8),np=it.siem?1:poles(it);
+        out+=`<rect x="${x+.5}" y="${y+10}" width="${dw-1}" height="70" fill="${it.siem?'#fbefed':'#fbfbfa'}" stroke="#8d939a" stroke-width=".9"/>`;
+        for(let q=0;q<Math.max(np,te-nt);q++){const px=x+(q+.5)*dw/Math.max(np,te-nt);out+=`<rect x="${px-3}" y="${y+12}" width="6" height="5" fill="#5f646a"/>`}
+        out+=`<rect x="${x+dw/2-lw/2}" y="${y+34}" width="${lw}" height="18" fill="#3b3f44"/><rect x="${x+dw/2-lw/2}" y="${y+34}" width="${lw}" height="6" fill="#55595e"/>`;
+        out+=`<text x="${x+dw/2}" y="${y+29}" text-anchor="middle" class="${dw>TE?'b2b':'b2t'}">${it.f}</text><text x="${x+dw/2}" y="${y+63}" text-anchor="middle" class="b2t">${esc((it.char||'')+(it.amp||''))}</text>`;
+        if(!it.nt)for(let q=0;q<np;q++)teeth.push(x+(q+.5)*dw/np);
+        if(nt)out+=`<rect x="${x+dw+.5}" y="${y+10}" width="${TE-1}" height="70" fill="#fbfbfa" stroke="#8d939a" stroke-width=".9"/><rect x="${x+dw+TE/2-4}" y="${y+34}" width="8" height="18" fill="#2f6db5"/><text x="${x+dw+TE/2}" y="${y+63}" text-anchor="middle" class="b2t">N</text>`}
       x+=w});
-    for(let t=rl.used;t<12;t++)out+=`<rect x="${mx+t*TE+1}" y="${y+8}" width="${TE-2}" height="58" fill="none" stroke="#ccc" stroke-dasharray="3 3"/>`;
-    /* Sammelschiene unter den Geräten */
-    if(br.part){const P=BUS_P[br.part],col=br.on?(br.typ==='SIEM'?'#c0392b':'#b87333'):'#999';
-      out+=g('busTog',`data-no="${br.no}"`,`<rect x="${mx}" y="${y+70}" width="${W}" height="9" rx="2" fill="${br.on?col:'none'}" stroke="${col}" ${br.on?'':'stroke-dasharray="5 4"'}/><text x="${mx+W+(side==='r'?26:8)}" y="${y+78}" class="b2s"${br.on?'':' fill="#b42318"'}>${br.on?esc(P.kurz)+' · '+P.nr:'entfernt'}</text>`,br.on?'Sammelschiene entfernen':'Sammelschiene wieder einsetzen')}
-    else out+=`<text x="${mx+W+(side==='r'?26:8)}" y="${y+78}" class="b2s" fill="#777">keine Sammelschiene (${esc(br.why)})</text>`;
+    for(let t=rl.used;t<12;t++)out+=`<rect x="${mx+t*TE+.5}" y="${y+10}" width="${TE-1}" height="70" fill="none" stroke="#b9bec4" stroke-dasharray="3 3"/>`;
+    /* Sammelschiene (Gabel) in den unteren Klemmen */
+    if(br.part){const P=BUS_P[br.part],on=br.on,cu=br.typ==='SIEM'?'#a7553f':'#c27a3c';let tt='';
+      if(on)teeth.forEach(tx=>tt+=`<rect x="${(tx-2.5).toFixed(1)}" y="${y+72}" width="5" height="9" fill="${cu}"/>`);
+      out+=g('busTog',`data-no="${br.no}"`,`${tt}${ico(mx+W-14,y+90,on)}<rect x="${mx}" y="${y+81}" width="${W}" height="7" fill="${on?cu:'none'}" stroke="${on?'#7d4a22':'#b42318'}" stroke-width=".9" ${on?'':'stroke-dasharray="5 4"'}/><text x="${CR+18}" y="${y+88}" class="b2s"${on?'':' style="fill:#b42318"'}>${on?esc(P.kurz)+' · '+P.nr:'Sammelschiene entfernt'}</text>`,on?'Sammelschiene entfernen':'Sammelschiene wieder einsetzen')}
+    else out+=`<text x="${CR+18}" y="${y+88}" class="b2s" style="fill:#777">keine Sammelschiene (${esc(br.why)})</text>`;
     y+=rowH});
-  /* Etagenschienen seitlich */
-  const ex=side==='l'?mx-22:mx+W+6;
-  B.ets.filter(()=>B.etOn).forEach(e=>{const y1=top[e.a]+74,y2=top[e.b]+74,P=BUS_P[e.part];const col=e.on?'#b87333':'#b42318';
-    const inner=`<rect x="${ex}" y="${y1}" width="14" height="${y2-y1}" rx="3" fill="${e.on?'#e7c9a9':'none'}" stroke="${col}" ${e.on?'':'stroke-dasharray="5 4"'}/><text x="${ex+7}" y="${(y1+y2)/2}" text-anchor="middle" class="b2s" transform="rotate(-90 ${ex+7} ${(y1+y2)/2})"${e.on?'':' fill="#b42318"'}>${e.on?esc(P.kurz):'Litze'}</text>`;
-    out+=g('etTog',`data-no="${e.a}"`,inner,e.on?'Etagenschiene löschen (dann Litzenbrücke)':'Etagenschiene wieder einsetzen')});
+  /* Etagenschienen: senkrecht am Rand, Arme fahren seitlich in die Sammelschienen */
+  B.ets.filter(()=>B.etOn).forEach(e=>{const sd=e.side,P=BUS_P[e.part],on=e.on,vx=sd==='l'?CL+10:CR-24,col=on?'#7d4a22':'#b42318';
+    const rows=B.rails.filter(r=>r.no>=e.a&&r.no<=e.b).map(r=>top[r.no]+84),y1=rows[0]-6,y2=rows[rows.length-1]+6;
+    let inner=`<rect x="${vx}" y="${y1}" width="14" height="${y2-y1}" fill="${on?'#d9dcdf':'none'}" stroke="${on?'#7f858c':'#b42318'}" stroke-width=".9" ${on?'':'stroke-dasharray="5 4"'}/>`;
+    if(on)rows.forEach(ry=>{const ax=sd==='l'?vx+14:mx+W-TE,aw=sd==='l'?mx+TE-(vx+14):vx-(mx+W-TE);inner+=`<rect x="${ax}" y="${ry-3}" width="${aw}" height="6" fill="#c27a3c" stroke="${col}" stroke-width=".7"/><rect x="${sd==='l'?vx:vx}" y="${ry-7}" width="14" height="14" fill="#c9cdd1" stroke="#7f858c" stroke-width=".7"/>`});
+    const my=(y1+y2)/2,tx=sd==='l'?CL+37:CR-37;
+    inner+=ico(vx,my-7,on);
+    const ly=rows[0]+17,lx=sd==='l'?CL-18:CR+18;
+    inner+=`<text x="${lx}" y="${ly}" text-anchor="${sd==='l'?'end':'start'}" class="b2s" style="fill:${on?'#7d4a22':'#b42318'}">${on?esc(P.kurz)+' · '+P.nr:'gelöscht: Litzenbrücke'}</text>`;
+    out+=g('etTog',`data-no="${e.a}"`,inner,on?'Etagenschiene löschen (dann Litzenbrücke)':'Etagenschiene wieder einsetzen')});
   rU.forEach(r=>out+=klRow(r));
-  /* -X0 Einspeisung: Seite links/rechts umschaltbar */
-  const x0y=klPos(pl,'-X0')==='unten'?y+4:4,fx=side==='l'?4:mx+W+30;
-  out+=g('x0Flip','',`<rect x="${fx}" y="${x0y}" width="52" height="22" rx="11" fill="#ffd400" stroke="#b58900"/><text x="${fx+26}" y="${x0y+15}" text-anchor="middle" class="b2b">${raw?'-X0':'X0 '+(side==='l'?'→':'←')}</text>`,'-X0 auf die '+(side==='l'?'rechte':'linke')+' Seite verschieben');
-  const H=y+(klPos(pl,'-X0')==='unten'?34:10),VW=mx+W+170;
-  if(raw)return {inner:out,VW,H};
-  return `<svg class="b2d" viewBox="0 0 ${VW} ${H}" width="100%" role="img" aria-label="2D-Ansicht Verteiler"><style>.b2b{font:700 11px sans-serif}.b2s{font:10px sans-serif}.b2t{font:700 8px sans-serif}</style>${out}</svg>`}
+  const H=y+24,x0u=klPos(pl,'-X0')==='unten';
+  /* Schrank: Gehäuse, Rückwand, Abdeckrahmen, eckig */
+  const cab=`<rect x="${CL-14}" y="24" width="${CR-CL+28}" height="${H-26}" fill="#e9eaec" stroke="#7f858c" stroke-width="1.2"/><rect x="${CL}" y="38" width="${CR-CL}" height="${H-54}" fill="#f7f7f5" stroke="#a9aeb4"/><rect x="${CL-14}" y="24" width="${CR-CL+28}" height="6" fill="#cfd2d6"/>`;
+  const fx=side==='l'?CL-14:CR-46,fy=x0u?H+2:4;
+  const flip=g('x0Flip','',`<rect x="${fx}" y="${fy}" width="60" height="16" fill="#111"/><text x="${fx+30}" y="${fy+12}" text-anchor="middle" class="b2t" style="fill:#ffd400">${raw?'-X0 '+(side==='l'?'links':'rechts'):(side==='l'?'X0 links ▸':'◂ X0 rechts')}</text>`,'-X0 auf die '+(side==='l'?'rechte':'linke')+' Seite verschieben');
+  const VW=CR+170,HH=H+(x0u?22:4);
+  if(raw)return {inner:cab+out+flip,VW,H:HH};
+  return `<svg class="b2d" viewBox="0 0 ${VW} ${HH}" width="100%" role="img" aria-label="2D-Ansicht Verteiler"><style>.b2b{font:700 11px sans-serif}.b2s{font:10px sans-serif}.b2t{font:700 8px sans-serif}</style>${cab}${out}${flip}</svg>`}
+function busEdit(p,B,dis){const sdT=x=>x==='l'?'links':'rechts',bt=(act,no,txt,cl)=>`<button type="button" class="btn small${cl?' '+cl:''}" data-act="${act}" data-no="${no}"${dis}>${txt}</button>`;
+  const rs=B.rails.filter(r=>r.part).map(r=>`<tr><td><b>Sammelschiene Hutschiene ${r.no}</b><br><span class="sub">${r.on?esc(BUS_P[r.part].kurz)+' · '+BUS_P[r.part].nr:'entfernt, Sicherungen einzeln verdrahten'}</span></td><td>${r.on?bt('busTog',r.no,'✕ Löschen','danger'):bt('busTog',r.no,'+ Wieder einsetzen')}</td></tr>`);
+  const es=B.etOn?B.ets.map(e=>`<tr><td><b>Etagenschiene Hutschiene ${e.a}–${e.b}</b> · ${sdT(e.side)}${e.on&&e.side!==e.exp?' <span style="color:#b42318;font-weight:700">(falsch, muss '+sdT(e.exp)+')</span>':''}<br><span class="sub">${e.on?esc(BUS_P[e.part].kurz)+' · '+BUS_P[e.part].nr:'gelöscht: Litzenbrücke nötig'}</span></td><td style="white-space:nowrap">${e.on?bt('etSide',e.a,'⇄ Seite')+' '+bt('etTog',e.a,'✕ Löschen','danger'):bt('etTog',e.a,'+ Wieder einsetzen')}</td></tr>`):[];
+  return `<div class="legend">Schienen bearbeiten</div><p class="sub">Hier löschst du einzelne Schienen oder setzt sie wieder ein. -X0 verschiebst du mit dem schwarzen Knopf in der Ansicht (links/rechts) oder durch Antippen des gelben -X0 (oben/unten).</p><table class="te">${[...rs,...es].join('')||'<tr><td>Keine Schienen</td><td></td></tr>'}</table>`}
 function busList(B){const row=(a,b,cl)=>`<tr${cl?` class="${cl}"`:''}><td>${a}</td><td>${b}</td></tr>`;
   return B.parts.length?`<table class="te">${B.parts.map(x=>row(x.n+'× '+esc((x.hst||'Hager')+' '+x.art)+' <span class="sub">('+x.nr+')</span>',chf(x.net*x.n)+' CHF')).join('')}${row('Schienen zusammen','netto '+chf(B.net)+' / brutto '+chf(B.bru)+' CHF','sum')}</table>`:'<p class="sub">Noch keine Sammelschienen nötig.</p>'}
 function busMsgs(B){return B.msgs.map(m=>`<div class="msg ${m.e?'err':'info'}">${esc(m.t)}</div>`).join('')}
@@ -810,8 +837,8 @@ function busBody(p,pl,dis){const B=busPlan(p),tile=(key,val,label,sub)=>`<button
   <div class="legend">Einspeisung -X0</div>
   <div class="tiles two-col">${tile('x0Side','l','Links','Etagenschienen links')}${tile('x0Side','r','Rechts','Etagenschienen rechts')}</div>
   <div class="legend">2D-Ansicht</div>
-  <p class="sub">Antippen: Sammelschiene oder Etagenschiene entfernen bzw. wieder einsetzen, X0 links/rechts oder oben/unten verschieben.</p>
   <div class="b2wrap">${bus2D(p)}</div>
+  ${busEdit(p,B,dis)}
   ${edited&&canEdit(p)?'<div><button type="button" class="btn small" data-act="busReset">Vorschlag wiederherstellen</button></div>':''}
   <div id="busMsgs">${busMsgs(B)}</div>
   <div class="legend">Schienen-Material · Sonepar</div>${busList(B)}`}
@@ -1615,9 +1642,10 @@ document.addEventListener('submit',async e=>{
 document.addEventListener('click',e=>{
   const t=e.target.closest('button,g[data-act]');if(!t)return;
   const act=t.dataset.act;
-  if(['busTog','etTog','x0Flip','x0Pos','busReset'].includes(act)&&S.site&&canEdit(S.site)){const pl=planOf(S.site),no=t.dataset.no;
+  if(['busTog','etTog','etSide','x0Flip','x0Pos','busReset'].includes(act)&&S.site&&canEdit(S.site)){const pl=planOf(S.site),no=t.dataset.no;
     if(act==='busTog')busSet(b=>{if(b.off[no])delete b.off[no];else b.off[no]=1;touchPlan('Sammelschiene Hutschiene '+no+(b.off[no]?' entfernt':' eingesetzt'))});
     if(act==='etTog')busSet(b=>{if(b.et[no])delete b.et[no];else b.et[no]=1;touchPlan('Etagenschiene ab Hutschiene '+no+(b.et[no]?' gelöscht':' eingesetzt'))});
+    if(act==='etSide')busSet(b=>{if(b.sd[no])delete b.sd[no];else b.sd[no]=1;touchPlan('Etagenschiene ab Hutschiene '+no+' Seite gewechselt')});
     if(act==='busReset'){delete pl.bus;touchPlan('Schienen: Vorschlag wiederhergestellt')}
     if(act==='x0Flip'){pl.x0Side=x0Side(pl)==='l'?'r':'l';touchPlan('-X0 '+(pl.x0Side==='r'?'rechts':'links'))}
     if(act==='x0Pos'){pl.klPos=pl.klPos||{};if(pl.klPos['-X0']==='u')delete pl.klPos['-X0'];else pl.klPos['-X0']='u';touchPlan('Klemmen -X0 '+(pl.klPos['-X0']==='u'?'unten':'oben'))}
