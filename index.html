@@ -845,6 +845,7 @@ function teBox(s,pl,dis){
   const u=skLayout(s).sum,pct=Math.round(u.res*100),hgr=/hager/i.test(pl.hersteller||'');
   const row=(a,b,cl)=>`<tr${cl?` class="${cl}"`:''}><td>${a}</td><td>${b}</td></tr>`;
   return `<div class="legend">Platzbedarf</div>
+  ${(()=>{const n=skLayout(s).list.filter(r=>r.nt).length;return n?`<div class="msg info">Hinweis N-Trenner: ${n} ${n===1?'N-Trenner ist':'N-Trenner sind'} mit je 1 TE gerechnet. Effektiv hat ein N-Trenner nur 0,5 TE, zusammen also ${String(n*0.5).replace('.',',')} TE statt ${n} TE.</div>`:''})()}
   <table class="te">${row('Sicherungen inkl. N-Trenner',u.sichTE+' TE')}${row('Relais',u.relTE+' TE')}${row('Reserve '+(pct?pct+' %':'abgewählt'),'+ '+u.resTE+' TE')}
   ${row('Hutschienen à 12 TE',u.rails+(u.rails?' ('+u.railsSk+' Sicherungen'+(u.railsRel?', '+u.railsRel+' Relais':'')+')':''),'sum')}
   ${row('Platz total',u.place+' TE, davon '+(u.sichTE+u.relTE)+' TE belegt','sum')}</table>
@@ -868,7 +869,7 @@ function skDecor(){
     t.textContent=x?x.f+' · '+x.te+' TE · Schiene '+x.rail:'';t.hidden=!x;
     const rlEl=nEl;
     const h=[];if(x){const rl=L.rails[x.rail-1];
-      if(x.nt)h.push('<span class="nt">+ N-Trenner direkt neben der Sicherung (NIN)</span>');
+      if(x.nt)h.push('<span class="nt">+ N-Trenner direkt neben der Sicherung (NIN). Gerechnet mit 1 TE, der N-Trenner hat effektiv nur 0,5 TE.</span>');
       if(rl.nt)h.push('<span class="warn">Hutschiene '+rl.no+': keine Phasen- oder Etagenschiene möglich'+(x.nt?'':' (N-Trenner auf derselben Schiene)')+'</span>');
       if(rl.siem)h.push('<span class="warn">Hutschiene '+rl.no+': Etagen- und Kammschienen von '+esc(pl.hersteller||'Hersteller')+' nicht kompatibel (Siemens FI/LS)</span>');
       if(x.rel.length){const lr=x.rel[x.rel.length-1];h.push('<span class="nt">'+x.rel.map(k=>k.K+' '+relInfo(k.t)[1]).join(', ')+' neben der Sicherung, '+(x.abgN>1?x.abgN+' Abgänge, Abgang 1 ':'ein Kabel ')+lr.cab+'×'+qsTxt(lr.qs||'1.5')+(x.relMan||x.abgN>1?' (von Hand)':' (automatisch)')+', L und N gebrückt'+(lr.res?', '+lr.res+(lr.res===1?' Reserveklemme':' Reserveklemmen'):'')+'</span>')}
@@ -1077,7 +1078,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     });
     let hy=yK+86;const hint=t=>{T(ix0+10,hy,'⚠ Hinweis: '+t,'twarn');hy+=9};
     const rs=[...new Set(items.filter(it=>!it.sk).map(it=>it.rail))].map(railOf),fl=k=>rs.filter(r=>r[k]).map(r=>r.no).join(', ');
-    if(fl('nt'))hint('N-Trenner auf Hutschiene '+fl('nt')+'. Dort keine Phasen- und keine Etagenschiene möglich, gilt für alle Sicherungen mit ⚠.');
+    if(fl('nt')){hint('N-Trenner auf Hutschiene '+fl('nt')+'. Dort keine Phasen- und keine Etagenschiene möglich, gilt für alle Sicherungen mit ⚠.');hint('N-Trenner mit 1 TE gerechnet, effektiv 0,5 TE.')}
     if(fl('siem'))hint('1-polige FI/LS von Siemens auf Hutschiene '+fl('siem')+'. Etagen- sowie Kammschienen von '+(pl.hersteller||'Hersteller')+' sind NICHT kompatibel.');
     if(fl('rel'))hint('Relais auf der Sicherungsschiene '+fl('rel')+'. '+(/hager/i.test(pl.hersteller||'')?'Bei Hager so keine Phasenschiene möglich.':'Phasenschiene beim Hersteller prüfen.'));
   }else if(pg.kind==='zm'||pg.kind==='za'){
