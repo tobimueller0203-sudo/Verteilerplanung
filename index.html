@@ -943,7 +943,7 @@ function vSchema(){
   const pg=pages[S.pageIdx];
   return `<section class="card">
     <div class="row between"><h2>Planmappe</h2>
-      <div class="row"><button type="button" class="btn" data-act="printSchema">Alle Blätter drucken</button><button type="button" class="btn primary" data-act="backToPlan">← Zurück zur Planung</button></div></div>
+      <div class="row"><button type="button" class="btn" data-act="printSchema">PDF / Drucken (A3 quer)</button><button type="button" class="btn primary" data-act="backToPlan">← Zurück zur Planung</button></div></div>
     <div class="tabs">${pages.map((p,i)=>`<button type="button" class="tab" data-page="${i}" aria-pressed="${i===S.pageIdx}">Seite ${p.no} · ${esc(p.title)}</button>`).join('')}</div>
     <div class="schemabox">${schemaSVG(S.site,pg)}</div>
     <p class="sub">Zuletzt geändert ${pl.changed?fmtDate(pl.changed):fmtDate(S.site.updated)}. Weitere Blätter entstehen mit den nächsten Planungsschritten.</p>
@@ -951,6 +951,19 @@ function vSchema(){
 }
 
 /* Schemablatt A3 quer im Stil der Planmappe: Raster 0–9 / A–F, Plankopf mit Index-Tabelle */
+/* PDF A3 quer mit jsPDF + svg2pdf (lokal im Ordner lib), Schrift DejaVu Sans eingebettet */
+const loadJS=src=>new Promise((ok,ko)=>{if(document.querySelector('script[src="'+src+'"]'))return ok();const e=document.createElement('script');e.src=src;e.onload=ok;e.onerror=()=>ko(new Error(src));document.head.appendChild(e)});
+const b64=buf=>{let s='';const u=new Uint8Array(buf);for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s)};
+async function makePDF(s){
+  await loadJS('lib/jspdf.umd.min.js');await loadJS('lib/svg2pdf.umd.min.js');
+  const {jsPDF}=window.jspdf,doc=new jsPDF({orientation:'landscape',unit:'pt',format:'a3',compress:true});
+  for(const [f,st] of [['DejaVuSans.ttf','normal'],['DejaVuSans-Bold.ttf','bold']]){const r=await fetch('lib/'+f);doc.addFileToVFS(f,b64(await r.arrayBuffer()));doc.addFont(f,'DejaVu Sans',st)}
+  doc.setFont('DejaVu Sans','normal');
+  const pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight(),host=document.createElement('div');host.style.cssText='position:fixed;left:-99999px;top:0;width:1190px';document.body.appendChild(host);
+  try{const pgs=pagesOf(s);for(let i=0;i<pgs.length;i++){if(i)doc.addPage('a3','landscape');host.innerHTML=schemaSVG(s,pgs[i],{print:true});const el=host.querySelector('svg');el.setAttribute('width','1190');el.setAttribute('height','842');await doc.svg(el,{x:0,y:0,width:pw,height:ph})}}
+  finally{host.remove()}
+  const name='Verteilerplanung '+((s.kom||'')+' '+(s.ort||'')).trim()+'.pdf';doc.setProperties({title:name.replace(/\.pdf$/,'')});
+  return {blob:doc.output('blob'),name}}
 function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
   const pl=planOf(s),hv=s.art==='HV',five=(pl.adern||'5')==='5';
   const pg=pgArg||pagesOf(s).find(x=>x.kind==='einspeisung');const nx=pg.no+1;
@@ -1450,9 +1463,17 @@ document.addEventListener('click',e=>{
   if(act==='schema'){if(t.dataset.pi!=null)S.pageIdx=+t.dataset.pi;return go('schema')}
   if(act==='backToPlan'){return go('plan')}
   if(act==='printSchema'){
+    /* immer echtes PDF im Querformat A3 erzeugen (iPhone/iPad ignorieren das Querformat beim Browser-Druck) */
+    const w=window.open('','_blank');if(w)try{w.document.write('<p style="font:16px sans-serif;padding:20px">PDF wird erstellt …</p>')}catch(e){}
+    t.disabled=true;const lab=t.textContent;t.textContent='PDF wird erstellt …';
+    makePDF(S.site).then(({blob,name})=>{const url=URL.createObjectURL(blob);if(w&&!w.closed){w.location.href=url}else{const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove()}})
+      .catch(e=>{console.error(e);if(w&&!w.closed)w.close();oldPrint()})
+      .finally(()=>{t.disabled=false;t.textContent=lab});return}
+  if(act==='printSchemaOld'){oldPrint();return}
+  function oldPrint(){
     $('#printSheet').innerHTML=pagesOf(S.site).map(pg=>schemaSVG(S.site,pg,{print:true})).join('');document.body.classList.add('ps');
     const st=document.createElement('style');st.id='pgA3';st.textContent='@page{size:A3 landscape;margin:6mm}';document.head.appendChild(st);
-    window.print();setTimeout(()=>{document.body.classList.remove('ps');st.remove()},500);return}
+    window.print();setTimeout(()=>{document.body.classList.remove('ps');st.remove()},500)}
   if(act==='new'){S.site={id:nid(),owner:S.user.id,editors:[],kom:'',bereich:'',stock:'',bauherr:'',adr:'',plz:'',ort:'',kanton:'',land:'CH',norm:'NIN',art:'UV',geb:'EFH',created:now(),updated:now()};S.isNew=true;S.savedAt=null;return go('baustelle')}
   if(t.dataset.open){
     if(t.dataset.fromhint&&S.site){const cur=S.site;const onlyKom=!cur.bauherr&&!cur.adr&&!cur.plz&&!cur.ort;if(onlyKom&&cur.owner===S.user.id){clearTimeout(persistT);D.sites=D.sites.filter(s=>s.id!==cur.id);save()}}
