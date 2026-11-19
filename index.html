@@ -122,6 +122,7 @@ input:disabled,select:disabled{opacity:1;background:var(--bg);color:var(--ink);-
 .st.on{border-color:#111}.st.on b{background:var(--accent);color:#111}
 .st.done b{background:#111;color:var(--accent)}
 .st:disabled{opacity:.45;cursor:default}
+.b2wrap{border:1px solid var(--line);border-radius:4px;padding:6px;background:#fff;margin:6px 0}.b2d{display:block;max-width:640px}
 .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
 .tiles.two-col{grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))}
 .tile{border:1px solid var(--line);background:var(--surface);border-radius:3px;padding:12px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:2px}
@@ -569,7 +570,7 @@ function zlSum(s){const a=zlAll(s),r=a.filter(z=>z.res).length;return (a.length-
 const zlLbl=(s,k)=>k===0?(s.geb==='MFH'?'Allgemeinzähler':'Hauptzähler'):'Zähler';
 function zlSelId(s){const act=zlAct(s),z=act.find(z=>z.id===S.zlSel)||act[0];return z?z.id:''}
 const rowZid=(s,r)=>{const act=zlAct(s),z=act.find(z=>String(z.id)===String(r.zl))||act[0];return z?z.id:''};
-const stepsOf=s=>s&&s.art==='HV'?[...STEPS.slice(0,4),['zaehler','Zähler'],...STEPS.slice(4)]:[...STEPS.slice(0,4),['klemmen','Klemmen'],...STEPS.slice(4)];
+const stepsOf=s=>{const b=s&&s.art==='HV'?[...STEPS.slice(0,4),['zaehler','Zähler'],...STEPS.slice(4)]:[...STEPS.slice(0,4),['klemmen','Klemmen'],...STEPS.slice(4)];if(s&&busOn(s))b.splice(b.length-1,0,['schienen','Schienen']);return b};
 /* UV ohne Abgangsklemmen: Kabel direkt an der Sicherung, -X0 bleibt immer */
 const noKl=s=>!!s&&s.art!=='HV'&&planOf(s).klAbg==='nein';
 /* harte Sperre ohne Abgangsklemmen: höchstens 2 Kabel pro Sicherung, alle mit gleichem Querschnitt */
@@ -698,17 +699,128 @@ function matList(s,lf){const pl=planOf(s),hst=pl.hersteller||'',L=skLayout(s),m=
     if(r.nt)put(P.find(x=>x.k==='NT'),'N-Trenner');
     (r.relais||[]).forEach(t=>put(P.find(x=>x.k==='REL'&&x.t===t),relInfo(t)[1]))});
   /* Hager: freie Plätze auf Sicherungsschienen mit Phasenschiene abdecken, 1 Kappe pro 5 freie TE (aufgerundet). Nicht bei N-Trennern, Relais oder leeren Reserveschienen */
-  const kz=P.find(x=>x.k==='KZ');if(kz)L.rails.filter(rl=>rl.kind==='sk'&&!rl.nt&&!rl.rel&&rl.used>0&&rl.used<RAIL_TE).forEach(rl=>{for(let i=0;i<Math.ceil((RAIL_TE-rl.used)/kz.te);i++)put(kz,'')});
+  const kz=P.find(x=>x.k==='KZ'),bon=busOn(s),B=bon?busPlan(s,L):null;
+  if(B){B.parts.forEach(x=>{const o={lf,hst:x.hst||'Hager',k:'BUS',nr:x.nr,art:x.art,net:x.net,bru:x.bru};for(let i=0;i<x.n;i++)put(o,'')});if(kz)B.rails.filter(r=>r.on&&r.typ!=='SIEM').forEach(r=>{const rl=L.rails[r.no-1];if(rl.used<RAIL_TE)for(let i=0;i<Math.ceil((RAIL_TE-rl.used)/kz.te);i++)put(kz,'')})}
+  if(busPausch(s)){const Q=busPlan(s,L,true);if(Q.bru)put({lf,hst:'',k:'PAU',nr:'Pauschale',art:'Phasen-/Etagenschienen für den Verteilerbauer (unsere Bruttopreise)',net:Q.bru,bru:Q.bru},'')}
+  if(kz&&!bon)L.rails.filter(rl=>rl.kind==='sk'&&!rl.nt&&!rl.rel&&rl.used>0&&rl.used<RAIL_TE).forEach(rl=>{for(let i=0;i<Math.ceil((RAIL_TE-rl.used)/kz.te);i++)put(kz,'')});
   /* Extras ohne hinterlegtes Produkt */
   if(s.art!=='HV'&&pl.spd)put(null,'Überspannungsschutz');if(s.art!=='HV'&&pl.hs)put(null,'Hauptschalter'+(pl.hsA?' '+pl.hsA+' A':''));
   const it=[...m.values()];return {it,miss:[...miss],net:it.reduce((a,x)=>a+x.net*x.n,0),bru:it.reduce((a,x)=>a+x.bru*x.n,0),hst}}
+/* Sammel- und Etagenschienen. Nur Hager-UV (Herstellerverteiler) bis 10 mm². Ab 16 mm² gibt es das Thema hier nicht */
+const BUS_P={
+  S4:{nr:'805 998 364',art:'Kammschiene KDS463A Gabel 10 mm² 3× L1L2L3N',kurz:'KDS463A',net:12.16,bru:22.10},
+  S2:{nr:'805 998 074',art:'Kammschiene KDS563A Gabel 10 mm² 6× L1N-L2N-L3N',kurz:'KDS563A',net:12.16,bru:22.10},
+  E44:{nr:'805 998 304',art:'Etagenschiene KCF663S L/R 4P zu 4P',kurz:'KCF663S',net:21.70,bru:39.45},
+  E444:{nr:'805 998 324',art:'Etagenschiene KCF668S L/R 4P 3 Reihen',kurz:'KCF668S',net:27.89,bru:50.70},
+  E42l:{nr:'805 998 354',art:'Etagenschiene KCF863L links 4P zu 2P',kurz:'KCF863L',net:21.70,bru:39.45},
+  E42r:{nr:'805 998 334',art:'Etagenschiene rechts 4P zu 2P',kurz:'rechts 4P→2P',net:21.70,bru:39.45},
+  E24l:{nr:'805 998 344',art:'Etagenschiene KCF963L links 2P zu 4P',kurz:'KCF963L',net:21.70,bru:39.45},
+  E24r:{nr:'805 998 384',art:'Etagenschiene rechts 2P zu 4P',kurz:'rechts 2P→4P',net:21.70,bru:39.45},
+  E22l:{nr:'805 998 014',art:'Etagenschiene links 2P zu 2P',kurz:'links 2P→2P',net:21.70,bru:39.45},
+  E22r:{nr:'805 998 084',art:'Etagenschiene rechts 2P zu 2P',kurz:'rechts 2P→2P',net:21.70,bru:39.45},
+  SIEM:{nr:'806 998 283',art:'Siemens Kammschiene 5ST3673-0 10 mm² (12 Geräte)',kurz:'Siemens 5ST3',net:23.72,bru:31.62,hst:'Siemens'}};
+const qs10=pl=>!!pl.qs&&qsNum(pl.qs)<=10;
+const busAlu=s=>s.art==='HV'||planOf(s).gehaeuse==='alu';
+const busOn=s=>{const pl=planOf(s);return !busAlu(s)&&/hager/i.test(pl.hersteller||'')&&qs10(pl)};
+const busPausch=s=>busAlu(s)&&qs10(planOf(s));
+const x0Side=pl=>pl.x0Side==='r'?'r':'l';
+/* Vorschlag + Änderungen des Bedieners + elektrische Prüfung */
+function busPlan(s,L,fresh){
+  const pl=planOf(s);L=L||skLayout(s);const side=x0Side(pl),etOn=pl.etag!=='nein';
+  const rails=L.rails.map(rl=>{const devs=rl.items.filter(x=>!x.sk),bus=devs.filter(x=>!x.nt),o={no:rl.no,kind:rl.kind,zid:rl.zid,typ:null,why:'',part:null,on:false,devs:devs.length};
+    if(rl.kind==='rel')o.why='Relais-Schiene';else if(rl.kind==='res')o.why='leere Reserveschiene';
+    else if(rl.rel)o.why='Relais auf der Sicherungsschiene';
+    else if(!bus.length)o.why=devs.length?'nur Sicherungen mit N-Trenner':'leer';
+    else if(rl.siem){o.typ='SIEM';o.part='SIEM'}
+    else if(bus.some(x=>+x.pol===3)){o.why='3-polige ohne N-Trenner: keine passende Kammschiene'}
+    else{o.typ=rl.big?'4P':'2P';o.part=rl.big?'S4':'S2'}
+    o.on=!!o.part;return o});
+  const sig=rails.map(r=>r.no+(r.typ||'-')+r.zid).join(',');
+  const ov=!fresh&&pl.bus&&pl.bus.sig===sig?pl.bus:{off:{},et:{}};
+  const msgs=[];
+  rails.forEach(r=>{if(r.part&&ov.off[r.no]){r.on=false;r.cut=true;msgs.push({e:1,t:'Hutschiene '+r.no+': Sammelschiene entfernt. Die Sicherungen müssen einzeln verdrahtet werden.'})}
+    if(r.why==='3-polige ohne N-Trenner: keine passende Kammschiene')msgs.push({e:1,t:'Hutschiene '+r.no+': 3-polige Sicherungen ohne N-Trenner passen nicht auf die 4-polige Kammschiene. Einzeln verdrahten.'})});
+  /* Etagenschienen zwischen zwei benachbarten Hager-Schienen derselben Einspeisung */
+  const hg=r=>r&&r.on&&(r.typ==='4P'||r.typ==='2P'),ets=[];
+  for(let i=0;i+1<rails.length;i++){const a=rails[i],b=rails[i+1];if(!hg(a)||!hg(b)||a.zid!==b.zid)continue;
+    const k=(a.typ==='4P'?'4':'2')+(b.typ==='4P'?'4':'2'),part=k==='44'?'E44':'E'+k+side;ets.push({a:a.no,b:b.no,part,on:etOn&&!ov.et[a.no],cut:etOn&&!!ov.et[a.no]})}
+  /* drei 4-polige Schienen untereinander: eine KCF668S statt zwei KCF663S */
+  for(let i=0;i+1<ets.length;i++){const x=ets[i],y=ets[i+1];if(x.on&&y.on&&x.part==='E44'&&y.part==='E44'&&x.b===y.a&&!x.m){x.part='E444';x.b=y.b;x.m=true;ets.splice(i+1,1)}}
+  ets.filter(e=>e.cut).forEach(e=>msgs.push({e:1,t:'Etagenschiene zwischen Hutschiene '+e.a+' und '+e.b+' gelöscht: Litzenbrücke nötig.'}));
+  /* Einspeisung: erste Schiene mit Sammelschiene je Einspeisung vom -X0, jede weitere über Etagenschiene oder Litzenbrücke */
+  const fed=new Set();const seen=new Set();
+  rails.forEach(r=>{if(!r.on)return;if(!seen.has(r.zid)){seen.add(r.zid);r.feed='X0';fed.add(r.no);return}
+    const e=ets.find(e=>e.on&&r.no>e.a&&r.no<=e.b);if(e&&fed.has(e.a)){r.feed='ET';fed.add(r.no);return}
+    r.feed='LITZE';fed.add(r.no);if(r.typ==='SIEM')msgs.push({e:0,t:'Hutschiene '+r.no+' (Siemens FI/LS): Hager-Etagenschienen passen nicht, Einspeisung über Litzenbrücke.'});
+    else if(!etOn)msgs.push({e:0,t:'Hutschiene '+r.no+': ohne Etagenschienen, Einspeisung über Litzenbrücke.'});
+    else if(!ets.some(e=>e.cut&&e.b===r.no))msgs.push({e:0,t:'Hutschiene '+r.no+': keine Etagenschiene möglich (Schiene darüber ohne passende Sammelschiene), Einspeisung über Litzenbrücke.'})});
+  const it=[];rails.forEach(r=>{if(r.on)it.push(r.part)});ets.forEach(e=>{if(e.on)it.push(e.part)});
+  const cnt={};it.forEach(p=>cnt[p]=(cnt[p]||0)+1);
+  const parts=Object.keys(cnt).map(p=>({...BUS_P[p],key:p,n:cnt[p]}));
+  return {rails,ets,msgs,parts,sig,side,etOn,bru:parts.reduce((a,x)=>a+x.bru*x.n,0),net:parts.reduce((a,x)=>a+x.net*x.n,0)}}
+function busSet(fn){const s=S.site,pl=planOf(s),B=busPlan(s);if(!pl.bus||pl.bus.sig!==B.sig)pl.bus={sig:B.sig,off:{},et:{}};fn(pl.bus)}
+/* 2D-Ansicht: Klemmen oben, Sicherungsschienen mit Sammel- und Etagenschienen, Klemmen unten. Teile anklickbar */
+function bus2D(s){
+  const pl=planOf(s),L=skLayout(s),B=busPlan(s,L),TE=24,W=12*TE,mx=110,rowH=92,side=B.side,ed=canEdit(s);
+  const ks=klStrips(s).filter(k=>k.mm||k.offen||k.X==='-X0'),kU=ks.filter(k=>klPos(pl,k.X)==='unten'),kO=ks.filter(k=>klPos(pl,k.X)!=='unten');
+  const klRows=arr=>{const rows=[];let r=null;arr.forEach(k=>{const te=Math.max(1,k.mm?klTE(k.mm):2);if(!r||r.te+te>12){r={te:0,it:[]};rows.push(r)}r.it.push({...k,te,x:r.te});r.te+=te});return rows};
+  const rO=klRows(kO),rU=klRows(kU);let y=14,out='';
+  const g=(act,attrs,inner,tip)=>ed?`<g data-act="${act}" ${attrs} style="cursor:pointer"><title>${esc(tip)}</title>${inner}</g>`:inner;
+  const klRow=r=>{let h=`<rect x="${mx}" y="${y+22}" width="${W}" height="6" fill="#c9ccd1"/><text x="${mx-(side==='l'?30:8)}" y="${y+28}" text-anchor="end" class="b2s">Klemmen</text>`;
+    r.it.forEach(k=>{const x=mx+k.x*TE,w=k.te*TE,x0=k.X==='-X0';
+      const box=`<rect x="${x+1}" y="${y+6}" width="${w-2}" height="38" rx="2" fill="${x0?'#ffe27a':'#e6eefb'}" stroke="${x0?'#b58900':'#5577aa'}"/><text x="${x+w/2}" y="${y+24}" text-anchor="middle" class="b2b">${k.X}</text><text x="${x+w/2}" y="${y+37}" text-anchor="middle" class="b2s">${k.mm?k.te+' TE':'folgt'}</text>`;
+      h+=x0?g('x0Pos','',box,'-X0 nach '+(klPos(pl,'-X0')==='unten'?'oben':'unten')+' verschieben'):box});y+=54;return h};
+  rO.forEach(r=>out+=klRow(r));
+  const top={};
+  B.rails.forEach(br=>{const rl=L.rails[br.no-1];top[br.no]=y;
+    out+=`<rect x="${mx}" y="${y+40}" width="${W}" height="8" fill="#c9ccd1"/><text x="${mx-(side==='l'?30:8)}" y="${y+30}" text-anchor="end" class="b2b">Schiene ${br.no}</text><text x="${mx-(side==='l'?30:8)}" y="${y+43}" text-anchor="end" class="b2s">${br.typ==='SIEM'?'Siemens':br.typ||'–'}</text>`;
+    let x=mx;rl.items.forEach(it=>{const te=it.te||1,w=te*TE;
+      if(it.sk){out+=`<rect x="${x+1}" y="${y+8}" width="${w-2}" height="58" rx="2" fill="#f1e8ff" stroke="#7a52b3"/><text x="${x+w/2}" y="${y+34}" text-anchor="middle" class="b2b">${esc(it.K||'K')}</text>`}
+      else{const nt=it.nt?1:0,dw=(te-nt)*TE;out+=`<rect x="${x+1}" y="${y+8}" width="${dw-2}" height="58" rx="2" fill="${it.siem?'#ffe9e6':'#fff'}" stroke="#333"/><text x="${x+dw/2}" y="${y+26}" text-anchor="middle" class="${dw>TE?'b2b':'b2t'}">${it.f}</text><text x="${x+dw/2}" y="${y+38}" text-anchor="middle" class="b2s">${esc((it.char||'')+(it.amp||''))}</text><text x="${x+dw/2}" y="${y+60}" text-anchor="middle" class="b2s">${it.poles}P</text>`;
+        if(nt)out+=`<rect x="${x+dw+1}" y="${y+8}" width="${TE-2}" height="58" rx="2" fill="#eef6ff" stroke="#3a6ea5"/><text x="${x+dw+TE/2}" y="${y+40}" text-anchor="middle" class="b2s">N</text>`}
+      x+=w});
+    for(let t=rl.used;t<12;t++)out+=`<rect x="${mx+t*TE+1}" y="${y+8}" width="${TE-2}" height="58" fill="none" stroke="#ccc" stroke-dasharray="3 3"/>`;
+    /* Sammelschiene unter den Geräten */
+    if(br.part){const P=BUS_P[br.part],col=br.on?(br.typ==='SIEM'?'#c0392b':'#b87333'):'#999';
+      out+=g('busTog',`data-no="${br.no}"`,`<rect x="${mx}" y="${y+70}" width="${W}" height="9" rx="2" fill="${br.on?col:'none'}" stroke="${col}" ${br.on?'':'stroke-dasharray="5 4"'}/><text x="${mx+W+(side==='r'?26:8)}" y="${y+78}" class="b2s"${br.on?'':' fill="#b42318"'}>${br.on?esc(P.kurz)+' · '+P.nr:'entfernt'}</text>`,br.on?'Sammelschiene entfernen':'Sammelschiene wieder einsetzen')}
+    else out+=`<text x="${mx+W+(side==='r'?26:8)}" y="${y+78}" class="b2s" fill="#777">keine Sammelschiene (${esc(br.why)})</text>`;
+    y+=rowH});
+  /* Etagenschienen seitlich */
+  const ex=side==='l'?mx-22:mx+W+6;
+  B.ets.filter(()=>B.etOn).forEach(e=>{const y1=top[e.a]+74,y2=top[e.b]+74,P=BUS_P[e.part];const col=e.on?'#b87333':'#b42318';
+    const inner=`<rect x="${ex}" y="${y1}" width="14" height="${y2-y1}" rx="3" fill="${e.on?'#e7c9a9':'none'}" stroke="${col}" ${e.on?'':'stroke-dasharray="5 4"'}/><text x="${ex+7}" y="${(y1+y2)/2}" text-anchor="middle" class="b2s" transform="rotate(-90 ${ex+7} ${(y1+y2)/2})"${e.on?'':' fill="#b42318"'}>${e.on?esc(P.kurz):'Litze'}</text>`;
+    out+=g('etTog',`data-no="${e.a}"`,inner,e.on?'Etagenschiene löschen (dann Litzenbrücke)':'Etagenschiene wieder einsetzen')});
+  rU.forEach(r=>out+=klRow(r));
+  /* -X0 Einspeisung: Seite links/rechts umschaltbar */
+  const x0y=klPos(pl,'-X0')==='unten'?y+4:4,fx=side==='l'?4:mx+W+30;
+  out+=g('x0Flip','',`<rect x="${fx}" y="${x0y}" width="52" height="22" rx="11" fill="#ffd400" stroke="#b58900"/><text x="${fx+26}" y="${x0y+15}" text-anchor="middle" class="b2b">X0 ${side==='l'?'→':'←'}</text>`,'-X0 auf die '+(side==='l'?'rechte':'linke')+' Seite verschieben');
+  const H=y+(klPos(pl,'-X0')==='unten'?34:10),VW=mx+W+170;
+  return `<svg class="b2d" viewBox="0 0 ${VW} ${H}" width="100%" role="img" aria-label="2D-Ansicht Verteiler"><style>.b2b{font:700 11px sans-serif}.b2s{font:10px sans-serif}.b2t{font:700 8px sans-serif}</style>${out}</svg>`}
+function busList(B){const row=(a,b,cl)=>`<tr${cl?` class="${cl}"`:''}><td>${a}</td><td>${b}</td></tr>`;
+  return B.parts.length?`<table class="te">${B.parts.map(x=>row(x.n+'× '+esc((x.hst||'Hager')+' '+x.art)+' <span class="sub">('+x.nr+')</span>',chf(x.net*x.n)+' CHF')).join('')}${row('Schienen zusammen','netto '+chf(B.net)+' / brutto '+chf(B.bru)+' CHF','sum')}</table>`:'<p class="sub">Noch keine Sammelschienen nötig.</p>'}
+function busMsgs(B){return B.msgs.map(m=>`<div class="msg ${m.e?'err':'info'}">${esc(m.t)}</div>`).join('')}
+function busBody(p,pl,dis){const B=busPlan(p),tile=(key,val,label,sub)=>`<button type="button" class="tile" data-plv="${key}" data-v="${esc(val)}" aria-pressed="${(pl[key]||(key==='etag'?'ja':key==='x0Side'?'l':'o'))===val}"${dis}><b>${esc(label)}</b>${sub?`<span>${esc(sub)}</span>`:''}</button>`;
+  const edited=pl.bus&&pl.bus.sig===B.sig&&(Object.keys(pl.bus.off).length||Object.keys(pl.bus.et).length);
+  return `<h2>Sammel- und Etagenschienen</h2><p class="sub">Hager-Verteiler bis 10 mm². Die App macht einen Vorschlag und prüft ihn laufend. Du kannst ihn unten in der Ansicht ändern.</p>
+  <div class="legend">Etagenschienen verwenden?</div>
+  <div class="tiles two-col">${tile('etag','ja','Ja','Schienen untereinander verbinden')}${tile('etag','nein','Nein','Verbindung über Litzenbrücken')}</div>
+  <div class="legend">4-polige Sicherungen</div>
+  <div class="tiles two-col">${tile('big4','o','Oben','auf der obersten Sicherungsschiene')}${tile('big4','u','Unten','auf der untersten Sicherungsschiene')}</div>
+  <div class="legend">Einspeisung -X0</div>
+  <div class="tiles two-col">${tile('x0Side','l','Links','Etagenschienen links')}${tile('x0Side','r','Rechts','Etagenschienen rechts')}</div>
+  <div class="legend">2D-Ansicht</div>
+  <p class="sub">Antippen: Sammelschiene oder Etagenschiene entfernen bzw. wieder einsetzen, X0 links/rechts oder oben/unten verschieben.</p>
+  <div class="b2wrap">${bus2D(p)}</div>
+  ${edited&&canEdit(p)?'<div><button type="button" class="btn small" data-act="busReset">Vorschlag wiederherstellen</button></div>':''}
+  <div id="busMsgs">${busMsgs(B)}</div>
+  <div class="legend">Schienen-Material · Sonepar</div>${busList(B)}`}
 const chf=v=>v.toFixed(2).replace('.',',');
 const KL_SICH=6;
 function skLayout(s){
   const pl=planOf(s),five=(pl.adern||'5')==='5';
   const act=zlAct(s);
   const list=(pl.sk||[]).map((r,i)=>({...r,i})).filter(r=>(r.name||'').trim()).map(r=>{const z=act.find(z=>String(z.id)===String(r.zl))||act[0],zf=five&&(!z||(z.adern||'5')==='5');const ext=s.art==='HV'&&!!z&&z!==act[0];return {...r,zid:z?z.id:0,zi:z?act.indexOf(z):0,zf,ext,relais:ext?[]:r.relais,pol:!zf&&+r.pol>2?'2':r.pol}});
-  list.sort((a,b)=>a.zi-b.zi||(+b.pol>=3)-(+a.pol>=3)||(+b.pol)-(+a.pol)||a.i-b.i);
+  const b4=pl.big4==='u'?-1:1;list.sort((a,b)=>a.zi-b.zi||b4*((+b.pol>=3)-(+a.pol>=3))||(+b.pol)-(+a.pol)||a.i-b.i);
   let ph=0,phz=null;
   const res=pl.resOff?0:Math.max(10,+pl.resPct||10)/100,cap=RAIL_TE;
   list.forEach((r,n)=>{r.f='-F'+(n+1);const p=+r.pol;if(phz!==r.zid){phz=r.zid;ph=0}r.nt=needsNT(s,r);r.siem=r.typ==='FILS'&&p<=2&&siemOn(pl);r.te=teOf(s,pl,r);
@@ -754,7 +866,7 @@ function skLayout(s){
 }
 const skSorted=s=>skLayout(s).list;
 const stepIdx=k=>stepsOf(S.site).findIndex(x=>x[0]===k);
-function stepOk(pl,k){return {klemmen:true,unterlagen:true,hersteller:!!pl.hersteller,gehaeuse:!!pl.gehaeuse&&!!pl.montage,zuleitung:!!pl.qs&&qsNum(pl.qs)<=QS_MAX,stromkreise:(pl.sk||[]).some(r=>(r.name||'').trim())||(pl.zl||[]).length>1,zaehler:(pl.zl||[]).some(z=>!z.res),extras:true}[k]}
+function stepOk(pl,k){return {schienen:true,klemmen:true,unterlagen:true,hersteller:!!pl.hersteller,gehaeuse:!!pl.gehaeuse&&!!pl.montage,zuleitung:!!pl.qs&&qsNum(pl.qs)<=QS_MAX,stromkreise:(pl.sk||[]).some(r=>(r.name||'').trim())||(pl.zl||[]).length>1,zaehler:(pl.zl||[]).some(z=>!z.res),extras:true}[k]}
 function stepper(pl){
   const cur=stepIdx(pl.step);
   const ST=stepsOf(S.site);
@@ -763,7 +875,7 @@ function stepper(pl){
 }
 function vPlan(){
   const p=S.site,pl=planOf(p),ed=canEdit(p),dis=ed?'':' disabled';
-  if(stepIdx(pl.step)<0)pl.step=pl.step==='zaehler'?'zuleitung':'unterlagen';
+  if(stepIdx(pl.step)<0)pl.step=pl.step==='zaehler'?'zuleitung':pl.step==='schienen'?'stromkreise':'unterlagen';
   const k=pl.step,i=stepIdx(k),hv=p.art==='HV';
   const tile=(key,val,label,sub)=>`<button type="button" class="tile" data-plv="${key}" data-v="${esc(val)}" aria-pressed="${pl[key]===val}"${dis}><b>${esc(label)}</b>${sub?`<span>${esc(sub)}</span>`:''}</button>`;
   let body='';
@@ -808,6 +920,8 @@ function vPlan(){
         <select id="p-qs" data-pl="qs"${dis}><option value="">wählen …</option>${opt(QS.map(q=>[q,qsTxt(q)+' mm²'+(qsNum(q)>QS_MAX?' (folgt)':'')]),pl.qs)}</select></label>
       <label class="f c3">Adern
         <select id="p-adern" data-pl="adern"${dis}>${opt([['5','5-adrig · L1 L2 L3 N PE'],['3','3-adrig · L N PE']],pl.adern||'5')}</select></label>
+      ${busOn(p)?`<label class="f c3">Zuleitungsblock -X0 <span class="hint">Seite der Etagenschienen</span>
+        <select data-pl="x0Side"${dis}>${opt([['l','links'],['r','rechts']],x0Side(pl))}</select></label>`:''}
       ${big?`<div class="c6 msg err">Querschnitte über 16 mm² sind noch nicht in Programmierung. Bitte vorerst 16 mm² oder kleiner wählen.</div>`:''}
       ${hv?(zlSkip(p)?`<div class="c6 legend">Zähler -P1 <span class="hint">Einfamilienhaus, ein Zähler</span></div>${zlFields(p,pl.zl[0],0,dis)}
       ${ed?`<div class="c6"><button type="button" class="btn" data-act="zlAdd">+ Weiteren Zähler hinzufügen</button></div>`:''}`:`<div class="c6 msg info">${p.geb==='MFH'?'Mehrfamilienhaus':'Mehrere Zähler'}: ${zlSum(p)}. Im nächsten Schritt legst du alle Zähler mit Bezügersicherung und Abgang fest.</div>`):''}
@@ -856,6 +970,8 @@ function vPlan(){
     ${ed?'<div><button type="button" class="btn" data-act="skAdd">+ Stromkreis</button></div>':''}
     ${five?'':'<p class="sub">Bei 3-adriger Zuleitung gibt es nur 1- und 2-polige Sicherungen.</p>'}
     <p class="sub" id="skInfo">${skInfo(p)}</p><div id="blockMsg">${blockHTML(p)}</div>${(()=>{const M=matList(p,'Sonepar');return M.miss.length?`<div class="msg err">Noch nicht hinterlegt: ${M.miss.map(([t,n])=>n+'× '+esc(t)).join(', ')}. Erscheint in der Materialliste ohne Artikelnummer.</div>`:''})()}`;
+  }else if(k==='schienen'){
+    body=busBody(p,pl,dis);
   }else{
     const n1=(pl.sk||[]).filter(r=>(r.name||'').trim()&&+r.pol<=2&&r.typ==='FILS').length,hs=pl.hersteller||'dem gewählten Hersteller';
     body=`<h2>Extras</h2><p class="sub">Zusätzliche Optionen am Ende der Planung.</p>
@@ -906,6 +1022,8 @@ function teBox(s,pl,dis){
     <label class="chk"><input type="checkbox" data-ex="res" ${pl.resOff?'':'checked'}${dis}> Reserve einplanen</label>
     ${pl.resOff?'':`<label class="chk">mind. <input type="number" class="pct" data-ex="resPct" min="10" step="5" value="${pct}"${dis}> %</label>`}
   </div>
+  <label class="f" style="max-width:340px">4-polige Sicherungen
+    <select data-pl="big4"${dis}>${opt([['o','auf der obersten Sicherungsschiene'],['u','auf der untersten Sicherungsschiene']],pl.big4==='u'?'u':'o')}</select></label>
   <label class="chk"><input type="checkbox" data-ex="relSame" ${pl.relSame?'checked':''}${dis}> Relais mit auf die Sicherungsschienen setzen, wenn Platz ist</label>
   ${pl.relSame?`<div class="msg err">Relais neben Sicherungen: ${hgr?'bei Hager so keine Phasenschiene möglich.':'Phasenschiene beim Hersteller prüfen.'}</div>`:'<p class="sub">Relais bekommen eine eigene Schiene, auch wenn auf der Sicherungsschiene noch Platz wäre (Reserve für später).</p>'}
   ${(()=>{const z=klZul(s);return `<div class="legend">Klemmen Zuleitung -X0</div>${z?`<table class="te">${z.it.map(x=>row(x.n+'× '+x.art+' <span class="sub">('+x.nr+')</span>',(x.mm*x.n).toFixed(1).replace('.',',')+' mm · '+chf(x.net*x.n)+' CHF')).join('')}${row('Zuleitungsblock -X0',z.mm.toFixed(1).replace('.',',')+' mm · netto '+chf(z.net)+' / brutto '+chf(z.bru)+' CHF','sum')}</table>`:`<p class="sub">Zuleitungsklemmen für ${pl.qs?qsTxt(pl.qs)+' mm²':'diesen Querschnitt'} folgen.</p>`}`})()}
@@ -915,7 +1033,7 @@ function teBox(s,pl,dis){
     return `<div class="legend">Klemmen-Positionen</div><div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px"><button type="button" class="btn small" data-act="klPosAll" data-v="o"${dis}>Alle oben</button><button type="button" class="btn small" data-act="klPosAll" data-v="u"${dis}>Alle unten</button><button type="button" class="btn small" data-act="klPosOpen">Fertig</button></div>
     <table class="te">${ks.map(k=>row(k.X+(k.X==='-X0'?' Einspeisung':'')+' <span class="sub">('+(k.mm?mmTxt(k.mm):'folgt')+')</span>',`<select data-klpos="${k.X}"${dis}><option value="o"${klPos(pl,k.X)==='oben'?' selected':''}>oben</option><option value="u"${klPos(pl,k.X)==='unten'?' selected':''}>unten</option></select>`)).join('')}</table>
     ${mix?'<div class="msg info">Hinweis: Die Klemmen sind oben und unten aufgeteilt. Das braucht mehr Platz im Verteiler: Für die Klemmen unten ist eine eigene Hutschiene eingerechnet.</div>':''}`})()}${(()=>{if(pl.gehaeuse==='alu')return `<p class="sub">Alu-Verteiler: Für die Klemmen einplanen: ${klStrips(s).filter(k=>k.mm).map(k=>k.X+' '+mmTxt(k.mm)+' ('+klTE(k.mm)+' TE)').join(', ')}, zusammen ${klTE(mmT)} TE (${mmT.toFixed(1).replace('.',',')} mm).</p>`;if(!/hager/i.test(pl.hersteller||''))return pl.gehaeuse?`<p class="sub">Klemmen-Hutschiene für ${esc(pl.hersteller||'diesen Hersteller')} folgt.</p>`:'';const n=Math.ceil(mmT/KL_UT.mm);return `<table class="te">${row(n+'× '+KL_UT.art+' <span class="sub">('+KL_UT.mm+' mm Klemmenplatz pro Schiene)</span>',chf(KL_UT.bru*n)+' CHF')}</table><div class="msg err">Achtung: Preis der Hutschiene UT22B ist aus dem Internet (Conrad), nicht unser Preis.</div>`})()}`:''}`})()}
-  ${(()=>{const M=matList(s,'Sonepar');if(!M.it.length&&!M.miss.length)return '';return `<div class="legend">Material Sicherungen und Relais · Sonepar</div>${M.it.length?`<table class="te">${M.it.map(x=>row(x.n+'× '+esc(x.hst+' '+x.art)+' <span class="sub">('+x.nr+')</span>',chf(x.net*x.n)+' CHF')).join('')}${row('Total Sonepar','netto '+chf(M.net)+' / brutto '+chf(M.bru)+' CHF','sum')}</table>`:''}${M.miss.length?`<table class="te">${M.miss.map(([t,n])=>row(n+'× '+esc(t)+' <span style="color:#b42318;font-weight:700">ohne Artikelnummer · noch nicht eingefügt</span>','–')).join('')}</table><div class="msg err">Achtung: ${M.miss.length===1?'1 Bauteil ist':M.miss.length+' Bauteile sind'} noch nicht in der App hinterlegt (${M.miss.map(([t])=>esc(t)).join(', ')}). Bitte Artikelnummer und Preis nachliefern.${/hager/i.test(M.hst)?'':' Preise gibt es bisher nur für Hager.'}</div>`:''}<p class="sub">Preise von Sonepar. EM folgt für den Preisvergleich.</p>`})()}
+  ${(()=>{const M=matList(s,'Sonepar');if(!M.it.length&&!M.miss.length)return '';return `<div class="legend">Material Sicherungen, Relais und Schienen · Sonepar</div>${M.it.length?`<table class="te">${M.it.map(x=>row(x.n+'× '+esc(x.hst+' '+x.art)+' <span class="sub">('+x.nr+')</span>',chf(x.net*x.n)+' CHF')).join('')}${row('Total Sonepar','netto '+chf(M.net)+' / brutto '+chf(M.bru)+' CHF','sum')}</table>`:''}${M.miss.length?`<table class="te">${M.miss.map(([t,n])=>row(n+'× '+esc(t)+' <span style="color:#b42318;font-weight:700">ohne Artikelnummer · noch nicht eingefügt</span>','–')).join('')}</table><div class="msg err">Achtung: ${M.miss.length===1?'1 Bauteil ist':M.miss.length+' Bauteile sind'} noch nicht in der App hinterlegt (${M.miss.map(([t])=>esc(t)).join(', ')}). Bitte Artikelnummer und Preis nachliefern.${/hager/i.test(M.hst)?'':' Preise gibt es bisher nur für Hager.'}</div>`:''}<p class="sub">Preise von Sonepar. EM folgt für den Preisvergleich.</p>`})()}
   <p class="sub">Die Hutschienen werden zuerst ganz gefüllt (12 TE), der Rest kommt auf die letzte Schiene. Reicht der freie Platz nicht für die Reserve, kommt eine leere Hutschiene dazu. Überspannungsschutz und Hauptschalter sind noch nicht eingerechnet.</p>`;
 }
 function skInfo(s){const L=skLayout(s),n=L.list.length,m=L.pages.length,u=L.sum;return n?n+(n===1?' Stromkreis':' Stromkreise')+', '+(u.sichTE+u.relTE)+' TE, '+m+(m===1?' Schemablatt':' Schemablätter')+'. Den Platzbedarf siehst du im letzten Schritt. Mit Enter kommt eine neue Zeile.':'Noch keine Stromkreise. Mit Enter kommt nach einer Zeile direkt die nächste.'}
@@ -927,7 +1045,7 @@ function skDecor(){
     const rlEl=nEl;
     const h=[];if(x){const rl=L.rails[x.rail-1];
       if(x.nt)h.push('<span class="nt">+ N-Trenner direkt neben der Sicherung (NIN). Gerechnet mit 1 TE, der N-Trenner hat effektiv nur 0,5 TE.</span>');
-      if(rl.nt)h.push('<span class="warn">Hutschiene '+rl.no+': keine Phasen- oder Etagenschiene möglich'+(x.nt?'':' (N-Trenner auf derselben Schiene)')+'</span>');
+      if(rl.nt){const mixd=rl.items.some(y=>!y.sk&&!y.nt);if(!mixd)h.push('<span class="warn">Hutschiene '+rl.no+': nur Sicherungen mit N-Trenner, keine Phasen- oder Etagenschiene</span>');else if(x.nt)h.push('<span class="nt">Hutschiene '+rl.no+': Phasenschiene nur für die 2-/4-poligen, diese Sicherung wird einzeln verdrahtet</span>')}
       if(rl.siem)h.push('<span class="warn">Hutschiene '+rl.no+': Etagen- und Kammschienen von '+esc(pl.hersteller||'Hersteller')+' nicht kompatibel (Siemens FI/LS)</span>');
       if(x.rel.length){const lr=x.rel[x.rel.length-1];h.push('<span class="nt">'+x.rel.map(k=>k.K+' '+relInfo(k.t)[1]).join(', ')+' neben der Sicherung, '+(x.abgN>1?x.abgN+' Abgänge, Abgang 1 ':'ein Kabel ')+lr.cab+'×'+qsTxt(lr.qs||'1.5')+(x.relMan||x.abgN>1?' (von Hand)':' (automatisch)')+', L und N gebrückt'+(lr.res?', '+lr.res+(lr.res===1?' Reserveklemme':' Reserveklemmen'):'')+'</span>')}
       else if(x.res)h.push('<span class="nt">Kabel hat '+x.res+(x.res===1?' Ader':' Adern')+' mehr als nötig: '+x.res+(x.res===1?' Reserveklemme':' Reserveklemmen')+'</span>');
@@ -1415,6 +1533,7 @@ document.addEventListener('change',e=>{
     pl[k]=t.value;
     if(k==='bez'){if(!(BEZ_A[pl.bez]||[]).includes(pl.bezA))pl.bezA='';touchPlan('Bezügersicherung '+bezTxt(pl))}
     if(k==='bezA')touchPlan('Bezügersicherung '+bezTxt(pl));
+    if(k==='x0Side')touchPlan('-X0 '+(t.value==='r'?'rechts':'links'));if(k==='big4')touchPlan('4-polige '+(t.value==='u'?'unten':'oben'));
     if(k==='qs'||k==='adern')touchPlan('Zuleitung '+((pl.adern||'5')==='5'?'5×':'3×')+(pl.qs?qsTxt(pl.qs)+' mm²':''));
     render();return}
   if(t.dataset.share&&S.site&&S.site.owner===S.user.id){
@@ -1483,8 +1602,15 @@ document.addEventListener('submit',async e=>{
 });
 
 document.addEventListener('click',e=>{
-  const t=e.target.closest('button');if(!t)return;
+  const t=e.target.closest('button,g[data-act]');if(!t)return;
   const act=t.dataset.act;
+  if(['busTog','etTog','x0Flip','x0Pos','busReset'].includes(act)&&S.site&&canEdit(S.site)){const pl=planOf(S.site),no=t.dataset.no;
+    if(act==='busTog')busSet(b=>{if(b.off[no])delete b.off[no];else b.off[no]=1;touchPlan('Sammelschiene Hutschiene '+no+(b.off[no]?' entfernt':' eingesetzt'))});
+    if(act==='etTog')busSet(b=>{if(b.et[no])delete b.et[no];else b.et[no]=1;touchPlan('Etagenschiene ab Hutschiene '+no+(b.et[no]?' gelöscht':' eingesetzt'))});
+    if(act==='busReset'){delete pl.bus;touchPlan('Schienen: Vorschlag wiederhergestellt')}
+    if(act==='x0Flip'){pl.x0Side=x0Side(pl)==='l'?'r':'l';touchPlan('-X0 '+(pl.x0Side==='r'?'rechts':'links'))}
+    if(act==='x0Pos'){pl.klPos=pl.klPos||{};if(pl.klPos['-X0']==='u')delete pl.klPos['-X0'];else pl.klPos['-X0']='u';touchPlan('Klemmen -X0 '+(pl.klPos['-X0']==='u'?'unten':'oben'))}
+    persistSite();render();return}
   /* harte Sperre ohne Abgangsklemmen: nur Korrigieren erlaubt */
   if(S.site&&S.screen==='plan'&&klBlock(S.site).length&&(['planNext','saveNow','schema','printSchema','printSchemaOld','print','liste','back','home','toSite'].includes(act)||(t.dataset.step&&!['klemmen','stromkreise'].includes(t.dataset.step))||t.dataset.pv!=null)){const b=$('#blockMsg');if(b){b.innerHTML=blockHTML(S.site);b.scrollIntoView({block:'center'})}return}
   if(t.dataset.seg&&S.site&&canEdit(S.site)){S.site[t.dataset.seg]=t.dataset.v;persistSite();
@@ -1496,7 +1622,7 @@ document.addEventListener('click',e=>{
   if(act==='planNext'){const pl=planOf(S.site),i=stepIdx(pl.step);if(!stepOk(pl,pl.step))return;if(canEdit(S.site)){if(pl.step==='zuleitung'&&S.site.art==='HV'&&pl.nb&&S.site.plz){D.nbMap=D.nbMap||{};D.nbMap[S.site.land+':'+S.site.plz.trim()]=pl.nb}}pl.step=stepNext(S.site,pl.step);if(pl.step==='zaehler'&&S.site.geb==='MFH'&&pl.zl.length<2&&canEdit(S.site))pl.zl.push(zlNew(S.site));if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
   if(act==='planPrev'){const pl=planOf(S.site),pv=stepPrev(S.site,pl.step);if(!pv)return go('baustelle');pl.step=pv;if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
   if(t.dataset.step){const pl=planOf(S.site);pl.step=t.dataset.step;if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
-  if(t.dataset.plv&&S.site&&canEdit(S.site)){const pl=planOf(S.site),k=t.dataset.plv;pl[k]=t.dataset.v;if(k==='montage'&&t.dataset.v==='UP')pl.gehaeuse='hersteller';touchPlan(k==='klAbg'?(t.dataset.v==='nein'?'Ohne Abgangsklemmen':'Mit Abgangsklemmen'):{hersteller:'Hersteller ',gehaeuse:'Gehäuse ',montage:'Montage '}[k]+(k==='gehaeuse'?(t.dataset.v==='alu'?'Alu':'Hersteller'):t.dataset.v));render();return}
+  if(t.dataset.plv&&S.site&&canEdit(S.site)){const pl=planOf(S.site),k=t.dataset.plv;pl[k]=t.dataset.v;if(k==='montage'&&t.dataset.v==='UP')pl.gehaeuse='hersteller';touchPlan(k==='etag'?'Etagenschienen '+t.dataset.v:k==='big4'?'4-polige '+(t.dataset.v==='u'?'unten':'oben'):k==='x0Side'?'-X0 '+(t.dataset.v==='r'?'rechts':'links'):k==='klAbg'?(t.dataset.v==='nein'?'Ohne Abgangsklemmen':'Mit Abgangsklemmen'):{hersteller:'Hersteller ',gehaeuse:'Gehäuse ',montage:'Montage '}[k]+(k==='gehaeuse'?(t.dataset.v==='alu'?'Alu':'Hersteller'):t.dataset.v));render();return}
   if(t.dataset.page){S.pageIdx=+t.dataset.page;render();return}
   if(t.dataset.pv){S.prevSel={step:planOf(S.site).step,idx:+t.dataset.pv};refreshPreview();return}
   if(act==='skAdd'&&S.site&&canEdit(S.site)){skAddRow();return}
