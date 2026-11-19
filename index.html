@@ -693,7 +693,8 @@ function skLayout(s){
   /* Hutschienen à 12 TE zuerst ganz gefüllt, Rest auf die letzte Schiene; Relais standardmässig auf eigenen Schienen */
   const rails=[];const newRail=(kind,zid)=>{const r={no:rails.length+1,used:0,items:[],kind,zid,nt:false,siem:false,rel:false};rails.push(r);return r};
   let cur=null;
-  list.forEach(r=>{if(!cur||cur.used+r.te>cap||cur.zid!==r.zid)cur=newRail('sk',r.zid);r.rail=cur.no;cur.used+=r.te;cur.items.push(r);if(r.nt)cur.nt=true;if(r.siem)cur.siem=true});
+  /* 3-/4-polige und 1-/2-polige nie auf derselben Hutschiene: leerer Platz bleibt frei (Kammschiene läuft durch, mit Abdeckung) */
+  list.forEach(r=>{const bg=+r.pol>=3;if(!cur||cur.used+r.te>cap||cur.zid!==r.zid||cur.big!==bg){cur=newRail('sk',r.zid);cur.big=bg}r.rail=cur.no;cur.used+=r.te;cur.items.push(r);if(r.nt)cur.nt=true;if(r.siem)cur.siem=true});
   const rels=list.flatMap(r=>r.rel);
   if(pl.relSame){rels.forEach(x=>{let rl=rails.find(q=>q.zid===x.sk.zid&&q.used+x.te<=cap);if(!rl)rl=newRail('sk',x.sk.zid);x.rail=rl.no;rl.used+=x.te;rl.items.push(x);rl.rel=true})}
   else{let rr=null;rels.forEach(x=>{if(!rr||rr.used+x.te>cap||rr.zid!==x.sk.zid)rr=newRail('rel',x.sk.zid);x.rail=rr.no;rr.used+=x.te;rr.items.push(x)})}
@@ -701,10 +702,11 @@ function skLayout(s){
   const SL=8,pages=[];let pg=null;
   list.filter(r=>!r.ext).forEach(r=>{r.abgN=Math.max(1,Math.min(4,+r.abg||1));r.gsp=spansOf(r);const gs=r.gsp.reduce((a,b)=>a+b,0);r.span=r.rel.length?1:gs;const big=+r.pol>=3,need=r.rel.length?r.rel.length+gs:gs;if(!pg||pg.zid!==r.zid||pg.big!==big||pg.slots+Math.min(need,SL)>SL){pg={items:[],slots:0,zid:r.zid,big};pages.push(pg)}
     [r,...r.rel].forEach(it=>{const sp=it.sk?(it.k===it.sk.rel.length-1?it.sk.gsp.reduce((a,b)=>a+b,0):1):it.span;if(pg.slots+sp>SL){pg={items:[],slots:0,zid:r.zid,big};pages.push(pg)}it.slot=pg.slots;pg.slots+=sp;pg.items.push(it)})});
-  /* Klemmenleisten: höchstens 6 Sicherungen pro Leiste (-X1, -X2 …), danach Endhalter + Deckel, Nummern je Leiste ab 1 */
-  let kl=1,w=2,kn=1,nF=0,xs=0;
+  /* Klemmenleisten: höchstens 6 Sicherungen pro Leiste (-X1, -X2 …), danach Endhalter + Deckel, Nummern je Leiste ab 1. 3-/4-polige und 1-/2-polige nie auf derselben Leiste */
+  /* eigene Leiste auch für 3-/4-polige gegenüber 1-/2-poligen, nie gemischt */
+  let kl=1,w=2,kn=1,nF=0,xs=0,xkey='';
   pages.forEach(q=>q.items.forEach(it=>{
-    if(!it.sk){const st=Math.floor(nF++/KL_SICH)+1;if(st!==xs){xs=st;kl=1}it.X='-X'+st}else it.X=it.sk.X;
+    if(!it.sk){const key=(+it.pol>=3?'b':'s')+it.zid;if(!xs||nF>=KL_SICH||key!==xkey){xs++;nF=0;kl=1;xkey=key}nF++;it.X='-X'+xs}else it.X=it.sk.X;
     if(it.sk){const par=it.sk,n=par.rel.length,ix=n>1?String(it.k+1):'',need=3+2*n,man=!!par.relMan;
       /* Relaiskabel automatisch, ausser es wurde von Hand gewählt oder es gibt mehrere Abgänge */
       const kq=q=>relKq(par,q);
