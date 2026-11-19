@@ -142,6 +142,7 @@ input:disabled,select:disabled{opacity:1;background:var(--bg);color:var(--ink);-
 .sk .x{padding:8px 0;width:40px;color:var(--muted);flex:none}
 .skt{flex:none}
 .zlr{border:1px solid var(--line);border-radius:10px;padding:12px;margin:10px 0;border-bottom:1px solid var(--line)}.zlr.res{background:#fafafa;border-style:dashed}.zlno{min-width:40px;font-size:16px}.zlsel{max-width:210px;padding:8px}
+.kabq{display:flex;flex-wrap:wrap;gap:8px}.kq{display:inline-flex;gap:6px;align-items:center;font-size:13px}.kq select{width:auto;padding:6px 8px;font-size:13px}
 .sk3{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-end}.sk3 .m select{height:38px;padding:6px 8px;font-size:13px;width:auto;min-width:140px}
 .rl{display:inline-flex;align-items:center;gap:6px;background:var(--info-soft);border:1px solid #e6dc6a;border-radius:3px;padding:4px 4px 4px 8px;font-size:13px}
 .rl button{border:0;background:none;cursor:pointer;color:var(--muted);padding:2px 6px}
@@ -496,8 +497,9 @@ function setField(k,v){S.site[k]=v;const el=$('#b-'+k);if(el)el.value=v}
 function onPlz(){
   const p=S.site,L=PLZ[p.land];if(!L)return;
   const z=p.plz.trim();
-  const zips=[...L.byZip.keys()].filter(k=>k.startsWith(z)).slice(0,40);
-  fillDl('dlPlz',z?zips.map(k=>k):[]);
+  /* Vorschläge erst ab 3 Ziffern und nur wenige, damit man frei weitertippen kann */
+  const zips=z.length>=3?[...L.byZip.keys()].filter(k=>k.startsWith(z)&&k!==z).slice(0,8):[];
+  fillDl('dlPlz',zips);
   const hit=L.byZip.get(z);
   if(hit){
     fillDl('dlOrt',[...new Set(hit.map(h=>h.o))]);
@@ -580,11 +582,11 @@ const AMP=['2','4','6','8','10','13','16','20','25','32','40','50','63'].map(a=>
 const TYP=[['FILS','FI/LS'],['LS','LS']];
 const typTxt=t=>t==='FILS'?'FI/LS':'LS';
 const KL_PER_PAGE=20,RAIL_TE=12;
-const SK_ADERN=['2','3','4','5','7','8','10','12'].map(a=>[a,a+'×']);
+const SK_ADERN=['2','3','4','5','6','7','8','10','12','16','21','27'].map(a=>[a,a+'×']);
 const SK_QS=['1.5','2.5','4','6','10','16'].map(q=>[q,qsTxt(q)]);
 const cabTxt=r=>r.adern&&r.qs?r.adern+'×'+qsTxt(r.qs)+' mm²':'Kabel offen';
 /* Kabel automatisch bei 3-/4-polig: bis 13 A 5×1,5, 16 A 5×2,5 (manuell änderbar) */
-function autoKab(r){if(r.kabAuto===false)return;r.adern=+r.pol>=3?'5':'3';const a=+r.amp;r.qs=a<=13?'1.5':a===16?'2.5':''}
+function autoKab(r){if(r.kabAuto===false||r.relMan)return;r.adern=+r.pol>=3?'5':'3';const a=+r.amp;r.qs=a<=13?'1.5':a===16?'2.5':''}
 function skNew(s){const pl=planOf(s),l=pl.sk[pl.sk.length-1];const r=l?{zl:l.zl,pol:l.pol,char:l.char,amp:l.amp,typ:l.typ,adern:l.adern||'',qs:l.qs||'',kabAuto:true,name:''}:{pol:'1',char:s.norm==='VDE'?'B':'C',amp:s.norm==='VDE'?'16':'13',typ:'FILS',adern:'3',qs:s.norm==='VDE'?'2.5':'1.5',kabAuto:true,name:''};if(s.art==='HV')r.zl=zlSelId(s);autoKab(r);return r}
 const siemOn=pl=>!!(pl.siem&&pl.siemOk);
 /* NIN: 1- und 3-polige LS brauchen einen N-Trenner direkt daneben */
@@ -616,14 +618,18 @@ function skLayout(s){
   else{let rr=null;rels.forEach(x=>{if(!rr||rr.used+x.te>cap||rr.zid!==x.sk.zid)rr=newRail('rel',x.sk.zid);x.rail=rr.no;rr.used+=x.te;rr.items.push(x)})}
   /* Schemaseiten: 8 Plätze, eine Sicherung samt ihren Relais bleibt zusammen, sonst Zusatzseite */
   const SL=8,pages=[];let pg=null;
-  list.filter(r=>!r.ext).forEach(r=>{r.abgN=r.rel.length?1:Math.max(1,Math.min(4,+r.abg||1));const big=+r.pol>=3,need=r.abgN+r.rel.length;if(!pg||pg.zid!==r.zid||pg.big!==big||pg.slots+Math.min(need,SL)>SL){pg={items:[],slots:0,zid:r.zid,big};pages.push(pg)}
-    [r,...r.rel].forEach(it=>{const sp=it.sk?1:it.abgN;if(pg.slots+sp>SL){pg={items:[],slots:0,zid:r.zid,big};pages.push(pg)}it.slot=pg.slots;pg.slots+=sp;pg.items.push(it)})});
+  list.filter(r=>!r.ext).forEach(r=>{r.abgN=Math.max(1,Math.min(4,+r.abg||1));const big=+r.pol>=3,need=r.abgN+r.rel.length;if(!pg||pg.zid!==r.zid||pg.big!==big||pg.slots+Math.min(need,SL)>SL){pg={items:[],slots:0,zid:r.zid,big};pages.push(pg)}
+    [r,...r.rel].forEach(it=>{const sp=it.sk?(it.k===it.sk.rel.length-1?it.sk.abgN:1):it.abgN;if(pg.slots+sp>SL){pg={items:[],slots:0,zid:r.zid,big};pages.push(pg)}it.slot=pg.slots;pg.slots+=sp;pg.items.push(it)})});
   let kl=1,w=2,kn=1;
   pages.forEach(q=>q.items.forEach(it=>{
-    if(it.sk){const n=it.sk.rel.length,ix=n>1?String(it.k+1):'';it.K='-K'+kn++;it.cab=relCab(n);it.adern=String(it.cab);it.qs='1.5';
-      if(it.k===0){it.cond=['PE',it.sk.cond[0],'N','T'+ix,'LA'+ix];it.w='-W'+w++}else{it.cond=['T'+ix,'LA'+ix];it.w=it.sk.rel[0].w}
-      it.res=it.k===n-1?it.cab-(3+2*n):0;it.kl=kl;kl+=it.cond.length+it.res}
-    else if(!it.rel.length){it.res=Math.max(0,(+it.adern||0)-it.cond.length);it.grp=[];for(let g=0;g<it.abgN;g++){it.grp.push({kl,w:'-W'+w++});kl+=it.cond.length+it.res}it.kl=it.grp[0].kl;it.w=it.grp[0].w}}));
+    if(it.sk){const par=it.sk,n=par.rel.length,ix=n>1?String(it.k+1):'',need=3+2*n,man=!!par.relMan;
+      /* Relaiskabel automatisch, ausser es wurde von Hand gewählt oder es gibt mehrere Abgänge */
+      const kq=q=>{const kb=q?((par.kab||[])[q]||{}):{};return man?{cab:+(kb.adern||par.adern)||relCab(n),qs:kb.qs||par.qs||'1.5'}:{cab:relCab(n),qs:'1.5'}};
+      const c0=kq(0);it.K='-K'+kn++;it.cab=c0.cab;it.adern=String(it.cab);it.qs=c0.qs;it.need=need;
+      if(it.k===0){it.cond=['PE',par.cond[0],'N','T'+ix,'LA'+ix];it.w='-W'+w++}else{it.cond=['T'+ix,'LA'+ix];it.w=par.rel[0].w}
+      it.res=it.k===n-1?Math.max(0,it.cab-need):0;it.kl=kl;kl+=it.cond.length+it.res;
+      if(it.k===n-1){it.xgrp=[];const allC=par.rel.flatMap(x=>x.cond||[]);for(let q=1;q<par.abgN;q++){const c=kq(q),res=Math.max(0,c.cab-need);it.xgrp.push({kl,w:'-W'+w++,cab:c.cab,qs:c.qs,cond:allC,res});kl+=allC.length+res}}}
+    else if(!it.rel.length){it.grp=[];for(let q=0;q<it.abgN;q++){const kb=q?((it.kab||[])[q]||{}):{},ad=kb.adern||it.adern,qs=kb.qs||it.qs,res=Math.max(0,(+ad||0)-it.cond.length);it.grp.push({kl,w:'-W'+w++,adern:ad,qs,res});kl+=it.cond.length+res}it.kl=it.grp[0].kl;it.w=it.grp[0].w;it.res=it.grp[0].res}}));
   /* Sicherungen beim Zähler: eigener Klemmenabgang im Klemmblock des Zählers, nach dem Abgang zur Wohnung */
   const ext={};list.filter(r=>r.ext).forEach(r=>{(ext[r.zid]=ext[r.zid]||[]).push(r)});
   Object.keys(ext).forEach(id=>{const z=pl.zl.find(z=>String(z.id)===id),zf=five&&(z.adern||'5')==='5';let k=(zf?5:3)+1;ext[id].forEach(r=>{r.res=Math.max(0,(+r.adern||0)-r.cond.length);r.kl=k;k+=r.cond.length+r.res;r.w='-W'+w++})});
@@ -716,10 +722,15 @@ function vPlan(){
       <div class="sk1"><input data-sk="name" value="${esc(r.name)}" placeholder="z. B. Backofen" aria-label="Bezeichnung Stromkreis ${j+1}" autocomplete="off"${dis}>
         <span class="tag skt" id="skt-${j}"></span>
         ${ed?`<button type="button" class="btn x" data-skdel="${j}" aria-label="Zeile ${j+1} löschen" title="Zeile löschen">✕</button>`:''}</div>
-      <div class="sk2">${sel('pol',pol,r,'Polzahl')}${sel('char',CHAR,r,'Char.')}${sel('amp',AMP,r,'Strom')}${sel('typ',TYP,r,'Typ')}${(r.relais||[]).length?`<label class="m" style="grid-column:span 2"><span>Kabel</span><span class="kab">ein Kabel ${relCab(r.relais.length)}×1,5</span></label>`:sel('adern',[['','–'],...SK_ADERN],r,'Adern')+sel('qs',[['','–'],...SK_QS],r,'mm²')}</div>
-      <div class="sk3">${(r.relais||[]).length||!zMain?'':`<label class="m abg"><span>Kabelabgänge</span><select data-sk="abg"${dis}>${opt([['1','1 Abgang'],['2','2 Abgänge'],['3','3 Abgänge'],['4','4 Abgänge']],r.abg||'1')}</select></label>`}${(r.relais||[]).map((t,q)=>`<span class="rl"><b>K</b> ${esc(relInfo(t)[1])}${ed?`<button type="button" data-rldel="${j}:${q}" aria-label="Relais entfernen">✕</button>`:''}</span>`).join('')}
+      <div class="sk2">${sel('pol',pol,r,'Polzahl')}${sel('char',CHAR,r,'Char.')}${sel('amp',AMP,r,'Strom')}${sel('typ',TYP,r,'Typ')}${(()=>{const nr=(r.relais||[]).length,rv=nr&&!r.relMan?{...r,adern:String(relCab(nr)),qs:'1.5'}:r,ab=+r.abg||1;return sel('adern',[['','–'],...SK_ADERN],rv,ab>1?'Adern Abg. 1':'Adern')+sel('qs',[['','–'],...SK_QS],rv,'mm²')})()}</div>
+      <div class="sk3">${!zMain?'':`<label class="m abg"><span>Kabelabgänge</span><select data-sk="abg"${dis}>${opt([['1','1 Abgang'],['2','2 Abgänge'],['3','3 Abgänge'],['4','4 Abgänge']],r.abg||'1')}</select></label>`}${(r.relais||[]).map((t,q)=>`<span class="rl"><b>K</b> ${esc(relInfo(t)[1])}${ed?`<button type="button" data-rldel="${j}:${q}" aria-label="Relais entfernen">✕</button>`:''}</span>`).join('')}
         ${ed&&zMain?`<label class="m"><span>Relais</span><select class="rladd" data-rladd="${j}" aria-label="Relais hinzufügen"><option value="">+ Relais …</option>${RELAIS.map(x=>`<option value="${x[0]}">${esc(x[1])}</option>`).join('')}</select></label>`:''}
 </div>
+      ${(()=>{const ab=+r.abg||1,nr=(r.relais||[]).length,need=3+2*nr;let h='';
+        if(ab>1)h+=`<div class="kabq">${[...Array(ab-1)].map((_,q)=>{const kb=(r.kab||[])[q+1]||{},ad=kb.adern||r.adern||'',qq=kb.qs||r.qs||'';return `<span class="kq"><b>Abgang ${q+2}</b><select data-kab="${q+1}" data-f="adern" aria-label="Adern Abgang ${q+2}"${dis}>${opt([['','–'],...SK_ADERN],ad)}</select><select data-kab="${q+1}" data-f="qs" aria-label="Querschnitt Abgang ${q+2}"${dis}>${opt([['','–'],...SK_QS],qq)}</select></span>`}).join('')}</div>`;
+        if(nr&&(r.relMan||ab>1)){const cabs=[+r.adern||0,...[...Array(ab-1)].map((_,q)=>+(((r.kab||[])[q+1]||{}).adern||r.adern)||0)],few=cabs.some(c=>c<need);
+          h+=`<div class="msg err">Die automatische Kabelplanung für das Relais ist ausgeschaltet, weil du das Kabel oder die Abgänge selbst gewählt hast. Jedes Kabel braucht mindestens ${need} Adern (PE, L, N und je Relais T und LA).${few?' <b>Mindestens ein Kabel hat zu wenig Adern.</b>':''} ${ed?`<button type="button" class="btn small" data-relauto="${j}">Automatik wieder einschalten</button>`:''}</div>`}
+        return h})()}
       <input class="note" data-sk="note" value="${esc(r.note||'')}" placeholder="Notiz zur Sicherung (erscheint im Schema)" aria-label="Notiz Stromkreis ${j+1}" autocomplete="off"${dis}>
       <div class="skn" id="skn-${j}"></div>
     </div>`).join('')}</div>
@@ -790,7 +801,7 @@ function skDecor(){
       if(x.nt)h.push('<span class="nt">+ N-Trenner direkt neben der Sicherung (NIN)</span>');
       if(rl.nt)h.push('<span class="warn">Hutschiene '+rl.no+': keine Phasen- oder Etagenschiene möglich'+(x.nt?'':' (N-Trenner auf derselben Schiene)')+'</span>');
       if(rl.siem)h.push('<span class="warn">Hutschiene '+rl.no+': Etagen- und Kammschienen von '+esc(pl.hersteller||'Hersteller')+' nicht kompatibel (Siemens FI/LS)</span>');
-      if(x.rel.length){const lr=x.rel[x.rel.length-1];h.push('<span class="nt">'+x.rel.map(k=>k.K+' '+relInfo(k.t)[1]).join(', ')+' neben der Sicherung, ein Kabel '+lr.cab+'×1,5 (L und N gebrückt)'+(lr.res?', '+lr.res+(lr.res===1?' Reserveklemme':' Reserveklemmen'):'')+'</span>')}
+      if(x.rel.length){const lr=x.rel[x.rel.length-1];h.push('<span class="nt">'+x.rel.map(k=>k.K+' '+relInfo(k.t)[1]).join(', ')+' neben der Sicherung, '+(x.abgN>1?x.abgN+' Abgänge, Abgang 1 ':'ein Kabel ')+lr.cab+'×'+qsTxt(lr.qs||'1.5')+(x.relMan||x.abgN>1?' (von Hand)':' (automatisch)')+', L und N gebrückt'+(lr.res?', '+lr.res+(lr.res===1?' Reserveklemme':' Reserveklemmen'):'')+'</span>')}
       else if(x.res)h.push('<span class="nt">Kabel hat '+x.res+(x.res===1?' Ader':' Adern')+' mehr als nötig: '+x.res+(x.res===1?' Reserveklemme':' Reserveklemmen')+'</span>');
       if(rl.rel)h.push('<span class="warn">Hutschiene '+rl.no+': Relais mit auf der Sicherungsschiene, '+(/hager/i.test(pl.hersteller||'')?'bei Hager keine Phasenschiene möglich':'Phasenschiene beim Hersteller prüfen')+'</span>')}
     nEl.innerHTML=h.join('');nEl.hidden=!h.length});
@@ -808,7 +819,7 @@ function pagesOf(s){
     a.filter(q=>q.kind==='zm').forEach(q=>{const f=q.bl[0].k+1,l=q.bl[q.bl.length-1].k+1;q.sub=(f===l?'Zähler -P'+f+' '+(pl.zl[f-1].name||''):'Zähler -P'+f+' bis -P'+l).trim()});
     a.push({kind:'za',title:s.geb==='MFH'?'Messung Allgemein':'Messung',sub:'-P1 '+(pl.zl[0].name||zlLbl(s,0))})}
   L.pages.forEach(q=>{const fs=q.items.filter(it=>!it.sk).map(it=>it.f),zk=hv?pl.zl.findIndex(z=>z.id===q.zid):-1,zt=zk>=0?'-P'+(zk+1)+(pl.zl[zk].name?' '+pl.zl[zk].name:'')+' · ':'';a.push({kind:'sk',title:'Stromkreise',sub:zt+(fs.length?fs[0]+(fs.length>1?' bis '+fs[fs.length-1]:''):'Relais'),dp:q,zid:q.zid})});
-  if(d.klemmen){const n=(five?5:3)+(hv?pl.zl.length-1+Object.values(L.ext).reduce((a,x)=>a+x.length,0):0)+L.pages.reduce((a,q)=>a+q.items.filter(it=>it.sk?it.k===0:!it.rel.length).reduce((b,it)=>b+(it.sk?1:it.abgN||1),0),0),c=Math.max(1,Math.ceil(n/KL_PER_PAGE));for(let i=0;i<c;i++)a.push({kind:'klemmen',title:'Klemmenliste',sub:sk.length?'-X0 Einspeisung, -X1 Abgänge':'Klemmblock -X0',part:i})}
+  if(d.klemmen){const n=(five?5:3)+(hv?pl.zl.length-1+Object.values(L.ext).reduce((a,x)=>a+x.length,0):0)+L.pages.reduce((a,q)=>a+q.items.filter(it=>it.sk?it.k===0:!it.rel.length).reduce((b,it)=>b+(it.sk?it.sk.abgN||1:it.abgN||1),0),0),c=Math.max(1,Math.ceil(n/KL_PER_PAGE));for(let i=0;i<c;i++)a.push({kind:'klemmen',title:'Klemmenliste',sub:sk.length?'-X0 Einspeisung, -X1 Abgänge':'Klemmblock -X0',part:i})}
   a.forEach((p,i)=>p.no=i+1);return a;
 }
 function prevIdx(pages){
@@ -896,7 +907,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     const col={L1:'braun',L2:'schwarz',L3:'grau',L:'braun',N:'blau',PE:'grün-gelb'};
     const cond=five?['L1','L2','L3','N','PE']:['L','N','PE'];
     const rows=cond.map((c,i)=>['-X0',String(i+1),c,pl.qs?qsTxt(pl.qs)+' mm²':'offen',col[c],'-W1 Zuleitung',pl.hersteller?'Klemmentyp folgt':''])
-      .concat(LL.pages.flatMap(q=>q.items).filter(it=>it.sk?it.k===0:!it.rel.length).flatMap(r=>r.sk?[(()=>{const g=r.sk.rel,last=g[g.length-1],all=g.flatMap(x=>x.cond||[]).concat(Array(last.res||0).fill('Res'));return ['-X1',r.kl+'–'+(last.kl+last.cond.length+(last.res||0)-1),('PE '+r.cond[1]+' N · '+g.length+'× T/LA'+(last.res?' · '+last.res+' Res':'')),'1,5 mm²',r.cab===5?'gn-ge br bl sw gr':'gn-ge + nummeriert',(g.map(x=>x.K).join(', ')+' ('+r.sk.f+' '+r.sk.name+')').slice(0,40),r.w+' '+r.cab+'×1,5 mm²'+(last.res?' · '+last.res+' Reserve':'')]})()]:(r.grp||[{kl:r.kl,w:r.w}]).map((gp,q,A)=>['-X1',gp.kl+'–'+(gp.kl+r.cond.length+(r.res||0)-1),r.cond.concat(Array(r.res||0).fill('Res')).join(' '),r.qs?qsTxt(r.qs)+' mm²':'offen','',(r.f+' '+r.name+(A.length>1?' ('+(q+1)+'/'+A.length+')':'')).slice(0,40),gp.w+' '+cabTxt(r)])));
+      .concat(LL.pages.flatMap(q=>q.items).filter(it=>it.sk?it.k===0:!it.rel.length).flatMap(r=>r.sk?(()=>{const g=r.sk.rel,last=g[g.length-1],all=g.flatMap(x=>x.cond||[]).concat(Array(last.res||0).fill('Res'));return [['-X1',r.kl+'–'+(last.kl+last.cond.length+(last.res||0)-1),('PE '+r.cond[1]+' N · '+g.length+'× T/LA'+(last.res?' · '+last.res+' Res':'')),'1,5 mm²',r.cab===5?'gn-ge br bl sw gr':'gn-ge + nummeriert',(g.map(x=>x.K).join(', ')+' ('+r.sk.f+' '+r.sk.name+')').slice(0,40),r.w+' '+r.cab+'×'+qsTxt(r.qs)+' mm²'+(last.res?' · '+last.res+' Reserve':'')],...(last.xgrp||[]).map((gp,qi)=>['-X1',gp.kl+'–'+(gp.kl+gp.cond.length+gp.res-1),'PE '+r.cond[1]+' N · '+g.length+'× T/LA'+(gp.res?' · '+gp.res+' Res':''),qsTxt(gp.qs)+' mm²','',(g.map(x=>x.K).join(', ')+' ('+r.sk.f+' '+r.sk.name+' '+(qi+2)+'/'+r.sk.abgN+')').slice(0,40),gp.w+' '+gp.cab+'×'+qsTxt(gp.qs)+' mm²'])]})():(r.grp||[{kl:r.kl,w:r.w,adern:r.adern,qs:r.qs,res:r.res}]).map((gp,q,A)=>['-X1',gp.kl+'–'+(gp.kl+r.cond.length+(gp.res||0)-1),r.cond.concat(Array(gp.res||0).fill('Res')).join(' '),gp.qs?qsTxt(gp.qs)+' mm²':'offen','',(r.f+' '+r.name+(A.length>1?' ('+(q+1)+'/'+A.length+')':'')).slice(0,40),gp.w+' '+cabTxt(gp)])));
     if(hv)pl.zl.forEach((z,k)=>{if(!k)return;const zf=five&&(z.adern||'5')==='5',c=zf?['L1','L2','L3','N','PE']:['L','N','PE'],X='-X'+(k+1)+'0';
       rows.push([X,'1–'+c.length,c.join(' '),z.qs?qsTxt(z.qs)+' mm²':'offen',zf?'br sw gr bl gn-ge':'br bl gn-ge',(z.res?'-P'+(k+1)+' Reserve':'-P'+(k+1)+' '+(z.name||'')).slice(0,40),z.res?'':'Abgang '+(z.ziel||'')]);
       (LL.ext[z.id]||[]).forEach(r=>rows.push([X,r.kl+'–'+(r.kl+r.cond.length+(r.res||0)-1),r.cond.concat(Array(r.res||0).fill('Res')).join(' '),r.qs?qsTxt(r.qs)+' mm²':'offen','',(r.f+' '+r.name).slice(0,40),r.w+' '+cabTxt(r)]))});
@@ -918,7 +929,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     const yD=232,yD2=296,yK=600,yF=346,yB0=396,yB1=432;
     T(xs0-8,yK+9,'-X1','tb','end');
     const RX={PE:10,N:30},rx=cn=>cn==='PE'?10:cn==='N'?30:/^T/.test(cn)?44:/^LA/.test(cn)?56:20;
-    const geo=it=>{if(it.sk){const x0=xs0+it.slot*cw;return {x0,w:cw,c:x0+33,xs:it.cond.map(cn=>x0+rx(cn))}}const x0=xs0+it.slot*cw,w=cw*(it.abgN||1),n=it.cond.length,dx=14,bw=(n-1)*dx,c=x0+cw-bw/2-12;return {x0,w,c,xs:it.cond.map((_,k)=>c+(k-(n-1)/2)*dx)}};
+    const geo=it=>{if(it.sk){const x0=xs0+it.slot*cw;return {x0,w:cw,c:x0+33,xs:it.cond.map(cn=>x0+rx(cn))}}const x0=xs0+it.slot*cw,w=cw*(it.rel&&it.rel.length?1:(it.abgN||1)),n=it.cond.length,dx=14,bw=(n-1)*dx,c=x0+cw-bw/2-12;return {x0,w,c,xs:it.cond.map((_,k)=>c+(k-(n-1)/2)*dx)}};
     let G;const foot=(it,g)=>{
       it.cond.forEach((cn,k)=>{const x=g.xs[k];o.push(`<circle class="term" cx="${x}" cy="${yK+3.4}" r="3.4"/>`);T(x,yK+15,String(it.kl+k),'tk','middle');T(x,yK+22,cn,'tk5','middle')});
       /* Reserveklemmen für überzählige Adern */
@@ -926,9 +937,9 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
       if(it.sk&&it.k>0)return;
       let gw=g.w,gc=g.c;if(it.sk){const grp=it.sk.rel.filter(x=>G.has(x)),lg=G.get(grp[grp.length-1]);gw=lg.x0+lg.w-g.x0;gc=(g.xs[0]+lg.xs[lg.xs.length-1])/2}
       for(let m=0;m<3;m++)L(gc-7,yK+35+m*3,gc+7,yK+30+m*3,'w');
-      if(it.sk){T(g.x0+2,yK+34,it.w,'tm','end');T(g.x0+2,yK+44,it.cab+'×1,5','tk2','end')}else{T(g.xs[0]-BL-4,yK+34,it.w,'tm','end');T(g.xs[0]-BL-4,yK+44,cabTxt(it).replace(' mm²',''),'tk2','end')}
+      if(it.sk){T(g.x0+2,yK+34,it.w,'tm','end');T(g.x0+2,yK+44,it.cab+'×'+qsTxt(it.qs||'1.5'),'tk2','end')}else{T(g.xs[0]-BL-4,yK+34,it.w,'tm','end');T(g.xs[0]-BL-4,yK+44,cabTxt(it).replace(' mm²',''),'tk2','end')}
       g={...g,w:gw};
-      const nm=it.sk?it.sk.name:it.name;
+      const nm=it.sk?it.sk.name+(it.sk.abgN>1?' (1/'+it.sk.abgN+')':''):it.name;
       const mx=Math.max(8,Math.floor(g.w/7.2)),words=String(nm).split(/\s+/),lines=[''];words.forEach(wd=>{const cur=lines[lines.length-1];if((cur+' '+wd).trim().length>mx&&cur)lines.push(wd);else lines[lines.length-1]=(cur+' '+wd).trim()});
       const small=lines.some(l=>l.length>mx);lines.slice(0,2).forEach((t,m)=>T(g.x0+g.w/2,yK+60+m*11,t.slice(0,small?Math.floor(g.w/5.6):mx+2),small?'tnm2':'tb','middle'))};
     G=new Map();items.forEach(it=>G.set(it,geo(it)));
@@ -954,6 +965,14 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
         L(xT,yb1-1.4,xT,yK,'wc');L(xLA,yb1-1.4,xLA,yK,'wc');
         /* Bezeichnung rechts neben dem Relais */
         const lx=xLA+12;T(lx,yb0+12,it.K,'tb');relInfo(it.t)[4].forEach((t,m)=>T(lx,yb0+24+m*9,t,'trel'));
+        if(isLast&&it.xgrp&&it.xgrp.length){const src=[];grp.forEach(x=>{const gx=G.get(x);(x.cond||[]).forEach(cn=>src.push(gx.x0+rx(cn)))});const N=par.abgN;
+          it.xgrp.forEach((gp,qi)=>{const bx=x0+(qi+1)*cw,xs2=gp.cond.map((_,i)=>bx+10+i*11);
+            gp.cond.forEach((cn,i)=>{const cl=bcls(cn),yb2=yK-86+i*7;dot(src[i],yb2);L(src[i],yb2,xs2[i],yb2,cl);L(xs2[i],yb2,xs2[i],yK,cl);
+              o.push(`<circle class="term" cx="${xs2[i]}" cy="${yK+3.4}" r="3.4"/>`);T(xs2[i],yK+15,String(gp.kl+i),'tk','middle');T(xs2[i],yK+22,cn,'tk5','middle')});
+            for(let q=0;q<gp.res;q++){const x=xs2[xs2.length-1]+11*(q+1);o.push(`<circle class="term" cx="${x}" cy="${yK+3.4}" r="3.4"/>`);T(x,yK+15,String(gp.kl+gp.cond.length+q),'tk','middle');T(x,yK+22,'Res','tk5','middle')}
+            const cc=(xs2[0]+xs2[xs2.length-1])/2;for(let m=0;m<3;m++)L(cc-7,yK+35+m*3,cc+7,yK+30+m*3,'w');
+            T(bx+6,yK+34,gp.w,'tm','end');T(bx+6,yK+44,gp.cab+'×'+qsTxt(gp.qs),'tk2','end');
+            const nm2=par.name+' ('+(qi+2)+'/'+N+')';T(bx+cw/2,yK+60,nm2.slice(0,22),nm2.length>16?'tnm2':'tb','middle')})}
         foot(it,G.get(it));return}
       const r=it,n=r.cond.length,hasRel=r.rel.length>0;
       r.cond.forEach((cn,k)=>{const x=xs[k],cls=bcls(cn),yb=busY[cn];
@@ -976,7 +995,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
       }else{const na=r.abgN||1;
         if(na>1)r.cond.forEach((cn,k)=>{const cls=bcls(cn),yb=yK-72+k*8;o.push(`<circle cx="${xs[k]}" cy="${yb}" r="2" fill="#111"/>`);
           for(let q=1;q<na;q++){const x2=xs[k]+q*cw;L(xs[k]+(q-1)*cw,yb,x2,yb,cls);L(x2,yb,x2,yK,cls);if(q<na-1)o.push(`<circle cx="${x2}" cy="${yb}" r="2" fill="#111"/>`)}});
-        r.grp.forEach((gp,q)=>foot({...r,kl:gp.kl,w:gp.w,name:na>1?r.name+' ('+(q+1)+'/'+na+')':r.name},{...g,x0:g.x0+q*cw,w:cw,xs:xs.map(x=>x+q*cw)}))}
+        r.grp.forEach((gp,q)=>foot({...r,kl:gp.kl,w:gp.w,adern:gp.adern,qs:gp.qs,res:gp.res,name:na>1?r.name+' ('+(q+1)+'/'+na+')':r.name},{...g,x0:g.x0+q*cw,w:cw,xs:xs.map(x=>x+q*cw)}))}
       if(r.note){const mx=Math.max(10,Math.floor(w/4.8)),words=String(r.note).split(/\s+/),lines=[''];words.forEach(wd=>{const cur=lines[lines.length-1];if((cur+' '+wd).trim().length>mx&&cur)lines.push(wd);else lines[lines.length-1]=(cur+' '+wd).trim()});
         lines.slice(0,3).forEach((t,m)=>T(x0+4,462+m*11,(m===0?'Notiz: ':'')+t.slice(0,mx+4),'tnote'))}
     });
@@ -1208,7 +1227,8 @@ document.addEventListener('change',e=>{
     persistSite();return}
   if(t.dataset.doc&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.docs[t.dataset.doc]=t.checked;S.prevSel=null;touchPlan('Unterlagen angepasst');render();return}
   if(t.dataset.zsel){S.zlSel=+t.value;S.prevSel=null;render();return}
-  if(t.dataset.sk&&S.site&&canEdit(S.site)){skSet(t);touchPlan('Stromkreise angepasst');return}
+  if(t.dataset.sk&&S.site&&canEdit(S.site)){skSet(t);touchPlan('Stromkreise angepasst');const r=planOf(S.site).sk[+t.closest('.sk').dataset.i];if(t.dataset.sk==='abg'||(r&&(r.relais||[]).length&&(t.dataset.sk==='adern'||t.dataset.sk==='qs')))render();return}
+  if(t.dataset.kab&&S.site&&canEdit(S.site)){const r=planOf(S.site).sk[+t.closest('.sk').dataset.i];if(!r)return;const q=+t.dataset.kab;r.kab=r.kab||[];r.kab[q]=r.kab[q]||{adern:r.adern,qs:r.qs};r.kab[q][t.dataset.f]=t.value;touchPlan('Kabel Abgang '+(q+1)+' bei '+(r.name||'Stromkreis'));render();return}
   if(t.dataset.zl&&S.site&&canEdit(S.site)){const z=zlOfEl(t),k=t.dataset.zl,pl=planOf(S.site);if(!z)return;const nm='-P'+(pl.zl.indexOf(z)+1);
     if(k==='name'||k==='ziel'){touchPlan('Zähler '+nm+' angepasst');return}
     if(k==='res'){if(pl.zl.indexOf(z)===0){t.checked=false;return}z.res=t.checked;touchPlan('Zähler '+nm+(z.res?' als Reserveplatz':' wieder mit Zähler'))}
@@ -1314,6 +1334,7 @@ document.addEventListener('click',e=>{
   if(act==='skAdd'&&S.site&&canEdit(S.site)){skAddRow();return}
   if((act==='zlAdd'||act==='zlRes')&&S.site&&canEdit(S.site)){const pl=planOf(S.site),z=zlNew(S.site,act==='zlRes');pl.zl.push(z);pl.step='zaehler';S.prevSel=null;touchPlan((z.res?'Reservezählerplatz':'Zähler')+' -P'+pl.zl.length+' ergänzt');render();const ins=document.querySelectorAll('input[data-zl="name"]');const l=ins[ins.length-1];if(l){l.focus();l.scrollIntoView({block:'nearest'})}return}
   if(t.dataset.zldel&&S.site&&canEdit(S.site)){const pl=planOf(S.site),j=+t.dataset.zldel,z=pl.zl[j];if(!z||j===0)return;pl.zl.splice(j,1);pl.sk.forEach(r=>{if(String(r.zl)===String(z.id))r.zl=''});S.prevSel=null;touchPlan('Zähler -P'+(j+1)+' entfernt');render();return}
+  if(t.dataset.relauto&&S.site&&canEdit(S.site)){const r=planOf(S.site).sk[+t.dataset.relauto];if(r){r.relMan=false;r.abg='1';r.kab=[];touchPlan('Relaiskabel wieder automatisch bei '+(r.name||'Stromkreis'));render()}return}
   if(t.dataset.rldel&&S.site&&canEdit(S.site)){const [j,q]=t.dataset.rldel.split(':').map(Number),pl=planOf(S.site),r=pl.sk[j];if(r&&r.relais){r.relais.splice(q,1);touchPlan('Relais entfernt bei '+(r.name||'Stromkreis'));render()}return}
   if(act==='siemAck'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.siemOk={gez:S.user.name,date:new Date().toLocaleDateString('de-CH')};S.prevSel=null;touchPlan('Siemens FI/LS quittiert');render();return}
   if(t.dataset.skdel&&S.site&&canEdit(S.site)){const pl=planOf(S.site),r=pl.sk[+t.dataset.skdel];pl.sk.splice(+t.dataset.skdel,1);touchPlan('Stromkreis '+((r&&r.name)||'')+' entfernt');render();return}
@@ -1348,7 +1369,9 @@ document.addEventListener('click',e=>{
 });
 
 const zlOfEl=t=>{const el=t.closest('[data-zi]');return el?planOf(S.site).zl[+el.dataset.zi]:null};
-function skSet(t){const pl=planOf(S.site),row=t.closest('.sk'),r=pl.sk[+row.dataset.i];if(!r)return;const k=t.dataset.sk;if(k!=='relSame'){if(r[k]===t.value)return;r[k]=t.value}
+function skSet(t){const pl=planOf(S.site),row=t.closest('.sk'),r=pl.sk[+row.dataset.i];if(!r)return;const k=t.dataset.sk;if(k!=='relSame'){if(r[k]===t.value)return;
+    const nr=(r.relais||[]).length;if(nr&&!r.relMan&&(k==='adern'||k==='qs'||(k==='abg'&&+t.value>1))){r.relMan=true;r.adern=String(relCab(nr));r.qs='1.5'}
+    r[k]=t.value}
   if(k==='relSame'){r.relSame=t.checked;pl.changed=now();refreshPreview();return}
   if(k==='adern'||k==='qs')r.kabAuto=false;
   if((k==='pol'||k==='amp')&&r.kabAuto!==false){autoKab(r);const a=row.querySelector('[data-sk=adern]'),q=row.querySelector('[data-sk=qs]');if(a)a.value=r.adern;if(q)q.value=r.qs}
