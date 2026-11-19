@@ -457,7 +457,7 @@ function vBaustelle(){
       ${ch?`<label class="f c2">Kanton<select id="b-kanton" data-b="kanton"${dis}><option value="">wählen …</option>${opt(KANTONE.map(([k,n])=>[k,k+' · '+n]),p.kanton)}</select></label>`:''}
       <div class="c3"><div class="legend">Zu behandelnde Norm</div>${seg('norm',[['NIN','NIN','Schweiz, SN 411000 (Standard)'],['VDE','VDE','Deutschland, DIN VDE 0100']])}</div>
       <div class="c3"><div class="legend">Art der Verteilung</div>${seg('art',[['UV','UV','Unterverteilung'],['HV','HV','Hauptverteilung']])}</div>
-      <div class="c3"><div class="legend">Gebäude</div>${seg('geb',[['EFH','EFH','Einfamilienhaus, ein Zähler'],['MFH','MFH','Mehrfamilienhaus, mehrere Zähler']])}</div>
+      <div class="c3" id="gebBox"${p.art==='HV'?'':' hidden'}><div class="legend">Gebäude</div>${seg('geb',[['EFH','EFH','Einfamilienhaus, ein Zähler'],['MFH','MFH','Mehrfamilienhaus, mehrere Zähler']])}</div>
       ${p.owner===S.user.id&&others.length?`<div class="c6"><div class="legend">Bearbeitung freigeben für</div><div class="share">${others.map(u=>`<label class="chk"><input type="checkbox" data-share="${u.id}" ${(p.editors||[]).includes(u.id)?'checked':''}> ${esc(u.name)}</label>`).join('')}</div><p class="sub" style="margin-top:6px">Alle anderen können die Baustelle nur ansehen und drucken. Löschen kannst nur du.</p></div>`:''}
       <div class="c6" id="bMsg">${msgHTML()}</div>
       <div class="c6 actions">
@@ -1297,7 +1297,7 @@ document.addEventListener('click',e=>{
   const t=e.target.closest('button');if(!t)return;
   const act=t.dataset.act;
   if(t.dataset.seg&&S.site&&canEdit(S.site)){S.site[t.dataset.seg]=t.dataset.v;persistSite();
-    t.parentElement.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===t)));return}
+    t.parentElement.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===t)));if(t.dataset.seg==='art'){const g=$('#gebBox');if(g)g.hidden=t.dataset.v!=='HV'}return}
   if(act==='saveSite'){persistSite();const w=validate(S.site);S.msg=w?{t:'err',m:w}:{t:'ok',m:'Gespeichert.'};$('#bMsg').innerHTML=msgHTML();return}
   if(act==='print'){printSheet();return}
   if(act==='toPlan'){if(canEdit(S.site))persistSite();planOf(S.site);return go('plan')}
