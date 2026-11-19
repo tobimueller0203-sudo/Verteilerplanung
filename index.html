@@ -778,7 +778,7 @@ function busPlan(s,L,fresh){
 function busSet(fn){const s=S.site,pl=planOf(s),B=busPlan(s);if(!pl.bus||pl.bus.sig!==B.sig)pl.bus={sig:B.sig,off:{},et:{},sd:{}};pl.bus.sd=pl.bus.sd||{};fn(pl.bus)}
 /* 2D-Ansicht: Klemmen oben, Sicherungsschienen mit Sammel- und Etagenschienen, Klemmen unten. Teile anklickbar */
 function bus2D(s,raw){
-  const pl=planOf(s),L=skLayout(s),B=busPlan(s,L),TE=24,W=12*TE,mx=200,rowH=104,side=B.side,ed=!raw&&canEdit(s);
+  const pl=planOf(s),L=skLayout(s),B=busPlan(s,L),TE=24,W=12*TE,mx=250,rowH=104,side=B.side,ed=!raw&&canEdit(s);
   const CL=mx-50,CR=mx+W+50;/* Schrank innen */
   const ks=klStrips(s).filter(k=>k.mm||k.offen||k.X==='-X0'),kU=ks.filter(k=>klPos(pl,k.X)==='unten'),kO=ks.filter(k=>klPos(pl,k.X)!=='unten');
   const klRows=arr=>{const rows=[];let r=null;arr.forEach(k=>{const te=Math.max(1,k.mm?klTE(k.mm):2);if(!r||r.te+te>12){r={te:0,it:[]};rows.push(r)}r.it.push({...k,te,x:r.te});r.te+=te});if(side==='r')rows.forEach(r=>{if(r.it.some(k=>k.X==='-X0'))r.it.forEach(k=>k.x=12-k.x-k.te)});return rows};
@@ -786,6 +786,20 @@ function bus2D(s,raw){
   const ico=(x,y,on)=>ed?`<rect x="${x}" y="${y}" width="14" height="14" fill="${on?'#b42318':'#2e7d32'}"/><text x="${x+7}" y="${y+11}" text-anchor="middle" class="b2b" style="fill:#fff">${on?'✕':'+'}</text>`:'';
   const g=(act,attrs,inner,tip)=>ed?`<g data-act="${act}" ${attrs} style="cursor:pointer"><title>${esc(tip)}</title>${inner}</g>`:inner;
   const din=yy=>`<rect x="${CL+6}" y="${yy-9}" width="${CR-CL-12}" height="18" fill="#c3c7cc" stroke="#9aa0a6" stroke-width=".8"/><line x1="${CL+6}" y1="${yy-5}" x2="${CR-6}" y2="${yy-5}" stroke="#e4e7ea" stroke-width="1"/><line x1="${CL+6}" y1="${yy+5}" x2="${CR-6}" y2="${yy+5}" stroke="#a6abb1" stroke-width="1"/>`;
+  /* Reiheneinbaugerät in Frontansicht (nachgezeichnet): Klemmen oben/unten mit Schrauben, Frontteil, Kipphebel, Schaltstellungsanzeige */
+  const dev=(x,y,w,o)=>{const np=Math.max(1,o.np||1),T=y+10,Hh=70;let h=`<rect x="${x+.5}" y="${T}" width="${w-1}" height="${Hh}" fill="${o.tint||'#f3f3f1'}" stroke="#8a9097" stroke-width=".9"/>`;
+    h+=`<rect x="${x+1.5}" y="${T+1}" width="${w-3}" height="13" fill="#e4e5e3"/><rect x="${x+1.5}" y="${T+Hh-14}" width="${w-3}" height="13" fill="#e4e5e3"/>`;
+    for(let q=0;q<np;q++){const cx=x+(q+.5)*w/np;[T+7.5,T+Hh-7.5].forEach(cy=>{h+=`<rect x="${(cx-3.5).toFixed(1)}" y="${cy-4}" width="7" height="8" fill="#5c6167"/><circle cx="${cx.toFixed(1)}" cy="${cy}" r="2.6" fill="#c8ccd1" stroke="#6f757c" stroke-width=".5"/><line x1="${(cx-1.8).toFixed(1)}" y1="${cy+1.2}" x2="${(cx+1.8).toFixed(1)}" y2="${cy-1.2}" stroke="#5c6167" stroke-width=".7"/>`})}
+    /* erhöhtes Frontteil */
+    h+=`<rect x="${x+2.5}" y="${T+16}" width="${w-5}" height="${Hh-32}" fill="${o.tint?'#fff7f5':'#fafaf9'}" stroke="#c4c8cc" stroke-width=".6"/><line x1="${x+3}" y1="${T+Hh-16.5}" x2="${x+w-3}" y2="${T+Hh-16.5}" stroke="#b3b8bd" stroke-width=".8"/>`;
+    /* Kipphebel in Mulde, bei mehrpoligen durchgehender Bügel */
+    const lw=np>1?w-10:Math.min(10,w-8),lx=x+w/2-lw/2;
+    h+=`<rect x="${lx-1.5}" y="${T+24}" width="${lw+3}" height="21" fill="#3a3e43"/><rect x="${lx}" y="${T+25}" width="${lw}" height="11" fill="${o.lever||'#24272b'}"/><rect x="${lx}" y="${T+25}" width="${lw}" height="2.5" fill="${o.lever?'#5b8fd0':'#4a4e54'}"/>`;
+    if(np>1)for(let q=1;q<np;q++){const cx=x+q*w/np;h+=`<line x1="${cx.toFixed(1)}" y1="${T+16}" x2="${cx.toFixed(1)}" y2="${T+23}" stroke="#c4c8cc" stroke-width=".6"/>`}
+    if(!o.nt)h+=`<rect x="${x+4}" y="${T+48}" width="5" height="3.5" fill="#d0312d"/>`;
+    if(o.fi)h+=`<rect x="${x+w-11}" y="${T+46}" width="7" height="7" fill="#e3c34a" stroke="#9c8424" stroke-width=".5"/><text x="${x+w-7.5}" y="${T+52}" text-anchor="middle" class="b2t" style="font-size:5.5px">T</text>`;
+    h+=`<text x="${x+w/2}" y="${T+22}" text-anchor="middle" class="${w>TE?'b2b':'b2t'}" style="font-size:${w>TE?9:7}px">${esc(o.top||'')}</text><text x="${x+w/2}" y="${T+Hh-19}" text-anchor="middle" class="b2t" style="font-size:${w>TE?8:6.5}px">${esc(o.bot||'')}</text>`;
+    return h};
   const lbl=(yy,a,b)=>`<text x="${CL-20}" y="${yy-2}" text-anchor="end" class="b2b">${a}</text><text x="${CL-20}" y="${yy+11}" text-anchor="end" class="b2s">${b}</text>`;
   const klRow=r=>{const cy=y+36;let h=din(cy)+lbl(cy,'Klemmen',r.it.map(k=>k.X).join(' '));
     r.it.forEach(k=>{const x=mx+k.x*TE,w=k.te*TE,x0=k.X==='-X0',n=Math.max(2,Math.round(w/6));let sl='';
@@ -798,14 +812,11 @@ function bus2D(s,raw){
     out+=din(cy)+lbl(cy,'Schiene '+br.no,br.typ==='SIEM'?'Siemens':br.typ||'ohne Sammelschiene');
     let x=mx;const teeth=[];
     rl.items.forEach(it=>{const te=it.te||1,w=te*TE;
-      if(it.sk){out+=`<rect x="${x+.5}" y="${y+10}" width="${w-1}" height="70" fill="#f2f2f0" stroke="#8d939a" stroke-width=".9"/><rect x="${x+w/2-5}" y="${y+36}" width="10" height="16" fill="#6b7076"/><text x="${x+w/2}" y="${y+26}" text-anchor="middle" class="b2t">${esc(it.K||'K')}</text>`}
-      else{const nt=it.nt?1:0,dw=(te-nt)*TE,lw=Math.min(12,dw-8),np=it.siem?1:poles(it);
-        out+=`<rect x="${x+.5}" y="${y+10}" width="${dw-1}" height="70" fill="${it.siem?'#fbefed':'#fbfbfa'}" stroke="#8d939a" stroke-width=".9"/>`;
-        for(let q=0;q<Math.max(np,te-nt);q++){const px=x+(q+.5)*dw/Math.max(np,te-nt);out+=`<rect x="${px-3}" y="${y+12}" width="6" height="5" fill="#5f646a"/>`}
-        out+=`<rect x="${x+dw/2-lw/2}" y="${y+34}" width="${lw}" height="18" fill="#3b3f44"/><rect x="${x+dw/2-lw/2}" y="${y+34}" width="${lw}" height="6" fill="#55595e"/>`;
-        out+=`<text x="${x+dw/2}" y="${y+29}" text-anchor="middle" class="${dw>TE?'b2b':'b2t'}">${it.f}</text><text x="${x+dw/2}" y="${y+63}" text-anchor="middle" class="b2t">${esc((it.char||'')+(it.amp||''))}</text>`;
+      if(it.sk){out+=dev(x,y,w,{np:1,top:it.K||'K',bot:(relInfo(it.t)||[])[0]||'',nt:true,lever:'#6b7076'})}
+      else{const nt=it.nt?1:0,dw=(te-nt)*TE,np=it.siem?1:poles(it);
+        out+=dev(x,y,dw,{np:Math.max(np,te-nt),top:it.f,bot:(it.char||'')+(it.amp||''),fi:it.typ==='FILS',tint:it.siem?'#fbefed':''});
         if(!it.nt)for(let q=0;q<np;q++)teeth.push(x+(q+.5)*dw/np);
-        if(nt)out+=`<rect x="${x+dw+.5}" y="${y+10}" width="${TE-1}" height="70" fill="#fbfbfa" stroke="#8d939a" stroke-width=".9"/><rect x="${x+dw+TE/2-4}" y="${y+34}" width="8" height="18" fill="#2f6db5"/><text x="${x+dw+TE/2}" y="${y+63}" text-anchor="middle" class="b2t">N</text>`}
+        if(nt)out+=dev(x+dw,y,TE,{np:1,top:'',bot:'N',nt:true,lever:'#2f6db5'})}
       x+=w});
     for(let t=rl.used;t<12;t++)out+=`<rect x="${mx+t*TE+.5}" y="${y+10}" width="${TE-1}" height="70" fill="none" stroke="#b9bec4" stroke-dasharray="3 3"/>`;
     /* Sammelschiene (Gabel) in den unteren Klemmen */
@@ -818,7 +829,10 @@ function bus2D(s,raw){
   B.ets.filter(()=>B.etOn).forEach(e=>{const sd=e.side,P=BUS_P[e.part],on=e.on,blk=e.blk,vx=sd==='l'?CL+10:CR-24,col=on?'#7d4a22':'#b42318';
     const rows=B.rails.filter(r=>r.no>=e.a&&r.no<=e.b).map(r=>top[r.no]+84),y1=rows[0]-6,y2=rows[rows.length-1]+6;
     let inner=`<rect x="${vx}" y="${y1}" width="14" height="${y2-y1}" fill="${on?'#d9dcdf':'none'}" stroke="${on?'#7f858c':'#b42318'}" stroke-width=".9" ${on?'':'stroke-dasharray="5 4"'}/>`;
-    if(on)rows.forEach(ry=>{const ax=sd==='l'?vx+14:mx+W-TE,aw=sd==='l'?mx+TE-(vx+14):vx-(mx+W-TE);inner+=`<rect x="${ax}" y="${ry-3}" width="${aw}" height="6" fill="#c27a3c" stroke="${col}" stroke-width=".7"/><rect x="${sd==='l'?vx:vx}" y="${ry-7}" width="14" height="14" fill="#c9cdd1" stroke="#7f858c" stroke-width=".7"/>`});
+    if(on){for(let yy=y1+10;yy<y2-8;yy+=14)inner+=`<circle cx="${vx+7}" cy="${yy}" r="1.6" fill="#8d939a"/>`;inner+=`<line x1="${vx+3}" y1="${y1+2}" x2="${vx+3}" y2="${y2-2}" stroke="#eef0f2" stroke-width="1"/>`;
+      rows.forEach(ry=>{const ax=sd==='l'?vx+14:mx+W-TE+8,aw=sd==='l'?mx-(vx+14)+TE-8:vx-(mx+W-TE+8);inner+=`<rect x="${ax}" y="${ry-5}" width="${aw}" height="10" fill="#cfd3d7" stroke="#7f858c" stroke-width=".7"/>`;
+        const px=sd==='l'?mx+2:mx+W-TE+2;for(let q=0;q<3;q++)inner+=`<rect x="${px+q*7}" y="${ry-7}" width="4" height="8" fill="#c27a3c" stroke="#7d4a22" stroke-width=".5"/>`;
+        inner+=`<rect x="${vx}" y="${ry-8}" width="14" height="16" fill="#c4c8cc" stroke="#7f858c" stroke-width=".7"/>`})}
     const my=(y1+y2)/2,tx=sd==='l'?CL+37:CR-37;
     if(!blk)inner+=ico(vx,my-7,on);
     const ly=rows[0]+17,lx=sd==='l'?CL-18:CR+18;
@@ -931,8 +945,9 @@ function vPlan(){
   }else if(k==='hersteller'){
     const other=pl.hersteller&&!HERSTELLER.includes(pl.hersteller);
     body=`<h2>Hersteller</h2><p class="sub">Von welchem Hersteller kommen Schutzgeräte und Reiheneinbaugeräte?</p>
-    <div class="tiles">${HERSTELLER.map(h=>tile('hersteller',h,h)).join('')}</div>
-    <label class="f">Anderer Hersteller<input id="p-hother" data-pl="herstellerFrei" value="${other?esc(pl.hersteller):''}" placeholder="Name eintragen" autocomplete="off"${dis}></label>`;
+    <div class="tiles">${HERSTELLER.map(h=>h==='Hager'?tile('hersteller',h,h):`<button type="button" class="tile" aria-pressed="${pl.hersteller===h}" disabled style="opacity:.45;cursor:not-allowed"><b>${esc(h)}</b><span>Hersteller folgen</span></button>`).join('')}</div>
+    <p class="sub">Aktuell ist nur Hager hinterlegt. Die anderen Hersteller folgen.</p>
+    <label class="f" style="opacity:.45">Anderer Hersteller <span class="hint">folgt</span><input id="p-hother" value="${other?esc(pl.hersteller):''}" placeholder="Hersteller folgen" autocomplete="off" disabled></label>`;
   }else if(k==='gehaeuse'){
     if(hv){
       body=`<h2>Gehäuse</h2><p class="sub">Eine Hauptverteilung wird immer als Alu-Verteiler in Aufputz gebaut.</p>
@@ -1209,7 +1224,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     const rx=ix0+720;let yy=iy0+100;T(rx,yy,'Schienen-Material','tb');yy+=8;L(rx,yy,ix1-30,yy,'fr2');
     B.parts.forEach(x=>{yy+=20;T(rx,yy,x.n+'× '+(x.hst||'Hager')+' '+x.kurz,'tk4');T(rx+190,yy,x.nr,'tk4')});
     if(!B.parts.length){yy+=20;T(rx,yy,'Keine Sammelschienen','tk4')}
-    yy+=30;if(B.msgs.length){T(rx,yy,'Hinweise','tb');yy+=8;L(rx,yy,ix1-30,yy,'fr2');B.msgs.forEach(m=>wrapTxt(m.t,52).forEach((ln,j)=>{yy+=j?13:18;T(rx,yy,ln,m.e?'twarn':'tk4')}))}
+    yy+=30;if(B.msgs.length){T(rx,yy,'Hinweise','tb');yy+=8;L(rx,yy,ix1-30,yy,'fr2');B.msgs.forEach(m=>wrapTxt(m.t,52).forEach((ln,j)=>{yy+=j?13:18;if(m.e)o.push(`<text class="tk4" x="${rx}" y="${yy}" style="fill:#b42318;font-weight:700">${esc(ln)}</text>`);else T(rx,yy,ln,'tk4')}))}
   }else if(pg.kind==='toc'){
     T(ix0+40,iy0+50,'Inhaltsverzeichnis','tdeck2');
     const pages=pagesOf(s);const cols=[ix0+40,ix0+130,ix0+380,ix0+700,ix0+800];
