@@ -768,7 +768,7 @@ function bus2D(s,raw){
   const pl=planOf(s),L=skLayout(s),B=busPlan(s,L),TE=24,W=12*TE,mx=200,rowH=104,side=B.side,ed=!raw&&canEdit(s);
   const CL=mx-50,CR=mx+W+50;/* Schrank innen */
   const ks=klStrips(s).filter(k=>k.mm||k.offen||k.X==='-X0'),kU=ks.filter(k=>klPos(pl,k.X)==='unten'),kO=ks.filter(k=>klPos(pl,k.X)!=='unten');
-  const klRows=arr=>{const rows=[];let r=null;arr.forEach(k=>{const te=Math.max(1,k.mm?klTE(k.mm):2);if(!r||r.te+te>12){r={te:0,it:[]};rows.push(r)}r.it.push({...k,te,x:r.te});r.te+=te});return rows};
+  const klRows=arr=>{const rows=[];let r=null;arr.forEach(k=>{const te=Math.max(1,k.mm?klTE(k.mm):2);if(!r||r.te+te>12){r={te:0,it:[]};rows.push(r)}r.it.push({...k,te,x:r.te});r.te+=te});if(side==='r')rows.forEach(r=>{if(r.it.some(k=>k.X==='-X0'))r.it.forEach(k=>k.x=12-k.x-k.te)});return rows};
   const rO=klRows(kO),rU=klRows(kU);let y=56,out='';
   const ico=(x,y,on)=>ed?`<rect x="${x}" y="${y}" width="14" height="14" fill="${on?'#b42318':'#2e7d32'}"/><text x="${x+7}" y="${y+11}" text-anchor="middle" class="b2b" style="fill:#fff">${on?'✕':'+'}</text>`:'';
   const g=(act,attrs,inner,tip)=>ed?`<g data-act="${act}" ${attrs} style="cursor:pointer"><title>${esc(tip)}</title>${inner}</g>`:inner;
