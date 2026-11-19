@@ -535,7 +535,7 @@ const QS_MAX=16;
 const NB_LIST=['IWB Industrielle Werke Basel','Primeo Energie','EBL Genossenschaft Elektra Baselland','AEW Energie AG','BKW Energie AG','CKW AG','EKZ Elektrizitätswerke des Kantons Zürich','Netze BW GmbH','ED Netze GmbH','bnNETZE GmbH'];
 const qsNum=q=>parseFloat(String(q).replace(',','.'))||0;
 const qsTxt=q=>String(q).replace('.',',');
-function planOf(s){if(!s.plan)s.plan={step:'unterlagen',qs:'',adern:'5',nb:'',nbAuto:false,material:false,revs:[]};const pl=s.plan;if(!pl.revs)pl.revs=[];if(!pl.docs)pl.docs={deck:false,toc:false,klemmen:false};if(!Array.isArray(pl.sk))pl.sk=[];if(pl.step==='produkte')pl.step='stromkreise';if(!Array.isArray(pl.zl)||!pl.zl.length)pl.zl=[{id:1,name:'',res:false,bez:pl.bez||(s.norm==='VDE'?'NH':'DZ'),bezA:pl.bezA||'',qs:'',adern:pl.adern||'5',ziel:''}];pl.zl[0].res=false;if(s.geb==='MFH'&&!pl.zl[0].name)pl.zl[0].name='Allgemein';if(s.art==='HV'){pl.gehaeuse='alu';pl.montage='AP'}else if(pl.montage==='UP'){pl.gehaeuse='hersteller'}return pl}
+function planOf(s){if(s.plan&&!s.plan.klAbg)s.plan.klAbg='ja';if(!s.plan)s.plan={step:'unterlagen',qs:'',adern:'5',nb:'',nbAuto:false,material:false,revs:[]};const pl=s.plan;if(!pl.revs)pl.revs=[];if(!pl.docs)pl.docs={deck:false,toc:false,klemmen:false};if(!Array.isArray(pl.sk))pl.sk=[];if(pl.step==='produkte')pl.step='stromkreise';if(!Array.isArray(pl.zl)||!pl.zl.length)pl.zl=[{id:1,name:'',res:false,bez:pl.bez||(s.norm==='VDE'?'NH':'DZ'),bezA:pl.bezA||'',qs:'',adern:pl.adern||'5',ziel:''}];pl.zl[0].res=false;if(s.geb==='MFH'&&!pl.zl[0].name)pl.zl[0].name='Allgemein';if(s.art==='HV'){pl.gehaeuse='alu';pl.montage='AP'}else if(pl.montage==='UP'){pl.gehaeuse='hersteller'}return pl}
 const initials=n=>String(n||'').split(/\s+/).filter(Boolean).map(w=>w[0].toUpperCase()).join('').slice(0,3);
 /* Netzbetreiber: zuerst was auf diesem Gerät für die PLZ gemerkt wurde, sonst sichere Regel (Basel-Stadt = IWB) */
 function guessNB(s){
@@ -569,7 +569,15 @@ function zlSum(s){const a=zlAll(s),r=a.filter(z=>z.res).length;return (a.length-
 const zlLbl=(s,k)=>k===0?(s.geb==='MFH'?'Allgemeinzähler':'Hauptzähler'):'Zähler';
 function zlSelId(s){const act=zlAct(s),z=act.find(z=>z.id===S.zlSel)||act[0];return z?z.id:''}
 const rowZid=(s,r)=>{const act=zlAct(s),z=act.find(z=>String(z.id)===String(r.zl))||act[0];return z?z.id:''};
-const stepsOf=s=>s&&s.art==='HV'?[...STEPS.slice(0,4),['zaehler','Zähler'],...STEPS.slice(4)]:STEPS;
+const stepsOf=s=>s&&s.art==='HV'?[...STEPS.slice(0,4),['zaehler','Zähler'],...STEPS.slice(4)]:[...STEPS.slice(0,4),['klemmen','Klemmen'],...STEPS.slice(4)];
+/* UV ohne Abgangsklemmen: Kabel direkt an der Sicherung, -X0 bleibt immer */
+const noKl=s=>!!s&&s.art!=='HV'&&planOf(s).klAbg==='nein';
+/* harte Sperre ohne Abgangsklemmen: höchstens 2 Kabel pro Sicherung, alle mit gleichem Querschnitt */
+function klBlock(s){if(!noKl(s))return [];const out=[];(planOf(s).sk||[]).forEach((r,i)=>{if(!(r.name||'').trim())return;const ab=+r.abg||1,nm='«'+r.name.trim()+'»';
+  if(ab>2)out.push(nm+': '+ab+' Kabel an der Sicherung, erlaubt sind höchstens 2.');
+  const nr=(r.relais||[]).length,q0=nr&&!r.relMan?'1.5':(r.qs||''),qs=[q0,...[...Array(Math.max(0,ab-1))].map((_,q)=>{const kb=(r.kab||[])[q+1]||{};return kb.qs||(kb.dir?'1.5':r.qs)||''})];
+  if(ab>1&&new Set(qs.filter(Boolean)).size>1)out.push(nm+': unterschiedliche Querschnitte ('+[...new Set(qs.filter(Boolean))].map(q=>qsTxt(q)+' mm²').join(', ')+') an einer Sicherung sind ohne Klemmen nicht erlaubt.')});return out}
+const blockHTML=s=>{const b=klBlock(s);return b.length?`<div class="msg err"><b>Plan gesperrt (ohne Abgangsklemmen):</b> ${b.map(esc).join(' ')} Zuerst korrigieren, vorher kann nicht weitergeplant, gespeichert oder gedruckt werden.</div>`:''};
 const zlSkip=s=>s.geb!=='MFH'&&planOf(s).zl.length<2;
 function stepNext(s,k){const ST=stepsOf(s),i=ST.findIndex(x=>x[0]===k);let n=ST[Math.min(i+1,ST.length-1)][0];if(n==='zaehler'&&zlSkip(s))n='stromkreise';return n}
 function stepPrev(s,k){const ST=stepsOf(s),i=ST.findIndex(x=>x[0]===k);if(i<=0)return null;let n=ST[i-1][0];if(n==='zaehler'&&zlSkip(s))n='zuleitung';return n}
@@ -628,7 +636,7 @@ const KL={
   'BRRT':{art:'Steckbrücke 5 mm 10L rot',nr:'158 909 125',mm:0,net:3.40,bru:4.85},
   'BRBU':{art:'Steckbrücke 5 mm 10L blau',nr:'158 909 155',mm:0,net:3.61,bru:5.15}};
 /* Klemmen der Abgänge -X1 zählen: L/T/LA/Reserve grau, N blau, PE grün/gelb. Über 4 mm² folgt ein eigener Typ */
-function klAbg(s){const L=skLayout(s),c={Q:0,QBU:0,QPE:0,PT6T:0,PT6TBU:0,PT6TPE:0,big:0};
+function klAbg(s){if(noKl(s))return null;const L=skLayout(s),c={Q:0,QBU:0,QPE:0,PT6T:0,PT6TBU:0,PT6TPE:0,big:0};
   /* pro Klemmengruppe (Hutschiene bzw. Zähler) merken, ob PT 6-TWIN dabei ist: dann Deckel D-PT 6-TWIN statt Trennplatte am Ende */
   const g6=new Set(),gm={},gb={};let gk='';
   const add=(cond,res,qs)=>{const mx=Math.max(0,...qs.map(q=>q?qsNum(q):0));if(mx>10){c.big+=cond.length+res;gb[gk]=1;return}const t=mx>4?['PT6T','PT6TBU','PT6TPE']:['Q','QBU','QPE'];if(mx>4)g6.add(gk);gm[gk]=(gm[gk]||0)+(cond.length+res)*KL[t[0]].mm;cond.forEach(cn=>c[cn==='N'?t[1]:cn==='PE'?t[2]:t[0]]++);c[t[0]]+=res};
@@ -746,7 +754,7 @@ function skLayout(s){
 }
 const skSorted=s=>skLayout(s).list;
 const stepIdx=k=>stepsOf(S.site).findIndex(x=>x[0]===k);
-function stepOk(pl,k){return {unterlagen:true,hersteller:!!pl.hersteller,gehaeuse:!!pl.gehaeuse&&!!pl.montage,zuleitung:!!pl.qs&&qsNum(pl.qs)<=QS_MAX,stromkreise:(pl.sk||[]).some(r=>(r.name||'').trim())||(pl.zl||[]).length>1,zaehler:(pl.zl||[]).some(z=>!z.res),extras:true}[k]}
+function stepOk(pl,k){return {klemmen:true,unterlagen:true,hersteller:!!pl.hersteller,gehaeuse:!!pl.gehaeuse&&!!pl.montage,zuleitung:!!pl.qs&&qsNum(pl.qs)<=QS_MAX,stromkreise:(pl.sk||[]).some(r=>(r.name||'').trim())||(pl.zl||[]).length>1,zaehler:(pl.zl||[]).some(z=>!z.res),extras:true}[k]}
 function stepper(pl){
   const cur=stepIdx(pl.step);
   const ST=stepsOf(S.site);
@@ -787,6 +795,10 @@ function vPlan(){
       ${up?'<p class="sub">Unterputz gibt es nur als Herstellerverteiler, Alu-Verteiler sind immer AP.</p>':''}
       ${alu?'<div class="msg info">Für den Alu-Verteiler gibt die App am Ende die TE-Anzahl und die Masse der Klemmblöcke für den Verteilerbauer aus.</div>':''}`:''}`;
     }
+  }else if(k==='klemmen'){
+    body=`<h2>Klemmen</h2><p class="sub">Der Zuleitungsklemmblock -X0 ist immer dabei. Sollen die Abgänge der Sicherungen auch über Klemmen gehen?</p>
+    <div class="tiles two-col">${tile('klAbg','ja','Mit Abgangsklemmen','-X1, -X2 … wie gewohnt')}${tile('klAbg','nein','Ohne Abgangsklemmen','Kabel direkt an der Sicherung')}</div>
+    ${pl.klAbg==='nein'?'<div class="msg info">Ohne Abgangsklemmen: höchstens 2 Kabel pro Sicherung und nur gleiche Querschnitte. Sonst wird der Plan gesperrt, bis es korrigiert ist.</div>':''}${blockHTML(p)}`;
   }else if(k==='zuleitung'){
     const big=pl.qs&&qsNum(pl.qs)>QS_MAX,g=hv?guessNB(p):null;
     if(hv&&!pl.nb&&g&&ed){pl.nb=g.name;pl.nbAuto=true}
@@ -843,7 +855,7 @@ function vPlan(){
     </div>`).join('')}</div>
     ${ed?'<div><button type="button" class="btn" data-act="skAdd">+ Stromkreis</button></div>':''}
     ${five?'':'<p class="sub">Bei 3-adriger Zuleitung gibt es nur 1- und 2-polige Sicherungen.</p>'}
-    <p class="sub" id="skInfo">${skInfo(p)}</p>${(()=>{const M=matList(p,'Sonepar');return M.miss.length?`<div class="msg err">Noch nicht hinterlegt: ${M.miss.map(([t,n])=>n+'× '+esc(t)).join(', ')}. Erscheint in der Materialliste ohne Artikelnummer.</div>`:''})()}`;
+    <p class="sub" id="skInfo">${skInfo(p)}</p><div id="blockMsg">${blockHTML(p)}</div>${(()=>{const M=matList(p,'Sonepar');return M.miss.length?`<div class="msg err">Noch nicht hinterlegt: ${M.miss.map(([t,n])=>n+'× '+esc(t)).join(', ')}. Erscheint in der Materialliste ohne Artikelnummer.</div>`:''})()}`;
   }else{
     const n1=(pl.sk||[]).filter(r=>(r.name||'').trim()&&+r.pol<=2&&r.typ==='FILS').length,hs=pl.hersteller||'dem gewählten Hersteller';
     body=`<h2>Extras</h2><p class="sub">Zusätzliche Optionen am Ende der Planung.</p>
@@ -897,8 +909,8 @@ function teBox(s,pl,dis){
   <label class="chk"><input type="checkbox" data-ex="relSame" ${pl.relSame?'checked':''}${dis}> Relais mit auf die Sicherungsschienen setzen, wenn Platz ist</label>
   ${pl.relSame?`<div class="msg err">Relais neben Sicherungen: ${hgr?'bei Hager so keine Phasenschiene möglich.':'Phasenschiene beim Hersteller prüfen.'}</div>`:'<p class="sub">Relais bekommen eine eigene Schiene, auch wenn auf der Sicherungsschiene noch Platz wäre (Reserve für später).</p>'}
   ${(()=>{const z=klZul(s);return `<div class="legend">Klemmen Zuleitung -X0</div>${z?`<table class="te">${z.it.map(x=>row(x.n+'× '+x.art+' <span class="sub">('+x.nr+')</span>',(x.mm*x.n).toFixed(1).replace('.',',')+' mm · '+chf(x.net*x.n)+' CHF')).join('')}${row('Zuleitungsblock -X0',z.mm.toFixed(1).replace('.',',')+' mm · netto '+chf(z.net)+' / brutto '+chf(z.bru)+' CHF','sum')}</table>`:`<p class="sub">Zuleitungsklemmen für ${pl.qs?qsTxt(pl.qs)+' mm²':'diesen Querschnitt'} folgen.</p>`}`})()}
-  ${(()=>{const a=klAbg(s),z0=klZul(s),mmT=(z0?z0.mm:0)+(a?a.mm:0);return `<div class="legend">Klemmen Abgänge ${(()=>{const n=skLayout(s).nX||1;return n>1?'-X1 bis -X'+n+' (je höchstens '+KL_SICH+' Sicherungen)':'-X1'})()}</div>${a?`<table class="te">${a.it.map(x=>row(x.n+'× '+x.art+' <span class="sub">('+x.nr+')</span>',(x.mm?(x.mm*x.n).toFixed(1).replace('.',',')+' mm · ':'')+chf(x.net*x.n)+' CHF')).join('')}${row('Klemmen Abgänge zusammen',a.mm.toFixed(1).replace('.',',')+' mm · netto '+chf(a.net)+' / brutto '+chf(a.bru)+' CHF','sum')}</table>${a.big?`<p class="sub">${a.big} Klemmen für Kabel über 10 mm² folgen (Klemmentyp noch offen).</p>`:''}${a.nb?`<p class="sub">${a.nb} ${a.nb===1?'Sicherung hat':'Sicherungen haben'} mehr als 2 Kabel: Klemmensätze mit Steckbrücke verbunden (pauschal 1 rote und 1 blaue Steckbrücke pro 3 solcher Fälle).</p>`:''}`:'<p class="sub">Noch keine Abgänge.</p>'}
-  ${mmT?`<table class="te">${klStrips(s).filter(k=>k.mm||k.offen).map(k=>row('Breite Klemmenleiste '+k.X,k.offen&&!k.mm?'Klemmentyp folgt':mmTxt(k.mm)+' = '+klTE(k.mm)+' TE'+(k.offen?' + Klemmen folgen':''))).join('')}${row('Klemmen total nebeneinander',mmT.toFixed(1).replace('.',',')+' mm = '+klTE(mmT)+' TE (aufgerundet)','sum')}${row('Preis Klemmen total','netto '+chf((z0?z0.net:0)+(a?a.net:0))+' / brutto '+chf((z0?z0.bru:0)+(a?a.bru:0))+' CHF','sum')}</table><p class="sub">Die Klemmen zählen nicht zur TE-Reserve der Sicherungen.</p>${(()=>{const ks=klStrips(s).filter(k=>k.mm||k.offen),ps=ks.map(k=>klPos(pl,k.X)),mix=new Set(ps).size>1,allU=ps.length&&ps.every(p=>p==='unten');
+  ${(()=>{const a=klAbg(s),z0=klZul(s),mmT=(z0?z0.mm:0)+(a?a.mm:0);return `${noKl(s)?'<p class="sub">Ohne Abgangsklemmen: Die Kabel kommen direkt an die Sicherungen. Nur der Zuleitungsblock -X0 wird gerechnet.</p>':''}<div class="legend"${noKl(s)?' hidden':''}>Klemmen Abgänge ${(()=>{const n=skLayout(s).nX||1;return n>1?'-X1 bis -X'+n+' (je höchstens '+KL_SICH+' Sicherungen)':'-X1'})()}</div>${a?`<table class="te">${a.it.map(x=>row(x.n+'× '+x.art+' <span class="sub">('+x.nr+')</span>',(x.mm?(x.mm*x.n).toFixed(1).replace('.',',')+' mm · ':'')+chf(x.net*x.n)+' CHF')).join('')}${row('Klemmen Abgänge zusammen',a.mm.toFixed(1).replace('.',',')+' mm · netto '+chf(a.net)+' / brutto '+chf(a.bru)+' CHF','sum')}</table>${a.big?`<p class="sub">${a.big} Klemmen für Kabel über 10 mm² folgen (Klemmentyp noch offen).</p>`:''}${a.nb?`<p class="sub">${a.nb} ${a.nb===1?'Sicherung hat':'Sicherungen haben'} mehr als 2 Kabel: Klemmensätze mit Steckbrücke verbunden (pauschal 1 rote und 1 blaue Steckbrücke pro 3 solcher Fälle).</p>`:''}`:(noKl(s)?'':'<p class="sub">Noch keine Abgänge.</p>')}
+  ${mmT?`<table class="te">${klStrips(s).filter(k=>k.mm||k.offen).map(k=>row('Breite Klemmenleiste '+k.X,k.offen&&!k.mm?'Klemmentyp folgt':mmTxt(k.mm)+' = '+klTE(k.mm)+' TE'+(k.offen?' + Klemmen folgen':''))).join('')}${row('Klemmen total nebeneinander',mmT.toFixed(1).replace('.',',')+' mm = '+klTE(mmT)+' TE (aufgerundet)','sum')}${row('Preis Klemmen total','netto '+chf((z0?z0.net:0)+(a?a.net:0))+' / brutto '+chf((z0?z0.bru:0)+(a?a.bru:0))+' CHF','sum')}</table><p class="sub">Die Klemmen zählen nicht zur TE-Reserve der Sicherungen.</p>${(()=>{if(noKl(s))return '';const ks=klStrips(s).filter(k=>k.mm||k.offen),ps=ks.map(k=>klPos(pl,k.X)),mix=new Set(ps).size>1,allU=ps.length&&ps.every(p=>p==='unten');
     if(!S.klPosOpen)return `<p class="sub">Klemmen-Position: ${mix?'aufgeteilt ('+ks.map((k,i)=>k.X+' '+ps[i]).join(', ')+')':allU?'alle unten (unterste Hutschiene)':'alle oben (oberste Hutschiene)'}</p><button type="button" class="btn small" data-act="klPosOpen">Klemmen-Positionen anpassen</button>${mix?'<div class="msg info">Hinweis: Die Klemmen sind oben und unten aufgeteilt. Das braucht mehr Platz im Verteiler: Für die Klemmen unten ist eine eigene Hutschiene eingerechnet.</div>':''}`;
     return `<div class="legend">Klemmen-Positionen</div><div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px"><button type="button" class="btn small" data-act="klPosAll" data-v="o"${dis}>Alle oben</button><button type="button" class="btn small" data-act="klPosAll" data-v="u"${dis}>Alle unten</button><button type="button" class="btn small" data-act="klPosOpen">Fertig</button></div>
     <table class="te">${ks.map(k=>row(k.X+(k.X==='-X0'?' Einspeisung':'')+' <span class="sub">('+(k.mm?mmTxt(k.mm):'folgt')+')</span>',`<select data-klpos="${k.X}"${dis}><option value="o"${klPos(pl,k.X)==='oben'?' selected':''}>oben</option><option value="u"${klPos(pl,k.X)==='unten'?' selected':''}>unten</option></select>`)).join('')}</table>
@@ -936,7 +948,7 @@ function pagesOf(s){
     a.filter(q=>q.kind==='zm').forEach(q=>{const f=q.bl[0].k+1,l=q.bl[q.bl.length-1].k+1;q.sub=(f===l?'Zähler -P'+f+' '+(pl.zl[f-1].name||''):'Zähler -P'+f+' bis -P'+l).trim()});
     a.push({kind:'za',title:s.geb==='MFH'?'Messung Allgemein':'Messung',sub:'-P1 '+(pl.zl[0].name||zlLbl(s,0))})}
   L.pages.forEach(q=>{const fs=q.items.filter(it=>!it.sk).map(it=>it.f),zk=hv?pl.zl.findIndex(z=>z.id===q.zid):-1,zt=zk>=0?'-P'+(zk+1)+(pl.zl[zk].name?' '+pl.zl[zk].name:'')+' · ':'';a.push({kind:'sk',title:'Stromkreise',sub:zt+(fs.length?fs[0]+(fs.length>1?' bis '+fs[fs.length-1]:''):'Relais'),dp:q,zid:q.zid})});
-  if(d.klemmen){const n=(five?5:3)+(hv?pl.zl.length-1+Object.values(L.ext).reduce((a,x)=>a+x.length,0):0)+L.pages.reduce((a,q)=>a+q.items.filter(it=>it.sk?it.k===0:!it.rel.length).reduce((b,it)=>b+(it.sk?it.sk.abgN||1:it.abgN||1),0),0),c=Math.max(1,Math.ceil(n/KL_PER_PAGE));for(let i=0;i<c;i++)a.push({kind:'klemmen',title:'Klemmenliste',sub:sk.length?'-X0 Einspeisung, '+(L.nX>1?'-X1 bis -X'+L.nX:'-X1')+' Abgänge':'Klemmblock -X0',part:i})}
+  if(d.klemmen){const n=(five?5:3)+(hv?pl.zl.length-1+Object.values(L.ext).reduce((a,x)=>a+x.length,0):0)+L.pages.reduce((a,q)=>a+q.items.filter(it=>it.sk?it.k===0:!it.rel.length).reduce((b,it)=>b+(it.sk?it.sk.abgN||1:it.abgN||1),0),0),c=Math.max(1,Math.ceil(n/KL_PER_PAGE));for(let i=0;i<c;i++)a.push({kind:'klemmen',title:'Klemmenliste',sub:sk.length&&!noKl(s)?'-X0 Einspeisung, '+(L.nX>1?'-X1 bis -X'+L.nX:'-X1')+' Abgänge':'Klemmblock -X0',part:i})}
   a.forEach((p,i)=>p.no=i+1);return a;
 }
 function prevIdx(pages){
@@ -948,13 +960,14 @@ function prevIdx(pages){
   return pages.findIndex(p=>p.kind==='einspeisung');
 }
 function schemaPreview(){
+  if(klBlock(S.site).length)return `<aside class="card prev"><h2>Aktuelles Schema</h2>${blockHTML(S.site)}</aside>`;
   const pages=pagesOf(S.site),n=pages.length,i=prevIdx(pages);
   return `<aside class="card prev"><div class="row between"><h2>Aktuelles Schema</h2><button type="button" class="btn small primary" data-act="schema" data-pi="${i}">Gross ansehen</button></div>
     ${n>1?`<div class="ptabs">${pages.map((p,j)=>`<button type="button" class="tab" data-pv="${j}" aria-pressed="${j===i}">${p.no} ${esc(p.title)}</button>`).join('')}</div>`:''}
     <button type="button" class="prevbox" data-act="schema" data-pi="${i}" aria-label="Schema gross ansehen">${schemaSVG(S.site,pages[i])}</button>
     <p class="sub">Wird bei jeder Eingabe mitgezeichnet. Planmappe: ${n} ${n===1?'Blatt':'Blätter'}.</p></aside>`;
 }
-function refreshPreview(){const a=$('aside.prev');if(a)a.outerHTML=schemaPreview();skDecor()}
+function refreshPreview(){const a=$('aside.prev');if(a)a.outerHTML=schemaPreview();const bm=$('#blockMsg');if(bm)bm.innerHTML=blockHTML(S.site);skDecor()}
 function vSchema(){
   const pl=planOf(S.site),pages=pagesOf(S.site);
   if(S.pageIdx==null||S.pageIdx>=pages.length)S.pageIdx=pages.findIndex(p=>p.kind==='einspeisung');
@@ -1040,14 +1053,14 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
       kab2=(cb,t)=>cb.length>1&&cb.every(c=>t(c)===t(cb[0]))?'2 Kabel: '+cb.map(c=>c.w).join(' + ')+' je '+t(cb[0]):(cb.length>1?'2 Kabel: ':'')+cb.map(c=>c.w+' '+t(c)).join(' + ');
     const cond=five?['L1','L2','L3','N','PE']:['L','N','PE'];
     const rows=cond.map((c,i)=>['-X0',String(i+1),c,pl.qs?qsTxt(pl.qs)+' mm²':'offen',col[c],'-W1 Zuleitung',klZulTyp(s)?klZulTyp(s)+(c==='PE'?'-PE':c==='N'?' BU':''):'Klemmentyp folgt'])
-      .concat(LL.pages.flatMap(q=>q.items).filter(it=>it.sk?it.k===0:!it.rel.length).flatMap(r=>r.sk?(()=>{const g=r.sk.rel,last=g[g.length-1],all=g.flatMap(x=>x.cond||[]).concat(Array(last.res||0).fill('Res'));return [[r.X||'-X1',r.kl+'–'+(last.kl+last.cond.length+(last.res||0)-1),('PE '+r.cond[1]+' N · '+g.length+'× T/LA'+(last.res?' · '+last.res+' Res':'')),'1,5 mm²',r.cab===5?'gn-ge br bl sw gr':'gn-ge + nummeriert',(g.map(x=>x.K).join(', ')+' ('+r.sk.f+' '+r.sk.name+')'),kab2(r.cabs||[],c=>c.cab+'×'+qsTxt(c.qs)+(c.dir?' direkt'+(c.ziel?' '+c.ziel:''):''))+(last.res?' · '+last.res+' Res.':'')],...(last.xgrp||[]).map((gp,qi)=>[r.X||'-X1',gp.kl+'–'+(gp.kl+gp.cond.length+gp.res-1),'PE '+r.cond[1]+' N · '+g.length+'× T/LA'+(gp.res?' · '+gp.res+' Res':''),qsTxt(gp.qs)+' mm²','',(g.map(x=>x.K).join(', ')+' ('+r.sk.f+' '+r.sk.name+' '+(qi+2)+'/'+r.sk._sp.P.length+')'),kab2(gp.cabs,c=>c.cab+'×'+qsTxt(c.qs))]),...(last.dgrp||[]).map(gp=>[r.X||'-X1',gp.kl+'–'+(gp.kl+gp.cond.length+gp.res-1),gp.cond.concat(Array(gp.res||0).fill('Res')).join(' '),qsTxt(gp.qs)+' mm²',cols2(gp.cond),r.sk.f+' '+r.sk.name+' direkt ab Sicherung',kab2(gp.cabs,c=>c.cab+'×'+qsTxt(c.qs)+(c.ziel?' '+c.ziel:''))])]})():(r.grp||[{kl:r.kl,res:r.res,cabs:[{w:r.w,adern:r.adern,qs:r.qs}]}]).map((gp,q,A)=>[r.X||'-X1',gp.kl+'–'+(gp.kl+r.cond.length+(gp.res||0)-1),r.cond.concat(Array(gp.res||0).fill('Res')).join(' '),gp.cabs.map(c=>c.qs?qsTxt(c.qs):'?').join(' + ')+' mm²',cols2(r.cond),(r.f+' '+r.name+(A.length>1?' ('+(q+1)+'/'+A.length+')':'')),kab2(gp.cabs,c=>cabTxt(c).replace(' mm²',''))])));
+      .concat((noKl(s)?[]:LL.pages.flatMap(q=>q.items)).filter(it=>it.sk?it.k===0:!it.rel.length).flatMap(r=>r.sk?(()=>{const g=r.sk.rel,last=g[g.length-1],all=g.flatMap(x=>x.cond||[]).concat(Array(last.res||0).fill('Res'));return [[r.X||'-X1',r.kl+'–'+(last.kl+last.cond.length+(last.res||0)-1),('PE '+r.cond[1]+' N · '+g.length+'× T/LA'+(last.res?' · '+last.res+' Res':'')),'1,5 mm²',r.cab===5?'gn-ge br bl sw gr':'gn-ge + nummeriert',(g.map(x=>x.K).join(', ')+' ('+r.sk.f+' '+r.sk.name+')'),kab2(r.cabs||[],c=>c.cab+'×'+qsTxt(c.qs)+(c.dir?' direkt'+(c.ziel?' '+c.ziel:''):''))+(last.res?' · '+last.res+' Res.':'')],...(last.xgrp||[]).map((gp,qi)=>[r.X||'-X1',gp.kl+'–'+(gp.kl+gp.cond.length+gp.res-1),'PE '+r.cond[1]+' N · '+g.length+'× T/LA'+(gp.res?' · '+gp.res+' Res':''),qsTxt(gp.qs)+' mm²','',(g.map(x=>x.K).join(', ')+' ('+r.sk.f+' '+r.sk.name+' '+(qi+2)+'/'+r.sk._sp.P.length+')'),kab2(gp.cabs,c=>c.cab+'×'+qsTxt(c.qs))]),...(last.dgrp||[]).map(gp=>[r.X||'-X1',gp.kl+'–'+(gp.kl+gp.cond.length+gp.res-1),gp.cond.concat(Array(gp.res||0).fill('Res')).join(' '),qsTxt(gp.qs)+' mm²',cols2(gp.cond),r.sk.f+' '+r.sk.name+' direkt ab Sicherung',kab2(gp.cabs,c=>c.cab+'×'+qsTxt(c.qs)+(c.ziel?' '+c.ziel:''))])]})():(r.grp||[{kl:r.kl,res:r.res,cabs:[{w:r.w,adern:r.adern,qs:r.qs}]}]).map((gp,q,A)=>[r.X||'-X1',gp.kl+'–'+(gp.kl+r.cond.length+(gp.res||0)-1),r.cond.concat(Array(gp.res||0).fill('Res')).join(' '),gp.cabs.map(c=>c.qs?qsTxt(c.qs):'?').join(' + ')+' mm²',cols2(r.cond),(r.f+' '+r.name+(A.length>1?' ('+(q+1)+'/'+A.length+')':'')),kab2(gp.cabs,c=>cabTxt(c).replace(' mm²',''))])));
     if(hv)pl.zl.forEach((z,k)=>{if(!k)return;const zf=five&&(z.adern||'5')==='5',c=zf?['L1','L2','L3','N','PE']:['L','N','PE'],X='-X'+(k+1)+'0';
       rows.push([X,'1–'+c.length,c.join(' '),z.qs?qsTxt(z.qs)+' mm²':'offen',zf?'br sw gr bl gn-ge':'br bl gn-ge',(z.res?'-P'+(k+1)+' Reserve':'-P'+(k+1)+' '+(z.name||'')),z.res?'':'Abgang '+(z.ziel||'')]);
       (LL.ext[z.id]||[]).forEach(r=>rows.push([X.slice(0,-1)+'1',r.kl+'–'+(r.kl+r.cond.length+(r.res||0)-1),r.cond.concat(Array(r.res||0).fill('Res')).join(' '),r.qs?qsTxt(r.qs)+' mm²':'offen',cols2(r.cond),(r.f+' '+r.name),r.w+' '+cabTxt(r)]))});
     const part=rows.slice((pg.part||0)*KL_PER_PAGE,((pg.part||0)+1)*KL_PER_PAGE);
     part.forEach((v,i)=>{const y=iy0+120+i*26;v.forEach((t,j)=>{t=String(t);const lim=j===6?36:40,lw=j===6?42:48;if((j===5||j===6)&&t.length>lim){if(t.length<=lw)T(cols[j],y,t,'tk2');else{const ll=wrapTxt(t,lw);[ll[0],ll.slice(1).join(' ')].forEach((u,m)=>T(cols[j],y-5+m*10,u,'tk2'))}}else T(cols[j],y,t,'tk4')});L(ix0+40,y+9,ix1-40,y+9,'fr3')});
     if((pg.part||0)===nParts-1){const ks=klStrips(s).filter(k=>k.mm||k.offen),kt=ks.reduce((a,k)=>a+k.mm,0);T(ix0+40,iy0+120+part.length*26+4,'Klemmenleisten (Breite mit Endhalter + Deckel): '+ks.map(k=>k.X+' '+klPos(pl,k.X)+' '+(k.offen&&!k.mm?'folgt':mmTxt(k.mm))).join(' · ')+' · Total '+mmTxt(kt)+' = '+klTE(kt)+' TE','tb')}
-    if((pg.part||0)===nParts-1)T(ix0+40,iy0+120+part.length*26+24,sk.length?'Abgänge: Phoenix PT 2,5-QUATTRO bis 4 mm², PT 6-TWIN 6 bis 10 mm². Bei «2 Kabel» werden zwei Kabel an denselben Klemmen angeschlossen. Die Masse der Klemmblöcke werden am Ende für den Verteilerbauer ausgegeben.':'Weitere Klemmblöcke folgen mit den Stromkreisen. Die Masse der Klemmblöcke werden am Ende für den Verteilerbauer ausgegeben.','tm');
+    if((pg.part||0)===nParts-1)T(ix0+40,iy0+120+part.length*26+24,noKl(s)?'Ohne Abgangsklemmen: Die Kabel der Stromkreise kommen direkt an die Sicherungen. Die Masse der Klemmblöcke werden am Ende für den Verteilerbauer ausgegeben.':sk.length?'Abgänge: Phoenix PT 2,5-QUATTRO bis 4 mm², PT 6-TWIN 6 bis 10 mm². Bei «2 Kabel» werden zwei Kabel an denselben Klemmen angeschlossen. Die Masse der Klemmblöcke werden am Ende für den Verteilerbauer ausgegeben.':'Weitere Klemmblöcke folgen mit den Stromkreisen. Die Masse der Klemmblöcke werden am Ende für den Verteilerbauer ausgegeben.','tm');
   }else if(pg.kind==='sk'){
     const all=pagesOf(s),pvP=all.find(p=>p.no===pg.no-1),nxt=all.find(p=>p.no===pg.no+1),cont=!!(nxt&&nxt.kind==='sk'&&nxt.zid===pg.zid),LY=skLayout(s),railOf=n=>LY.rails[n-1]||{};
     const zk=hv?pl.zl.findIndex(z=>z.id===pg.zid):-1,zz=zk>=0?pl.zl[zk]:null,pref=String(pg.no-1)+'.9',five=(pl.adern||'5')==='5'&&(!zz||(zz.adern||'5')==='5');
@@ -1061,13 +1074,14 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     T(ix0+10,busY.PE+16,'PE-Schiene','tm');
     const ry=176;
     const yD=232,yD2=296,yK=600,yF=346,yB0=396,yB1=432;
-    T(xs0-8,yK+9,(pg.dp.items[0]||{}).X||'-X1','tb','end');
+    if(!noKl(s))T(xs0-8,yK+9,(pg.dp.items[0]||{}).X||'-X1','tb','end');else T(xs0-8,yK+9,'ohne Klemmen','tm','end');
     const RX={PE:10,N:30},rx=cn=>cn==='PE'?10:cn==='N'?30:/^T/.test(cn)?44:/^LA/.test(cn)?56:20;
     const geo=it=>{if(it.sk){const x0=xs0+it.slot*cw;return {x0,w:cw,c:x0+33,xs:it.cond.map(cn=>x0+rx(cn))}}const x0=xs0+it.slot*cw,w=cw*(it.rel&&it.rel.length?1:(it.span||1)),n=it.cond.length,dx=14,bw=(n-1)*dx,c=x0+cw-bw/2-12;return {x0,w,c,xs:it.cond.map((_,k)=>c+(k-(n-1)/2)*dx)}};
-    let G,nmBot=0;const foot=(it,g)=>{
-      it.cond.forEach((cn,k)=>{const x=g.xs[k];o.push(`<circle class="term" cx="${x}" cy="${yK+3.4}" r="3.4"/>`);T(x,yK+15,String(it.kl+k),'tk','middle');T(x,yK+22,cn,'tk5','middle')});
+    let G,nmBot=0;const nK=noKl(s);const foot=(it,g)=>{
+      if(nK)it.cond.forEach((cn,k)=>T(g.xs[k],yK+12,cn,'tk5','middle'));
+      else it.cond.forEach((cn,k)=>{const x=g.xs[k];o.push(`<circle class="term" cx="${x}" cy="${yK+3.4}" r="3.4"/>`);T(x,yK+15,String(it.kl+k),'tk','middle');T(x,yK+22,cn,'tk5','middle')});
       /* Reserveklemmen für überzählige Adern */
-      for(let q=0;q<(it.res||0);q++){const lx=g.xs[g.xs.length-1],st=it.sk?12:Math.max(10,(g.xs[1]-g.xs[0])||10),x=lx+st*(q+1),nr=it.kl+it.cond.length+q;o.push(`<circle class="term" cx="${x}" cy="${yK+3.4}" r="3.4"/>`);T(x,yK+15,String(nr),'tk','middle');T(x,yK+22,'Res','tk5','middle')}
+      if(!nK)for(let q=0;q<(it.res||0);q++){const lx=g.xs[g.xs.length-1],st=it.sk?12:Math.max(10,(g.xs[1]-g.xs[0])||10),x=lx+st*(q+1),nr=it.kl+it.cond.length+q;o.push(`<circle class="term" cx="${x}" cy="${yK+3.4}" r="3.4"/>`);T(x,yK+15,String(nr),'tk','middle');T(x,yK+22,'Res','tk5','middle')}
       if(it.sk&&it.k>0)return;
       let gw=g.w,gc=g.c;if(it.sk){const grp=it.sk.rel.filter(x=>G.has(x)),lg=G.get(grp[grp.length-1]);gw=lg.x0+lg.w-g.x0;gc=(g.xs[0]+lg.xs[lg.xs.length-1])/2}
       for(let m=0;m<3;m++)L(gc-7,yK+35+m*3,gc+7,yK+30+m*3,'w');
@@ -1084,7 +1098,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
         wrapTxt(tx,Math.max(24,Math.floor(gw/4.6))).forEach((t,m)=>{T((it.sk?gc:g.x0+g.w/2),y2k,t,'tm','middle');nmBot=Math.max(nmBot,y2k);y2k+=9})}};
     G=new Map();items.forEach(it=>G.set(it,geo(it)));
     /* neue Klemmenleiste mitten auf der Seite: Trennstrich (Endhalter + Deckel) und Name der Leiste */
-    items.forEach((it,k)=>{if(!k||it.sk||it.X===items[k-1].X)return;const g=G.get(it.rel&&it.rel.length&&G.has(it.rel[0])?it.rel[0]:it),xl=Math.min(...g.xs)-12;L(xl,yK-22,xl,yK+26,'w');T(xl-4,yK-14,it.X,'tb','end')});
+    items.forEach((it,k)=>{if(nK||!k||it.sk||it.X===items[k-1].X)return;const g=G.get(it.rel&&it.rel.length&&G.has(it.rel[0])?it.rel[0]:it),xl=Math.min(...g.xs)-12;L(xl,yK-22,xl,yK+26,'w');T(xl-4,yK-14,it.X,'tb','end')});
     items.forEach(it=>{
       const g=G.get(it),x0=g.x0,w=g.w,xs=g.xs;
       if(it.sk){ /* Relais nach Vorlage: L und N der Sicherung laufen durch auf die Klemmen und werden von Relais zu Relais gebrückt */
@@ -1471,6 +1485,8 @@ document.addEventListener('submit',async e=>{
 document.addEventListener('click',e=>{
   const t=e.target.closest('button');if(!t)return;
   const act=t.dataset.act;
+  /* harte Sperre ohne Abgangsklemmen: nur Korrigieren erlaubt */
+  if(S.site&&S.screen==='plan'&&klBlock(S.site).length&&(['planNext','saveNow','schema','printSchema','printSchemaOld','print','liste','back','home','toSite'].includes(act)||(t.dataset.step&&!['klemmen','stromkreise'].includes(t.dataset.step))||t.dataset.pv!=null)){const b=$('#blockMsg');if(b){b.innerHTML=blockHTML(S.site);b.scrollIntoView({block:'center'})}return}
   if(t.dataset.seg&&S.site&&canEdit(S.site)){S.site[t.dataset.seg]=t.dataset.v;persistSite();
     t.parentElement.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===t)));if(t.dataset.seg==='art'){const g=$('#gebBox');if(g)g.hidden=t.dataset.v!=='HV'}return}
   if(act==='saveSite'){persistSite();const w=validate(S.site);S.msg=w?{t:'err',m:w}:{t:'ok',m:'Gespeichert.'};$('#bMsg').innerHTML=msgHTML();return}
@@ -1480,7 +1496,7 @@ document.addEventListener('click',e=>{
   if(act==='planNext'){const pl=planOf(S.site),i=stepIdx(pl.step);if(!stepOk(pl,pl.step))return;if(canEdit(S.site)){if(pl.step==='zuleitung'&&S.site.art==='HV'&&pl.nb&&S.site.plz){D.nbMap=D.nbMap||{};D.nbMap[S.site.land+':'+S.site.plz.trim()]=pl.nb}}pl.step=stepNext(S.site,pl.step);if(pl.step==='zaehler'&&S.site.geb==='MFH'&&pl.zl.length<2&&canEdit(S.site))pl.zl.push(zlNew(S.site));if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
   if(act==='planPrev'){const pl=planOf(S.site),pv=stepPrev(S.site,pl.step);if(!pv)return go('baustelle');pl.step=pv;if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
   if(t.dataset.step){const pl=planOf(S.site);pl.step=t.dataset.step;if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
-  if(t.dataset.plv&&S.site&&canEdit(S.site)){const pl=planOf(S.site),k=t.dataset.plv;pl[k]=t.dataset.v;if(k==='montage'&&t.dataset.v==='UP')pl.gehaeuse='hersteller';touchPlan({hersteller:'Hersteller ',gehaeuse:'Gehäuse ',montage:'Montage '}[k]+(k==='gehaeuse'?(t.dataset.v==='alu'?'Alu':'Hersteller'):t.dataset.v));render();return}
+  if(t.dataset.plv&&S.site&&canEdit(S.site)){const pl=planOf(S.site),k=t.dataset.plv;pl[k]=t.dataset.v;if(k==='montage'&&t.dataset.v==='UP')pl.gehaeuse='hersteller';touchPlan(k==='klAbg'?(t.dataset.v==='nein'?'Ohne Abgangsklemmen':'Mit Abgangsklemmen'):{hersteller:'Hersteller ',gehaeuse:'Gehäuse ',montage:'Montage '}[k]+(k==='gehaeuse'?(t.dataset.v==='alu'?'Alu':'Hersteller'):t.dataset.v));render();return}
   if(t.dataset.page){S.pageIdx=+t.dataset.page;render();return}
   if(t.dataset.pv){S.prevSel={step:planOf(S.site).step,idx:+t.dataset.pv};refreshPreview();return}
   if(act==='skAdd'&&S.site&&canEdit(S.site)){skAddRow();return}
