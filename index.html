@@ -242,7 +242,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-23.2316';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-23.2321';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -394,17 +394,22 @@ const rfRooms=pl=>{const h=(pl&&pl.sh)||{};return ((h.fl)||[]).filter(flDone).fl
 const rfAuto=k=>{const L=[];let r=k-3;while(r>24){L.push(27);r-=24}L.push(rfAd(3+r));return L};
 const rfCol=(ad,j)=>j===0?['braun','br']:j===1?['blau','bl']:j===2?['grün-gelb','gn-ge']:ad===5?(j===3?['schwarz','sw']:['grau','gr']):['Ader Nr. '+(j+1),'Nr.'+(j+1)];
 const rfGLbl=(g,G)=>{const nn=g.k==='sp'?(g.n>1?'Spots':'Spot'):(g.n>1?'Lampen':'Lampe'),same=G.filter(x=>x.rid===g.rid&&x.k===g.k).length>1;return g.room+' · '+g.n+' '+nn+(same?' (Gr. '+(g.i+1)+')':'')};
+/* DALI (Tobi 23.11.): hat ein Raum der Sicherung eine DALI-Gruppe (Lampen oder Spots), führt das Kabel immer L, N, PE + DA+ (schwarz) / DA- (grau), erst danach die Schaltdrähte */
+const rfDaliRooms=(pl,rs)=>{const D=loxGroups(pl).filter(g=>g.ctl==='dali');return rs.filter(r=>D.some(g=>g.rid===r.rid)).map(r=>({rid:r.rid,name:r.name.split(' · ').pop()}))};
+const rfDaSrc=pl=>{const h=(pl&&pl.sh)||{};if(h.daliArt==='knx')return 'KNX-DALI-Aktor';const d=loxDev(pl).filter(v=>v.t==='dali');return d.length?d.map(v=>v.name).join(' / '):'DALI-Ansteuerung'};
 const rfList=pl=>{const h=(pl&&pl.sh)||{},M=h.rf||{},R=rfRooms(pl),N=[...new Set(R.map(r=>+M[r.rid]).filter(Boolean))].sort((a,b)=>a-b),RG=loxGroups(pl).filter(g=>g.ctl==='rel'),RD=loxDev(pl).filter(v=>v.t==='rel');
-  return N.map(n=>{const rs=R.filter(r=>+M[r.rid]===n),G=rs.flatMap(r=>r.g),man=((h.rfCab||{})[n]||[]).map(Number).filter(a=>FE0_AD.includes(a)),ads=man.length?man:rfAuto(3+G.length),cabs=ads.map(ad=>({ad,S:[]})),miss=[];
-    const fr=c=>c.ad-3-c.S.length,put=(g,q)=>{const c=cabs[q];if(c&&fr(c)>0){c.S.push(g);return true}const c2=cabs.find(c=>fr(c)>0);if(c2){c2.S.push(g);return true}miss.push(g);return false},SW=(h.rfSw||{})[n]||{},gk=g=>g.rid+'|'+g.k+'|'+g.i,nC=cabs.length;
-    const RG2=rs.filter(r=>r.g.length),SC=cabs.map((c,q)=>c.ad>3?q:-1).filter(q=>q>=0),nS=SC.length||1,U=RG2.length>=nS?RG2.map(r=>r.g):G.map(g=>[g]),auto={};U.forEach((u,j)=>u.forEach(g=>auto[gk(g)]=SC.length?SC[Math.floor(j*nS/U.length)]:0));
+  return N.map(n=>{const rs=R.filter(r=>+M[r.rid]===n),G=rs.flatMap(r=>r.g),man=((h.rfCab||{})[n]||[]).map(Number).filter(a=>FE0_AD.includes(a)),DR=rfDaliRooms(pl,rs),da=DR.length>0,ads=man.length?man:rfAuto(3+(da?2:0)+G.length),cabs=ads.map(ad=>({ad,S:[],da:false})),miss=[];
+    if(da){const sel=man.length&&Array.isArray((h.rfDa||{})[n])?(h.rfDa[n]).map(Number).filter(q=>q>=0&&q<cabs.length):null,dq=sel||[Math.max(0,cabs.findIndex(c=>c.ad>=5))];dq.forEach(q=>cabs[q].da=true)}
+    const fr=c=>c.ad-3-(c.da?2:0)-c.S.length,put=(g,q)=>{const c=cabs[q];if(c&&fr(c)>0){c.S.push(g);return true}const c2=cabs.find(c=>fr(c)>0);if(c2){c2.S.push(g);return true}miss.push(g);return false},SW=(h.rfSw||{})[n]||{},gk=g=>g.rid+'|'+g.k+'|'+g.i,nC=cabs.length;
+    const RG2=rs.filter(r=>r.g.length),SC=cabs.map((c,q)=>fr(c)>0?q:-1).filter(q=>q>=0),nS=SC.length||1,U=RG2.length>=nS?RG2.map(r=>r.g):G.map(g=>[g]),auto={};U.forEach((u,j)=>u.forEach(g=>auto[gk(g)]=SC.length?SC[Math.floor(j*nS/U.length)]:0));
     G.filter(g=>SW[gk(g)]!=null&&+SW[gk(g)]<nC).forEach(g=>put(g,+SW[gk(g)]));G.filter(g=>!(SW[gk(g)]!=null&&+SW[gk(g)]<nC)).forEach(g=>put(g,auto[gk(g)]));
     cabs.forEach(c=>c.S.sort((a,b)=>G.indexOf(a)-G.indexOf(b)));
     let sn=0;const sw=[];
-    cabs.forEach((c,q)=>{c.S=c.S.map((g,j)=>{const ix=RG.findIndex(x=>x.rid===g.rid&&x.k===g.k&&x.i===g.i),d=RD[Math.floor(ix/14)],cl=rfCol(c.ad,3+j),o={id:'S'+(++sn),g,key:g.rid+'|'+g.k+'|'+g.i,room:g.room,lbl:rfGLbl(g,G),A:d?d.name.split(' ')[0]:'-A?',Q:'Q'+(ix%14+1),cab:q,col:cl[0],ck:cl[1]};sw.push(o);return o});
-      c.res=c.ad-3-c.S.length;c.cond=['L','N','PE'].concat(c.S.map(x=>x.id));c.cols=c.cond.map((_,j)=>rfCol(c.ad,j)[1]);c.txt='FE0 '+c.ad+'×1,5';
-      c.rooms=[...new Set(c.S.map(x=>x.room))]});
-    return {n,rooms:rs,G,cabs,sw,miss,ok:!miss.length,man:!!man.length,ad:cabs.reduce((a,c)=>a+c.ad,0),cab:cabs.map(c=>c.txt).join(' + ')}})};
+    cabs.forEach((c,q)=>{const o0=c.da?2:0;c.S=c.S.map((g,j)=>{const ix=RG.findIndex(x=>x.rid===g.rid&&x.k===g.k&&x.i===g.i),d=RD[Math.floor(ix/14)],cl=rfCol(c.ad,3+o0+j),o={id:'S'+(++sn),g,key:g.rid+'|'+g.k+'|'+g.i,room:g.room,lbl:rfGLbl(g,G),A:d?d.name.split(' ')[0]:'-A?',Q:'Q'+(ix%14+1),cab:q,col:cl[0],ck:cl[1]};sw.push(o);return o});
+      c.res=c.ad-3-o0-c.S.length;c.daBad=c.da&&c.ad<5;c.cond=['L','N','PE'].concat(c.da?['DA+','DA-']:[],c.S.map(x=>x.id));c.cols=c.cond.map((_,j)=>rfCol(c.ad,j)[1]);c.txt='FE0 '+c.ad+'×1,5';
+      c.rooms=[...new Set((c.da?DR.map(r=>r.name):[]).concat(c.S.map(x=>x.room)))]});
+    const daMiss=da&&!cabs.some(c=>c.da&&c.ad>=5);
+    return {n,rooms:rs,G,cabs,sw,miss,da,DR,daMiss,daSrc:rfDaSrc(pl),ok:!miss.length&&!daMiss,man:!!man.length,ad:cabs.reduce((a,c)=>a+c.ad,0),cab:cabs.map(c=>c.txt).join(' + ')}})};
 const loxDaliExt=pl=>{const N=loxDaliN(pl),big=Math.floor(N/64),r=N%64,L=[];for(let i=0;i<big;i++)L.push({id:'100200',n:64});if(r)L.push({id:r<=10?'100623':'100200',n:r});return L};
 /* Spots pro Raum (spFl[fid].rn {rid:n}), Schalter pro Raum (h.sw {rid:{typ,n}}); Tree-Geräte pro Tree laufend zählen (max. 50) */
 const SW_T=()=>LOX.filter(o=>o.grp==='Schalter'&&!o.vbase);
@@ -1462,7 +1467,7 @@ const hkvN=h=>Math.max(1,Math.min(12,+h.hkvN||1)),hkvF=h=>{const n=hkvN(h),d=Mat
 /* Stromkreise aus dem Heizsystem, erscheinen automatisch im Schema */
 /* Licht-Sicherungen aus Smart Home -> Stromkreise (ausgegraut wie Heizsystem, Tobi 23.11.); Standard FI/LS 2-polig C13, Kabel aus Schaltdrähten */
 function liSk(s){const pl=planOf(s);if(!loxOn(pl))return [];return rfList(pl).map(x=>{const nm=x.rooms.map(r=>r.name.split(' · ').pop()).join(' + '),fl=[...new Set(x.rooms.map(r=>r.name.split(' · ')[0]))].join(' + ');
-  return {name:fl+' '+nm,pol:'2',char:'C',amp:'13',typ:'FILS',adern:String(x.cabs[0].ad),qs:'1.5',kabAuto:false,relais:[],hz:'li',liSw:x.sw,liC:x.cabs.map(c=>({ad:c.ad,cond:c.cond,cols:c.cols,res:c.res,nm:c.rooms.join(' + ')})),note:''}})}
+  return {name:fl+' '+nm,pol:'2',char:'C',amp:'13',typ:'FILS',adern:String(x.cabs[0].ad),qs:'1.5',kabAuto:false,relais:[],hz:'li',liSw:x.sw,liDa:x.daSrc,liC:x.cabs.map(c=>({ad:c.ad,cond:c.cond,cols:c.cols,res:c.res,nm:c.rooms.join(' + ')})),note:''}})}
 function hzSk(s){const pl=planOf(s),h=pl.hz||{};if(!hzWP(pl))return [];const out=[];
   const fz=(pre,name,note)=>{const d=HZ_DEF[pre]||HZ_DEF.in,g=(x,i)=>(pre+x) in h?h[pre+x]:d[i],op=HZ_OPEN.includes(pre),pol=op?g('Pol',0):(h[pre+'Pol']||d[0]),r={name,pol:pol||'2',char:op?g('Char',1):(h[pre+'Char']||d[1]),amp:op?g('Amp',2):(h[pre+'Amp']||d[2]),typ:op?g('Typ',3):(h[pre+'Typ']||d[3]),note:note||'',kabAuto:true,relais:[],hz:pre};
     if(op){r.kabAuto=false;r.adern=h[pre+'Adern']||'';r.qs=h[pre+'Qs']||'';r.polMiss=!pol;
@@ -1577,11 +1582,12 @@ function shBody(p,pl,dis){const h=shOf(pl);h.q=h.q||{};loxSyncTe(pl);stCleanFl(h
       <div class="rfg">${R.map(r=>{const cur=+h.rf[r.rid]||0;return `<div class="rfr"><span>${esc(r.name)}${r.g.length?` <small>${gN(r.g.length)}</small>`:''}</span><span class="rfb">${Array.from({length:mx},(_,i)=>`<button type="button" class="chp${cur===i+1?' on':''}" data-rfset="${r.rid}:${i+1}"${dis}>${i+1}</button>`).join('')}<button type="button" class="chp" data-rfset="${r.rid}:${mx+1}"${dis}>+ neu</button></span></div>`}).join('')}</div>
       ${R.some(r=>!h.rf[r.rid])?'<div class="msg err">Noch nicht alle Räume einer Sicherung zugewiesen.</div>':''}
       ${L2.map(x=>`<div class="rfc"><div class="rfh"><b>Sicherung ${x.n}</b><small>FI/LS 2P C13 · ${esc(x.rooms.map(r=>r.name.split(' · ').pop()).join(', '))}</small></div>
-        ${x.sw.length?`<table class="rft"><tr><th>Draht</th><th>Lampen</th><th>Relais</th><th>${x.cabs.length>1?'Kabel wählen':'Kabel'}</th></tr>${x.sw.map(v=>`<tr><td><b>${v.id}</b></td><td>${esc(v.lbl)}</td><td>${esc(v.A+' '+v.Q)}</td><td>${x.cabs.length>1?`<span class="rfb">${x.cabs.map((c,q)=>c.ad<=3?'':`<button type="button" class="chp sm${q===v.cab?' on':''}" data-rfsw="${x.n}|${esc(v.key)}|${q}"${dis}>K${q+1}</button>`).join('')}</span><small>${esc(v.ck)}</small>`:esc(v.ck)}</td></tr>`).join('')}</table>`:'<div class="sub">Noch keine Relais-Lampen (unten bei den Lampen festlegen).</div>'}
-        ${x.cabs.map((c,q)=>`<div class="rfk"><div class="rfkh"><b>Kabel ${q+1}</b><span class="rfb">${FE0_AD.map(a=>`<button type="button" class="chp sm${a===c.ad?' on':''}" data-rfcab="${x.n}:${q}:${a}"${dis}>${a}×</button>`).join('')}${x.cabs.length>1?`<button type="button" class="chp sm" data-rfcdel="${x.n}:${q}" title="Kabel entfernen"${dis}>✕</button>`:''}</span></div>
-          <small>FE0 ${c.ad}×1,5: ${c.cond.map((cn,j)=>c.cols[j]+' '+cn).join(' · ')}${c.res?' · '+c.res+' Reserve':''}${c.ad<=3?' · ohne Schaltdraht (eigener Klemmenabgang, z. B. HZV)':''}</small></div>`).join('')}
+        ${x.sw.length?`<table class="rft"><tr><th>Draht</th><th>Lampen</th><th>Relais</th><th>${x.cabs.length>1?'Kabel wählen':'Kabel'}</th></tr>${x.sw.map(v=>`<tr><td><b>${v.id}</b></td><td>${esc(v.lbl)}</td><td>${esc(v.A+' '+v.Q)}</td><td>${x.cabs.length>1?`<span class="rfb">${x.cabs.map((c,q)=>c.ad-3-(c.da?2:0)<=0?'':`<button type="button" class="chp sm${q===v.cab?' on':''}" data-rfsw="${x.n}|${esc(v.key)}|${q}"${dis}>K${q+1}</button>`).join('')}</span><small>${esc(v.ck)}</small>`:esc(v.ck)}</td></tr>`).join('')}</table>`:(x.da?'':'<div class="sub">Noch keine Relais-Lampen (unten bei den Lampen festlegen).</div>')}
+        ${x.da?`<div class="sub" style="margin:4px 0">DALI: ${esc(x.DR.map(r=>r.name).join(', '))} · DA+ / DA- von ${esc(x.daSrc)} (immer vor den Schaltdrähten)</div>`:''}
+        ${x.cabs.map((c,q)=>`<div class="rfk"><div class="rfkh"><b>Kabel ${q+1}</b><span class="rfb">${FE0_AD.map(a=>`<button type="button" class="chp sm${a===c.ad?' on':''}" data-rfcab="${x.n}:${q}:${a}"${dis}>${a}×</button>`).join('')}${x.da&&x.cabs.length>1?`<button type="button" class="chp sm${c.da?' on':''}" data-rfda="${x.n}:${q}" title="Dieses Kabel führt DA+ / DA-"${dis}>DALI</button>`:''}${x.cabs.length>1?`<button type="button" class="chp sm" data-rfcdel="${x.n}:${q}" title="Kabel entfernen"${dis}>✕</button>`:''}</span></div>
+          <small>FE0 ${c.ad}×1,5: ${c.cond.map((cn,j)=>c.cols[j]+' '+cn).join(' · ')}${c.res?' · '+c.res+' Reserve':''}${c.ad<=3?' · ohne Schaltdraht (eigener Klemmenabgang, z. B. HZV)':''}</small>${c.daBad?'<div class="msg err">DALI braucht 2 Adern: mindestens 5×1,5.</div>':''}</div>`).join('')}
         <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><button type="button" class="btn small" data-rfcadd="${x.n}"${dis}>+ Kabel</button>${x.man?`<button type="button" class="btn small" data-rfcstd="${x.n}"${dis}>Standard (1 Kabel)</button>`:'<small class="sub" style="align-self:center">Standard: passendes Kabel automatisch</small>'}</div>
-        ${x.ok?'':`<div class="msg err">Zu wenig Adern: ${x.miss.length} Schaltdr${x.miss.length>1?'ähte haben':'aht hat'} keinen Platz. Grösseres Kabel oder «+ Kabel» wählen.</div>`}</div>`).join('')}`};
+        ${x.daMiss?'<div class="msg err">Kein Kabel führt DA+ / DA-. Bei einem Kabel «DALI» wählen (mind. 5×1,5).</div>':''}${x.miss.length?`<div class="msg err">Zu wenig Adern: ${x.miss.length} Schaltdr${x.miss.length>1?'ähte haben':'aht hat'} keinen Platz. Grösseres Kabel oder «+ Kabel» wählen.</div>`:''}</div>`).join('')}`};
   const swUI=()=>{const D=((h.fl)||[]).filter(flDone);if(!D.length)return '';const T=SW_T().filter(o=>o.id!=='100891'||h.wd==='ja');h.sw=h.sw||{};const wdA=Object.keys(h.sw).reduce((a,rid)=>a+swItems(pl,rid).reduce((b,it)=>b+(it.typ==='100891'?+it.n||0:0),0),0);
     return `<div class="legend" style="margin-top:14px">Schalter (Tree)</div><p class="sub">Pro Raum ein oder mehrere Geräte wählen (z. B. Taster und Tablet), je mit Anzahl. Tree-Geräte zählen wie die Spots zum Tree (max. 50 pro Tree).${T.length?'':' Die Schalter-Typen werden noch eingepflegt.'}</p>${h.wd==='ja'?`<div class="msg ${wdA===(+h.wdN||0)?'info':'err'}">Wall Display: ${wdA} von ${+h.wdN||0} einem Raum zugewiesen.</div>`:''}
       ${D.map(f=>`<div class="pform" style="margin:6px 0"><b>${esc(f.name)}</b>${f.rooms.map(r=>{const IT=swItems(pl,r.id),e=treeOfRoom(pl,f.id,r.id),fr=e?treeFree(e):50;
@@ -2357,7 +2363,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
       const r=it,n=r.cond.length,hasRel=r.rel.length>0;
       if(r.liSw&&r.liSw.length){const xL=xs[0],yJ=yK-120;o.push(`<circle cx="${xL}" cy="${yJ}" r="2" fill="#111"/>`);L(xL,yJ,xL-16,yJ,'w');T(xL-18,yJ-8,'L → Steckbrücke + Litze','tk5','end');T(xL-18,yJ+2,'auf '+r.liSw.map(w=>w.A+' '+w.Q).join(', '),'tk5','end')}
       r.cond.forEach((cn,k)=>{const x=xs[k],cls=bcls(cn),yb=busY[cn];
-        if(/^S\d/.test(cn))return;
+        if(/^(S\d|DA)/.test(cn))return;
         if(hasRel&&cn==='PE')return;
         o.push(`<circle cx="${x}" cy="${yb}" r="2.2" fill="#111"/>`);
         const ntHere=r.nt&&cn==='N',yEnd=hasRel?(k===0?yF:cn==='N'?yF+8:null):yK,y1=yD+6,y2=yD+42,ye=yEnd==null?yD2+30:yEnd;
@@ -2377,7 +2383,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
       }else if(r.liC){const na=r.grp.length,off=r.gsp.map((_,q)=>r.gsp.slice(0,q).reduce((a,b)=>a+b,0)*cw),XQ=r.grp.map((gp,q)=>q?gp.cond.map((_,i)=>x0+off[q]+14+i*14):xs.slice(0,gp.cond.length));
         r.grp.forEach((gp,q)=>{const X=XQ[q];
           if(q)[0,1,2].forEach(k=>{const cn=r.cond[k],cls=bcls(cn),yb=yK-72+k*8,xa=XQ[q-1][k];o.push(`<circle cx="${xa}" cy="${yb}" r="2" fill="#111"/>`);L(xa,yb,X[k],yb,cls);L(X[k],yb,X[k],yK,cls)});
-          gp.cond.forEach((cn,j)=>{if(j<3)return;const x=X[j],sw=r.liSw.find(v=>v.id===cn);if(!sw)return;L(x,yF+24,x,yK,'w');o.push(`<path d="M${x-4} ${yF+32} l4 -8 l4 8" fill="none" stroke="#111" stroke-width="1"/>`);o.push(`<text class="tk5" transform="translate(${x+8} ${busY.PE-6}) rotate(-90)">${esc(sw.A+' '+sw.Q+' · '+sw.ck+' → '+sw.lbl)}</text>`)});
+          gp.cond.forEach((cn,j)=>{if(j<3)return;const x=X[j],sw=r.liSw.find(v=>v.id===cn);if(/^DA/.test(cn)){L(x,yF+24,x,yK,'w');o.push(`<path d="M${x-4} ${yF+32} l4 -8 l4 8" fill="none" stroke="#111" stroke-width="1"/>`);o.push(`<text class="tk5" transform="translate(${x+8} ${busY.PE-6}) rotate(-90)">${esc((r.liDa||'DALI')+' '+cn+' · '+(gp.cols[j]||''))}</text>`);return}if(!sw)return;L(x,yF+24,x,yK,'w');o.push(`<path d="M${x-4} ${yF+32} l4 -8 l4 8" fill="none" stroke="#111" stroke-width="1"/>`);o.push(`<text class="tk5" transform="translate(${x+8} ${busY.PE-6}) rotate(-90)">${esc(sw.A+' '+sw.Q+' · '+sw.ck+' → '+sw.lbl)}</text>`)});
           foot({...r,cond:gp.cond,kl:gp.kl,w:gp.w,adern:gp.adern,qs:gp.qs,res:gp.res,cabs:gp.cabs,name:na>1?(q?'Kabel '+(q+1)+(gp.nm?': '+gp.nm:' Reserve'):r.name+' · Kabel 1'+(gp.nm?': '+gp.nm:'')):r.name},{...g,x0:g.x0+off[q],w:cw*r.gsp[q],xs:X,c:(X[0]+X[X.length-1]+(gp.res||0)*14)/2})});
         if(na>1)T((xs[0]+XQ[1][0])/2+20,yK-30,'Steckbrücke','tm','middle');
       }else{const na=r.grp.length;
@@ -2871,14 +2877,15 @@ document.addEventListener('click',e=>{
   if(t.dataset.dsview!=null){const k2=t.dataset.dsview.replace(/^kx-/,''),o=LOX.find(x=>x.id===t.dataset.dsview)||(KX_STD[k2]&&/^kx-/.test(t.dataset.dsview)?{art:KX_TXT[k2]}:null),L=loxDs(t.dataset.dsview),di=t.dataset.di;showDocs((o?o.art:'')+' · Datenblatt',(di!=null?[L[+di]]:L).filter(Boolean).map(d=>d.key));return}
   if(t.dataset.dsdel!=null&&S.user&&S.user.admin){const id=t.dataset.dsdel,L=loxDs(id);L.splice(+t.dataset.di,1);cfgSet('CFG:loxds:'+id,null,JSON.stringify(L));return}
   if(t.dataset.loxone&&S.site&&canEdit(S.site)){const h=shOf(planOf(S.site));h.q=h.q||{};const o=LOX.find(x=>x.id===t.dataset.loxone);if(!o)return;const was=h.q[o.id]>0;LOX.filter(x=>x.grp===o.grp).forEach(x=>delete h.q[x.id]);if(!was)h.q[o.id]=1;if(o.grp==='Spannungsversorgung'&&(!LOX_PS[o.id]||!LOX_PS[o.id].big)){delete h.nb;delete h.nbArt}touchPlan('Loxone '+o.grp+' '+(was?'abgewählt':o.art));persistSite();render();return}
-  if((t.dataset.rfsw||t.dataset.rfset||t.dataset.rfcab||t.dataset.rfcadd||t.dataset.rfcdel||t.dataset.rfcstd)&&S.site&&canEdit(S.site)){const pl2=planOf(S.site),h=shOf(pl2);h.rf=h.rf||{};h.rfCab=h.rfCab||{};
+  if((t.dataset.rfsw||t.dataset.rfset||t.dataset.rfcab||t.dataset.rfcadd||t.dataset.rfcdel||t.dataset.rfcstd||t.dataset.rfda)&&S.site&&canEdit(S.site)){const pl2=planOf(S.site),h=shOf(pl2);h.rf=h.rf||{};h.rfCab=h.rfCab||{};
     const cur=n=>{const x=rfList(pl2).find(y=>y.n===n);return x?x.cabs.map(c=>c.ad):[5]};
-    if(t.dataset.rfset){const [rid,n]=t.dataset.rfset.split(':');h.rf[rid]=+n;const U=[...new Set(Object.values(h.rf))].sort((a,b)=>a-b),C={};Object.keys(h.rf).forEach(k=>h.rf[k]=U.indexOf(h.rf[k])+1);const W={};U.forEach((o,i)=>{if(h.rfCab[o])C[i+1]=h.rfCab[o];if(h.rfSw&&h.rfSw[o])W[i+1]=h.rfSw[o]});h.rfCab=C;h.rfSw=W}
+    if(t.dataset.rfset){const [rid,n]=t.dataset.rfset.split(':');h.rf[rid]=+n;const U=[...new Set(Object.values(h.rf))].sort((a,b)=>a-b),C={};Object.keys(h.rf).forEach(k=>h.rf[k]=U.indexOf(h.rf[k])+1);const W={},DA={};U.forEach((o,i)=>{if(h.rfCab[o])C[i+1]=h.rfCab[o];if(h.rfSw&&h.rfSw[o])W[i+1]=h.rfSw[o];if(h.rfDa&&h.rfDa[o])DA[i+1]=h.rfDa[o]});h.rfCab=C;h.rfSw=W;h.rfDa=DA}
     else if(t.dataset.rfcab){const [n,q,a]=t.dataset.rfcab.split(':').map(Number),L=cur(n);L[q]=a;h.rfCab[n]=L}
-    else if(t.dataset.rfcadd){const n=+t.dataset.rfcadd,x=rfList(pl2).find(y=>y.n===n),L=cur(n);/* Kabel ohne Schaltdraht (z. B. HZV nicht abschlaufbar) = 3×1,5 (Tobi 23.11.) */L.push(x&&!x.miss.length?3:5);h.rfCab[n]=L}
-    else if(t.dataset.rfcdel){const [n,q]=t.dataset.rfcdel.split(':').map(Number),L=cur(n);L.splice(q,1);h.rfCab[n]=L;const M2=(h.rfSw||{})[n];if(M2)Object.keys(M2).forEach(k=>{if(M2[k]===q)delete M2[k];else if(M2[k]>q)M2[k]--})}
+    else if(t.dataset.rfda){const [n,q]=t.dataset.rfda.split(':').map(Number),x=rfList(pl2).find(y=>y.n===n);h.rfCab[n]=cur(n);h.rfDa=h.rfDa||{};const D=new Set(x?x.cabs.map((c,i)=>c.da?i:-1).filter(i=>i>=0):[]);if(D.has(q))D.delete(q);else D.add(q);h.rfDa[n]=[...D].sort()}
+    else if(t.dataset.rfcadd){const n=+t.dataset.rfcadd,x=rfList(pl2).find(y=>y.n===n),L=cur(n);if(x&&x.da){h.rfDa=h.rfDa||{};h.rfDa[n]=x.cabs.map((c,i)=>c.da?i:-1).filter(i=>i>=0)}/* Kabel ohne Schaltdraht (z. B. HZV nicht abschlaufbar) = 3×1,5 (Tobi 23.11.) */L.push(x&&!x.miss.length?3:5);h.rfCab[n]=L}
+    else if(t.dataset.rfcdel){const [n,q]=t.dataset.rfcdel.split(':').map(Number),L=cur(n);L.splice(q,1);h.rfCab[n]=L;if(h.rfDa&&h.rfDa[n])h.rfDa[n]=h.rfDa[n].filter(i=>i!==q).map(i=>i>q?i-1:i);const M2=(h.rfSw||{})[n];if(M2)Object.keys(M2).forEach(k=>{if(M2[k]===q)delete M2[k];else if(M2[k]>q)M2[k]--})}
     else if(t.dataset.rfsw){const [n,rid,k,i,q]=t.dataset.rfsw.split('|');h.rfSw=h.rfSw||{};(h.rfSw[n]=h.rfSw[n]||{})[rid+'|'+k+'|'+i]=+q}
-    else{delete h.rfCab[+t.dataset.rfcstd];if(h.rfSw)delete h.rfSw[+t.dataset.rfcstd]}
+    else{delete h.rfCab[+t.dataset.rfcstd];if(h.rfSw)delete h.rfSw[+t.dataset.rfcstd];if(h.rfDa)delete h.rfDa[+t.dataset.rfcstd]}
     touchPlan('Raum-Sicherungen angepasst');persistSite();render();return}
   if((t.dataset.stadd||t.dataset.stdel!=null)&&S.site&&canEdit(S.site)){const pl2=planOf(S.site),h=shOf(pl2);h.stR=stItems(pl2).map(x=>({...x}));if(t.dataset.stadd)h.stR.push({rid:'',n:0});else h.stR.splice(+t.dataset.stdel,1);touchPlan('Stellantriebe angepasst');persistSite();render();return}
   if(t.dataset.swcol&&S.site&&canEdit(S.site)){const pl2=planOf(S.site),h=shOf(pl2),[rid,i,v]=t.dataset.swcol.split(':');h.sw=h.sw||{};const c=h.sw[rid]=h.sw[rid]||{};c.items=swItems(pl2,rid).slice();delete c.typ;delete c.n;const it=c.items[+i]=c.items[+i]||{typ:'',n:0};it.typ=v;touchPlan('Schalter angepasst');persistSite();render();return}
