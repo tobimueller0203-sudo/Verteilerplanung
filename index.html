@@ -790,7 +790,7 @@ function busPlan(s,L,fresh,noFix){
     const m={e:1,t:'Hutschiene '+e.a+'–'+e.b+': Etagenschiene nicht möglich ('+e.why.join('; ')+'). Im Moment '+lz+'.',fix:[]};
     if(!noFix){const sim=f=>{const s2=JSON.parse(JSON.stringify(s));f(planOf(s2));const B2=busPlan(s2,null,false,true);return B2.ets.filter(x=>x.on).length>nOn};
       if(sim(p2=>{p2.x0Side=x0Side(p2)==='l'?'r':'l'}))m.fix.push({k:'x0',lbl:'-X0 nach '+(side==='l'?'rechts':'links')+' setzen'});
-      [...new Set([e.cat.src,e.cat.bare,e.cat.typ].filter(Boolean))].forEach(no=>{const rl=L.rails[no-1];if(!rl||rl.nt||rl.rel)return;const tp=[...rl.items].reverse().find(x=>!x.sk);if(!tp)return;
+      [...new Set([e.cat.src,e.cat.bare,e.cat.typ].filter(Boolean))].forEach(no=>{const rl=L.rails[no-1];if(!rl||rl.nt||rl.rel)return;const tp=[...rl.items].reverse().find(x=>!x.sk&&!x.hz);if(!tp)return;
         const te=tp.te||1;for(let n=1;n*te<=RAIL_TE-rl.used;n++){if(sim(p2=>{const o=p2.sk[tp.i];for(let q=0;q<n;q++){const r={zl:o.zl,pol:o.pol,char:o.char,amp:o.amp,typ:o.typ,adern:o.adern||'',qs:o.qs||'',kabAuto:true,name:'Reserve'};autoKab(r);p2.sk.push(r)}})){m.fix.push({k:'res',no,i:tp.i,n,lbl:'Hutschiene '+no+': '+n+'× Reserve '+(tp.typ==='FILS'?'FI/LS':'LS')+' '+(tp.char||'')+(tp.amp||'')+' dazu'});break}}});
       m.fix.push({k:'lz',no:e.a,lbl:lz+' so lassen'})}
     msgs.push(m)});
@@ -997,7 +997,7 @@ const KL_SICH=6;
 function skLayout(s){
   const pl=planOf(s),five=(pl.adern||'5')==='5';
   const act=zlAct(s);
-  const list=(pl.sk||[]).map((r,i)=>({...r,i})).filter(r=>(r.name||'').trim()).map(r=>{const z=act.find(z=>String(z.id)===String(r.zl))||act[0],zf=five&&(!z||(z.adern||'5')==='5');const ext=s.art==='HV'&&!!z&&z!==act[0];return {...r,zid:z?z.id:0,zi:z?act.indexOf(z):0,zf,ext,relais:ext?[]:r.relais,pol:!zf&&+r.pol>2?'2':r.pol}});
+  const list=(pl.sk||[]).map((r,i)=>({...r,i})).filter(r=>(r.name||'').trim()).concat(hzSk(s).map((r,k)=>({...r,i:10000+k}))).map(r=>{const z=act.find(z=>String(z.id)===String(r.zl))||act[0],zf=five&&(!z||(z.adern||'5')==='5');const ext=s.art==='HV'&&!!z&&z!==act[0];return {...r,zid:z?z.id:0,zi:z?act.indexOf(z):0,zf,ext,relais:ext?[]:r.relais,pol:!zf&&+r.pol>2?'2':r.pol}});
   const b4=pl.big4==='u'?-1:1;list.sort((a,b)=>a.zi-b.zi||b4*((+b.pol>=3)-(+a.pol>=3))||(+b.pol)-(+a.pol)||a.i-b.i);
   let ph=0,phz=null;
   const res=pl.resOff?0:Math.max(10,+pl.resPct||10)/100,cap=RAIL_TE;
@@ -1045,34 +1045,53 @@ function skLayout(s){
 const skSorted=s=>skLayout(s).list;
 const stepIdx=k=>stepsOf(S.site).findIndex(x=>x[0]===k);
 function stepOk(pl,k){return {heizung:true,verteiler:true,schienen:true,klemmen:true,unterlagen:true,hersteller:!!pl.hersteller,gehaeuse:!!pl.gehaeuse&&!!pl.montage,zuleitung:!!pl.qs&&qsNum(pl.qs)<=QS_MAX,stromkreise:(pl.sk||[]).some(r=>(r.name||'').trim())||(pl.zl||[]).length>1,zaehler:(pl.zl||[]).some(z=>!z.res),extras:true}[k]}
-/* Heizsystem (Tobi 23.11.): vorerst nur Fragen, noch nichts automatisch ins Schema */
+/* Heizsystem (Tobi 23.11.): Fragen; Sicherungen der Wärmepumpe kommen automatisch ins Schema (Schütz-Steuerung folgt) */
 const HZ_ART=[['wp-fbh','Wärmepumpe','über Fussbodenheizung'],['wp-hk','Wärmepumpe','über Heizkörper'],['gas','Gasheizung',''],['andere','Anderes','']];
 const hzOf=pl=>pl.hz||(pl.hz={});
 const hzWP=pl=>{const h=pl.hz||{};return h.vorh==='ja'&&/^wp/.test(h.art||'')};
-const HZ_RX=/w(ä|ae)rme ?pumpe|\bwp\b|boiler|puffer|innen ?(einheit|station|ger(ä|ae)t|teil)|au(ss|ß)en ?(einheit|ger(ä|ae)t|teil)|heizstab|warmwasserspeicher/i;
+const HZ_RX=/w(ä|ae)rme ?pumpe|\bwp\b|boiler|puffer|innen ?(einheit|station|ger(ä|ae)t|teil)|au(ss|ß)en ?(einheit|ger(ä|ae)t|teil)|heizstab|warmwasserspeicher|heizkreis|hkv/i;
+const HZ_DEF={au:['3','C','16','LS'],in:['2','C','13','FILS'],puf:['3','C','13','LS'],boi:['2','C','13','FILS']};
+const hzJa=(h,k)=>(h[k]||'ja')==='ja';
+const hkvN=h=>Math.max(1,Math.min(12,+h.hkvN||1)),hkvF=h=>{const n=hkvN(h),d=Math.ceil(n/2),f=+h.hkvF||d;return Math.max(1,Math.min(n,f))};
+/* Stromkreise aus dem Heizsystem, erscheinen automatisch im Schema */
+function hzSk(s){const pl=planOf(s),h=pl.hz||{};if(!hzWP(pl))return [];const out=[];
+  const fz=(pre,name,note)=>{const d=HZ_DEF[pre]||HZ_DEF.in,r={name,pol:h[pre+'Pol']||d[0],char:h[pre+'Char']||d[1],amp:h[pre+'Amp']||d[2],typ:h[pre+'Typ']||d[3],note:note||'',kabAuto:true,relais:[],hz:pre};autoKab(r);return r};
+  const kw=h.kw?String(h.kw).replace('.',',')+' kW':'';
+  if(hzJa(h,'au'))out.push(fz('au','Wärmepumpe Ausseneinheit',kw));
+  if(hzJa(h,'in'))out.push(fz('in','Wärmepumpe Inneneinheit',hzJa(h,'au')?'':kw));
+  if(h.puf==='ja'&&h.pufHs==='ja')out.push(fz('puf','Heizstab Pufferspeicher',h.pufKw?String(h.pufKw).replace('.',',')+' kW':''));
+  if(h.boiHs==='ja')out.push(fz('boi','Heizstab Boiler',h.boiKw?String(h.boiKw).replace('.',',')+' kW':''));
+  if(h.art==='wp-fbh'){const n=hkvN(h),f=hkvF(h),per=Math.ceil(n/f);
+    for(let q=0;q<f;q++){const ids=[];for(let k=q*per;k<Math.min(n,(q+1)*per);k++)ids.push(k);if(!ids.length)continue;
+      const loc=ids.map(k=>[h['hkvG'+k],h['hkvZ'+k]].filter(Boolean).join(' ')||'HKV '+(k+1)).join(', ');
+      const r={name:'Heizkreisverteiler '+loc,pol:'2',char:'C',amp:'13',typ:'FILS',note:'automatisch (Fussbodenheizung)',kabAuto:true,relais:[],hz:'hkv'};autoKab(r);out.push(r)}}
+  return out}
 function hzBody(p,pl,dis){const h=hzOf(pl);
-  const tl=(key,val,label,sub)=>`<button type="button" class="tile" data-hz="${key}" data-v="${esc(val)}" aria-pressed="${h[key]===val}"${dis}><b>${esc(label)}</b>${sub?`<span>${esc(sub)}</span>`:''}</button>`;
-  const jn=(key,q,sub)=>`<div class="legend">${q}${sub?` <span class="hint">${sub}</span>`:''}</div><div class="tiles two-col">${tl(key,'ja','Ja')}${tl(key,'nein','Nein')}</div>`;
+  const tl=(key,val,label,sub,off)=>`<button type="button" class="tile" data-hz="${key}" data-v="${esc(val)}" aria-pressed="${h[key]===val}"${off?' disabled':dis}><b>${esc(label)}</b>${sub?`<span>${esc(sub)}</span>`:''}</button>`;
+  const jn=(key,q,off)=>`<div class="legend">${q}</div><div class="tiles two-col">${tl(key,'ja','Ja','',off)}${tl(key,'nein','Nein','',off)}</div>`;
   const sel=(key,list,def,label)=>`<label class="m"><span>${label}</span><select data-hz="${key}"${dis}>${opt(list,h[key]||def)}</select></label>`;
-  const fuse=pre=>`<div class="sk2">${sel(pre+'Pol',POL,pre==='au'?'3':'1',"Polzahl")}${sel(pre+'Char',CHAR,'C','Char.')}${sel(pre+'Amp',AMP,pre==='au'?'16':'13','Strom')}${sel(pre+'Typ',TYP,pre==='au'?'LS':'FILS','Typ')}</div>`;
-  const kw=(key,label,ph)=>`<label class="f" style="max-width:260px">${label}<input data-hz="${key}" inputmode="decimal" value="${esc(h[key]||'')}" placeholder="${ph}" autocomplete="off"${dis}></label>`;
-  let b=`<h2>Heizsystem</h2><p class="sub">Gibt es ein Heizsystem, das über diesen Verteiler läuft? Vorerst werden nur die Angaben gesammelt, ins Schema kommt noch nichts automatisch.</p>`+jn('vorh','Heizsystem vorhanden?');
+  const fuse=pre=>{const d=HZ_DEF[pre];return `<div class="sk2">${sel(pre+'Pol',POL,d[0],'Polzahl')}${sel(pre+'Char',CHAR,d[1],'Char.')}${sel(pre+'Amp',AMP,d[2],'Strom')}${sel(pre+'Typ',TYP,d[3],'Typ')}</div>`};
+  const inp=(key,label,ph,w)=>`<label class="f" style="max-width:${w||260}px">${label}<input data-hz="${key}" value="${esc(h[key]||'')}" placeholder="${ph}" autocomplete="off"${dis}></label>`;
+  let b=`<h2>Heizsystem</h2><p class="sub">Gibt es ein Heizsystem, das über diesen Verteiler läuft? Die Sicherungen der Wärmepumpe kommen automatisch ins Schema.</p>`+jn('vorh','Heizsystem vorhanden?');
   if(h.vorh!=='ja')return b;
   b+=`<div class="legend">Welches Heizsystem?</div><div class="tiles">${HZ_ART.map(a=>tl('art',a[0],a[1],a[2])).join('')}</div>`;
-  if(h.art==='andere')b+=`<label class="f" style="max-width:460px">Welches?<input data-hz="artTxt" value="${esc(h.artTxt||'')}" placeholder="z. B. Pellets, Fernwärme" autocomplete="off"${dis}></label>`;
+  if(h.art==='andere')b+=inp('artTxt','Welches?','z. B. Pellets, Fernwärme',460);
   if(h.art==='gas'||h.art==='andere')return b+`<div class="msg info">Für ${h.art==='gas'?'die Gasheizung':'dieses Heizsystem'} folgen die Fragen später. Die Stromkreise trägst du wie gewohnt im nächsten Schritt ein.</div>`;
   if(!hzWP(pl))return b;
   if(h.au==null)h.au='ja';if(h.in==null)h.in='ja';
-  b+=`<div class="legend">Wärmepumpe</div>${kw('kw','Leistung Wärmepumpe (kW)','z. B. 8')}<p class="sub" style="margin-top:4px">Freiwillig. Leer lassen, wenn die Leistung noch nicht bekannt ist.</p>`;
-  b+=jn('au','Braucht die Aussen­einheit eine Sicherung?','im Normalfall ja');if((h.au||'ja')==='ja')b+=fuse('au');
-  b+=jn('in','Braucht die Innen­einheit eine Sicherung?','im Normalfall ja');if((h.in||'ja')==='ja')b+=fuse('in');
+  b+=`<div class="legend">Wärmepumpe</div>${inp('kw','Leistung Wärmepumpe (kW)','z. B. 8')}<p class="sub" style="margin-top:4px">Freiwillig. Steht im Schema neben der Sicherung. Leer lassen, wenn noch nicht bekannt.</p>`;
+  b+=jn('au','Eigene Sicherung für die Ausseneinheit?');if(hzJa(h,'au'))b+=fuse('au');
+  b+=jn('in','Eigene Sicherung für die Inneneinheit?');if(hzJa(h,'in'))b+=fuse('in');
   b+=jn('puf','Gibt es einen Pufferspeicher?');
-  if(h.puf==='ja'){b+=jn('pufHs','Hat der Pufferspeicher einen Heizstab?','wird separat abgesichert');if(h.pufHs==='ja')b+=kw('pufKw','Leistung Heizstab Puffer (kW)','z. B. 6')+fuse('puf')}
-  b+=jn('boi','Gibt es einen Boiler?');
-  if(h.boi==='ja'){b+=jn('boiHs','Hat der Boiler einen Heizstab?','wird separat abgesichert');if(h.boiHs==='ja')b+=kw('boiKw','Leistung Heizstab Boiler (kW)','z. B. 3')+fuse('boi')}
-  if((h.puf==='ja'&&h.pufHs==='ja')||(h.boi==='ja'&&h.boiHs==='ja')){
-    b+=jn('sch','Laufen die Heizstäbe über einen Schütz?','Tag/Nacht-Steuerung');
-    if(h.sch==='ja')b+=`<div class="legend">Wie wird der Schütz gesteuert?</div><div class="tiles two-col">${tl('st','tarif','Tarifsteuerung','über das Signal vom Netzbetreiber')}${tl('st','hand','Hand-0-Automatik','über den Tag/Nacht-Tarif')}</div>`}
+  if(h.puf==='ja'){b+=jn('pufHs','Hat der Pufferspeicher einen Heizstab?');if(h.pufHs==='ja')b+=inp('pufKw','Leistung Heizstab Puffer (kW)','z. B. 6')+fuse('puf')}
+  b+=jn('boiHs','Hat der Boiler einen Heizstab?');if(h.boiHs==='ja')b+=inp('boiKw','Leistung Heizstab Boiler (kW)','z. B. 3')+fuse('boi');
+  if(h.art==='wp-fbh'){const n=hkvN(h),d=Math.ceil(n/2),f=hkvF(h);
+    b+=`<div class="legend">Heizkreisverteiler (Fussbodenheizung)</div><div class="msg info">Pro 2 Heizkreisverteiler kommt automatisch eine Sicherung C13 FI/LS ins Schema.</div>
+    <label class="f" style="max-width:260px">Wie viele Heizkreisverteiler?<select data-hz="hkvN"${dis}>${opt([...Array(12)].map((_,k)=>[String(k+1),String(k+1)]),String(n))}</select></label>
+    ${[...Array(n)].map((_,k)=>`<div class="grid" style="align-items:end"><label class="f c3">HKV ${k+1} · Geschoss<input data-hz="hkvG${k}" value="${esc(h['hkvG'+k]||'')}" placeholder="z. B. EG" autocomplete="off"${dis}></label><label class="f c3">Zimmer<input data-hz="hkvZ${k}" value="${esc(h['hkvZ'+k]||'')}" placeholder="z. B. Technik" autocomplete="off"${dis}></label></div>`).join('')}
+    <label class="f" style="max-width:360px">Anzahl Sicherungen für die Heizkreisverteiler<select data-hz="hkvF"${dis}>${opt([...Array(n)].map((_,k)=>[String(k+1),(k+1)+(k+1===d?' (Standard)':'')]),String(f))}</select></label>`}
+  b+=`<div class="legend">Laufen die Heizstäbe über einen Schütz? <span class="hint">folgt</span></div><div class="tiles two-col">${tl('sch','ja','Ja','',1)}${tl('sch','nein','Nein','',1)}</div><p class="sub">Tag/Nacht- bzw. Schützsteuerung wird noch nicht im Plan umgesetzt. Kommt später.</p>`;
+  const L=hzSk(p);if(L.length)b+=`<div class="msg info"><b>Kommt automatisch ins Schema:</b><br>${L.map(r=>esc(r.name)+' · '+r.pol+'-polig '+r.char+r.amp+' '+(r.typ==='FILS'?'FI/LS':'LS')+(r.note&&!/^automatisch/.test(r.note)?' · '+esc(r.note):'')).join('<br>')}</div>`;
   return b}
 function stepper(pl){
   const cur=stepIdx(pl.step);
@@ -1162,7 +1181,7 @@ function vPlan(){
     const sel=(key,list,r,label)=>`<label class="m"><span>${label}</span><select data-sk="${key}"${dis}>${opt(list,r[key]||'')}</select></label>`;
     body=`<h2>Stromkreise</h2>${zlA.length>1?`<label class="f" style="max-width:460px">Zähler<select data-zsel="1">${zlA.map(z=>`<option value="${z.id}"${z.id===zsel?' selected':''}>-P${pl.zl.indexOf(z)+1} ${esc(z.name||zlLbl(p,pl.zl.indexOf(z)))}${pl.zl.indexOf(z)===0?' ('+zlLbl(p,0)+')':''}</option>`).join('')}</select></label>
     <div class="msg info">${zMain?'Stromkreise hinter dem '+zlLbl(p,0)+', zum Beispiel Lift oder Technikraum. Sie kommen auf eigene Seiten im Plan.':'Sicherungen direkt beim Zähler -P'+(pl.zl.indexOf(zO)+1)+' '+esc(zO.name||'')+', zum Beispiel für den Keller. Jede bekommt einen eigenen Klemmenabgang neben dem Abgang zur Wohnung.'}</div>
-    ${!zMain&&nExt>ZM_EXT_MAX?`<div class="msg err">Pro Zähler passen höchstens ${ZM_EXT_MAX} Sicherungen auf das Zählerblatt.</div>`:''}`:''}${hzWP(pl)?'<div class="msg info">Wärmepumpe gewählt: Wärmepumpe, Innen-/Ausseneinheit, Pufferspeicher, Boiler und Heizstäbe werden im Schritt «Heizsystem» separat eingetragen, nicht hier.</div>':''}<p class="sub">Zeile für Zeile eintragen, zum Beispiel «Backofen». Die Reihenfolge ist egal: Im Schema stehen 4- und 3-polige Sicherungen immer zuerst, danach 2- und 1-polige. Pro Hutschiene gibt es 12 TE.</p>
+    ${!zMain&&nExt>ZM_EXT_MAX?`<div class="msg err">Pro Zähler passen höchstens ${ZM_EXT_MAX} Sicherungen auf das Zählerblatt.</div>`:''}`:''}${(()=>{if(!hzWP(pl))return '';const A=skLayout(p).list.filter(x=>x.hz);return '<div class="msg info"><b>Aus Schritt '+(stepIdx('heizung')+1)+' Heizsystem, automatisch im Schema:</b><br>'+A.map(x=>x.f+' '+esc(x.name)+' · '+x.char+x.amp+' '+(x.typ==='FILS'?'FI/LS':'LS')).join('<br>')+'<br><span class="sub">Ändern im Schritt Heizsystem. Wärmepumpe, Boiler und Puffer nicht hier eintragen.</span></div>'})()}<p class="sub">Zeile für Zeile eintragen, zum Beispiel «Backofen». Die Reihenfolge ist egal: Im Schema stehen 4- und 3-polige Sicherungen immer zuerst, danach 2- und 1-polige. Pro Hutschiene gibt es 12 TE.</p>
     <div class="skrows" id="skRows">${pl.sk.map((r,j)=>!vis(r)?'':`<div class="sk" data-i="${j}">
       <div class="sk1"><input data-sk="name" value="${esc(r.name)}" placeholder="z. B. Backofen" aria-label="Bezeichnung Stromkreis ${j+1}" autocomplete="off"${dis}>
         <span class="tag skt" id="skt-${j}"></span>
@@ -1264,7 +1283,7 @@ function skDecor(){
       if(x.rel.length){const lr=x.rel[x.rel.length-1];h.push('<span class="nt">'+x.rel.map(k=>k.K+' '+relInfo(k.t)[1]).join(', ')+' neben der Sicherung, '+(x.abgN>1?x.abgN+' Abgänge, Abgang 1 ':'ein Kabel ')+lr.cab+'×'+qsTxt(lr.qs||'1.5')+(x.relMan||x.abgN>1?' (von Hand)':' (automatisch)')+', L und N gebrückt'+(lr.res?', '+lr.res+(lr.res===1?' Reserveklemme':' Reserveklemmen'):'')+'</span>')}
       else if(x.res)h.push('<span class="nt">Kabel hat '+x.res+(x.res===1?' Ader':' Adern')+' mehr als nötig: '+x.res+(x.res===1?' Reserveklemme':' Reserveklemmen')+'</span>');
       if(rl.rel)h.push('<span class="warn">Hutschiene '+rl.no+': Relais mit auf der Sicherungsschiene, '+(/hager/i.test(pl.hersteller||'')?'bei Hager keine Phasenschiene möglich':'Phasenschiene beim Hersteller prüfen')+'</span>')}
-    if(hzWP(pl)&&HZ_RX.test(r.name||''))h.unshift('<span class="warn">Gehört zur Wärmepumpe: bitte im Schritt «Heizsystem» eintragen (wird separat eingetragen).</span>');
+    if(hzWP(pl)&&HZ_RX.test(r.name||''))h.unshift('<span class="warn">Kann es sein, dass das zur Wärmepumpe gehört? Wärmepumpe bitte im Punkt '+(stepIdx('heizung')+1)+' «Heizsystem» separat eintragen, nicht im Stromkreisplan.</span>');
     nEl.innerHTML=h.join('');nEl.hidden=!h.length});
   const si=$('#skInfo');if(si)si.textContent=skInfo(S.site);
   const nb=$('[data-act=planNext]');if(nb)nb.disabled=!stepOk(pl,pl.step);
@@ -1752,7 +1771,7 @@ document.addEventListener('change',e=>{
   if(t.dataset.ex==='hsA'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.hsA=t.value;touchPlan('Hauptschalter '+(t.value?t.value+' A':''));render();return}
   if((t.dataset.ex==='spd'||t.dataset.ex==='hs')&&S.site&&canEdit(S.site)&&S.site.art!=='HV'){const pl=planOf(S.site);pl[t.dataset.ex]=t.checked;S.prevSel={step:pl.step,idx:pagesOf(S.site).findIndex(q=>q.kind==='einspeisung')};touchPlan((t.dataset.ex==='spd'?'Überspannungsschutz':'Hauptschalter')+(t.checked?' ergänzt':' entfernt'));render();return}
   if(t.dataset.ex==='siem'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.siem=t.checked;pl.siemOk=null;touchPlan(t.checked?'Extras: Siemens FI/LS gewählt':'Extras: Siemens FI/LS entfernt');render();return}
-  if(t.dataset.hz&&t.dataset.v==null&&S.site&&canEdit(S.site)){const h=hzOf(planOf(S.site));h[t.dataset.hz]=t.value.trim();touchPlan('Heizsystem: '+t.dataset.hz+' '+t.value.trim());persistSite();if(t.tagName==='SELECT')render();return}
+  if(t.dataset.hz&&t.dataset.v==null&&S.site&&canEdit(S.site)){const h=hzOf(planOf(S.site));h[t.dataset.hz]=t.value.trim();if(t.dataset.hz==='hkvN')delete h.hkvF;touchPlan('Heizsystem angepasst');persistSite();if(t.tagName==='SELECT')render();else refreshPreview();return}
   if(t.dataset.pl&&S.site&&canEdit(S.site)){
     const pl=planOf(S.site),k=t.dataset.pl;
     if(k==='herstellerFrei'){const v=t.value.trim();if(v){pl.hersteller=v;touchPlan('Hersteller '+v)}render();return}
@@ -1856,7 +1875,7 @@ document.addEventListener('click',e=>{
   if(act==='planNext'){const pl=planOf(S.site),i=stepIdx(pl.step);if(!stepOk(pl,pl.step))return;if(canEdit(S.site)){if(pl.step==='zuleitung'&&S.site.art==='HV'&&pl.nb&&S.site.plz){D.nbMap=D.nbMap||{};D.nbMap[S.site.land+':'+S.site.plz.trim()]=pl.nb}}pl.step=stepNext(S.site,pl.step);if(pl.step==='zaehler'&&S.site.geb==='MFH'&&pl.zl.length<2&&canEdit(S.site))pl.zl.push(zlNew(S.site));if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
   if(act==='planPrev'){const pl=planOf(S.site),pv=stepPrev(S.site,pl.step);if(!pv)return go('baustelle');pl.step=pv;if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
   if(t.dataset.step){const pl=planOf(S.site);pl.step=t.dataset.step;if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
-  if(t.dataset.hz&&t.dataset.v!=null&&S.site&&canEdit(S.site)){const h=hzOf(planOf(S.site));h[t.dataset.hz]=t.dataset.v;touchPlan('Heizsystem: '+t.dataset.hz+' '+t.dataset.v);persistSite();render();return}
+  if(t.dataset.hz&&t.dataset.v!=null&&S.site&&canEdit(S.site)){const h=hzOf(planOf(S.site));h[t.dataset.hz]=t.dataset.v;touchPlan('Heizsystem angepasst');persistSite();render();return}
   if(t.dataset.plv&&S.site&&canEdit(S.site)){const pl=planOf(S.site),k=t.dataset.plv;pl[k]=t.dataset.v;if(k==='montage'&&t.dataset.v==='UP')pl.gehaeuse='hersteller';touchPlan(k==='vtMM'?(t.dataset.v==='ja'?'Mit':'Ohne')+' Multimedia-Feld':k==='vtSer'?'Verteiler-Serie '+t.dataset.v:k==='etag'?'Etagenschienen '+t.dataset.v:k==='big4'?'4-polige '+(t.dataset.v==='u'?'unten':'oben'):k==='x0Side'?'-X0 '+(t.dataset.v==='r'?'rechts':'links'):k==='klAbg'?(t.dataset.v==='nein'?'Ohne Abgangsklemmen':'Mit Abgangsklemmen'):{hersteller:'Hersteller ',gehaeuse:'Gehäuse ',montage:'Montage '}[k]+(k==='gehaeuse'?(t.dataset.v==='alu'?'Alu':'Hersteller'):t.dataset.v));render();return}
   if(t.dataset.page){S.pageIdx=+t.dataset.page;render();return}
   if(t.dataset.pv){S.prevSel={step:planOf(S.site).step,idx:+t.dataset.pv};refreshPreview();return}
