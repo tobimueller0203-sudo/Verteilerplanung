@@ -367,7 +367,7 @@ const loxDaliN=pl=>{const h=(pl&&pl.sh)||{};if(!loxMs(pl))return 0;return h.dali
 const loxRelN=pl=>loxRelais(pl).rel;
 /* Licht-Sicherungen (Tobi 23.11.): Nutzer ordnet jeden Raum einer Sicherung zu (h.rf[rid]=Nr.). Relais-Lampengruppen im Raum = je 1 Schaltdraht.
    Kabel: L braun, N blau, PE gn-ge + Schaltdrähte schwarz, grau (bis 2 Gruppen 5×1,5); mehr Gruppen: 7×1,5 nummeriert (Vorschlag, Tobi bestätigt noch) */
-/* nur real erhältliche FE0-Kabel (Tobi 23.11., NIN/NIV); Aderzahlen über 7 noch von Tobi zu bestätigen */
+/* nur real erhältliche FE0-Kabel (Tobi 23.11., NIN/NIV, bestätigt) */
 const FE0_AD=[3,4,5,7,10,12,16,21,27];const rfAd=k=>FE0_AD.find(a=>a>=k)||27;
 const rfRooms=pl=>{const h=(pl&&pl.sh)||{};return ((h.fl)||[]).filter(flDone).flatMap(f=>f.rooms.map(r=>({fid:f.id,rid:r.id,name:f.name+' · '+r.name,g:loxGroups(pl).filter(g=>g.rid===r.id&&g.ctl==='rel')})))};
 const rfList=pl=>{const h=(pl&&pl.sh)||{},M=h.rf||{},R=rfRooms(pl),N=[...new Set(R.map(r=>+M[r.rid]).filter(Boolean))].sort((a,b)=>a-b);return N.map(n=>{const rs=R.filter(r=>+M[r.rid]===n),G=rs.flatMap(r=>r.g),k=3+G.length;return {n,rooms:rs,G,ad:rfAd(k),res:rfAd(k)-k,cab:'FE0 '+rfAd(k)+'×1,5',cores:['L braun','N blau','PE gn-ge'].concat(G.map((g,i)=>(G.length<=2?['schwarz','grau'][i]:'Ader '+(i+1))+' → '+g.room+(g.n?' ('+g.n+(g.k==='sp'?' Spots':' Lampen')+')':''))).concat(Array.from({length:rfAd(k)-k},(_,i)=>'Ader '+(G.length+i+1)+' Reserve (Reserveklemme)'))}})};
