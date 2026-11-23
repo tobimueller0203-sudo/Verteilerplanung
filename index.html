@@ -161,6 +161,9 @@ input:disabled,select:disabled{opacity:1;background:var(--bg);color:var(--ink);-
 .chp{min-width:38px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;font:inherit;font-size:14px;color:inherit;cursor:pointer}.chp.sm{min-width:0;padding:3px 7px;font-size:12px}.chp.on{background:var(--accent);border-color:#111;font-weight:700}.chp:disabled{cursor:default;opacity:.6}
 .rfc{border:1px solid var(--line);border-radius:10px;padding:10px;margin:8px 0;background:#fff}.rfh{display:flex;flex-direction:column;gap:2px;margin-bottom:6px}.rft{width:100%;border-collapse:collapse;font-size:13px}.rft th{text-align:left;font-size:11px;color:var(--muted);font-weight:600;padding:2px 4px}.rft td{padding:4px;border-top:1px solid var(--line);vertical-align:top}.rft td:nth-child(3){white-space:nowrap}.rft td:nth-child(4) small{display:block;margin-top:2px}.rft .rfb{flex-wrap:nowrap}
 .rfk{margin-top:8px;padding-top:6px;border-top:1px dashed var(--line)}.rfkh{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:2px}
+.missHl{outline:3px solid #d0021b !important;outline-offset:4px;border-radius:8px;animation:missP 1s ease 2}@keyframes missP{50%{outline-color:#ff8a8a}}
+.missTag{display:inline-block;margin:8px 0 6px;padding:6px 10px;border-radius:6px;background:#d0021b;color:#fff;font-weight:700;font-size:14px}
+.missRow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;flex-wrap:wrap}
 .ph{display:flex;align-items:center;justify-content:center;background:#f4f4f1;color:var(--muted);border-radius:6px;font-size:11px;text-align:center}
 .lxc.soft{opacity:.5}.lxc img{width:100%;height:120px;object-fit:contain;background:#fff;border-radius:4px}.lxc .vtn{height:120px;display:flex;align-items:center;justify-content:center;background:#f4f4f1;color:var(--muted);border-radius:4px}.lxc span{color:var(--muted)}
 .mlx{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}.mlx>.ml{min-width:680px}.ml td,.ml th{padding-right:12px}.ml td:nth-child(1),.ml td:nth-child(2),.ml td:nth-child(4){white-space:nowrap}.ml td:nth-child(3){min-width:220px}
@@ -236,7 +239,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-23.2044';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-23.2108';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -643,6 +646,7 @@ function render(){
   const f={start:vStart,liste:vListe,baustelle:vBaustelle,plan:vPlan,schema:vSchema,adminLogin:vAdminLogin,admin:vAdmin}[S.screen]||vStart;
   $('#main').innerHTML=f();
   if(S.screen==='plan')skDecor();
+  if(S.screen==='plan'&&S.hl&&S.site){const pl=planOf(S.site);if(stepMiss(S.site,pl.step).includes(S.hl)){const first=!S._hlShown||S._hlShown!==S.hl;missGo(S.hl,first);S._hlShown=S.hl}else{const M=stepMiss(S.site,pl.step);S.hl=S.missShow&&M.length?M[0]:null;S._hlShown=null;if(S.hl){missGo(S.hl,false);S._hlShown=S.hl}}}
   if(S.screen==='plan')fillDl('dlNB',[...new Set([...Object.values(D.nbMap||{}),...NB_LIST])]);
   if(S.screen==='baustelle'){fillDl('dlBereich',[...new Set([...BEREICHE,...D.sites.map(s=>s.bereich).filter(Boolean)])]);}
   if(S.screen==='baustelle')fillDl('dlKom',[...new Set(D.sites.filter(s=>s.id!==S.site.id&&s.kom).map(s=>s.kom))].sort());
@@ -1380,6 +1384,31 @@ function shMissing(pl){if(!loxOn(pl))return [];const h=pl.sh,M=[];if(!loxPs(pl))
   if(rfList(pl).some(x=>!x.ok))M.push('Kabel der Raum-Sicherungen (zu wenig Adern)');
   return M}
 const shGated=(s,k)=>{const ST=stepsOf(s),i=ST.findIndex(x=>x[0]===k),hz=ST.findIndex(x=>x[0]==='heizung');return hz>=0&&i>=hz&&shMissing(planOf(s)).length>0};
+/* Fehlende Pflichtangaben (Tobi 23.11.): bei «Weiter» sofort melden, «Hinführen» springt hin und markiert rot */
+function stepMiss(s,k){const pl=planOf(s),M=[];
+  if(k==='smarthome'){const h=pl.sh||{};if(!h.on)M.push('Smart Home Ja/Nein');else if(h.on==='ja'&&!h.sys)M.push('Smart-Home-System');else shMissing(pl).forEach(t=>M.push(t))}
+  if(k==='hersteller'&&!pl.hersteller)M.push('Hersteller');
+  if(k==='gehaeuse'){if(!pl.montage)M.push('Montage (AP/UP)');if(!pl.gehaeuse)M.push('Gehäuse')}
+  if(k==='zuleitung'&&!(pl.qs&&qsNum(pl.qs)<=QS_MAX))M.push('Zuleitung (Querschnitt)');
+  if(k==='stromkreise'&&!stepOk(pl,k))M.push('Mindestens ein Stromkreis');
+  if(k==='zaehler'&&!stepOk(pl,k))M.push('Mindestens ein Zähler');
+  return M}
+function missEl(t){const pl=S.site?planOf(S.site):{},h=pl.sh||{},q=x=>document.querySelector('#main '+x),qa=x=>[...document.querySelectorAll('#main '+x)],box=x=>{const e=q(x);return e?(e.closest('.tiles,.seg,.lxg')||e):null};
+  const F={'Smart Home Ja/Nein':()=>box('[data-sh=on]'),'Smart-Home-System':()=>box('[data-sh=sys]'),'Netzteil':()=>box('[data-loxone="100401"]'),
+    'Audiotechnik':()=>h.au==='ja'?q('[data-shsel=mN]'):box('[data-sh=au]'),'Wall Display':()=>!h.wd?box('[data-sh=wd]'):!(+h.wdN)?q('[data-shsel=wdN]'):box('[data-sh=wdCon]'),
+    'Miniserver':()=>box('[data-loxone="100512"]')||box('[data-loxone="100335"]'),'Stockwerke und Räume':()=>q('[data-flok]')||q('[data-fladd]'),'Spots':()=>box('[data-sh=sp]'),
+    'Räume mit Tree-Spots':()=>q('[data-sprm]'),'Spot-Typ und Anzahl pro Raum':()=>{const e=qa('[data-sprn]').find(e=>!(+e.value));return e?e.closest('.sprow'):q('.sptyp')},
+    'Weitere Lampen':()=>box('[data-sh=lp]'),'Lampengruppen (Anzahl und DALI/Relais)':()=>{const e=qa('[data-lmn]').find(e=>!(+e.value))||qa('[data-lmc]').find(e=>!e.value);return e?(e.closest('.row')||e):q('[data-lmadd]')},
+    'DALI-Ansteuerung':()=>box('[data-sh=daliArt]'),'Wall Display einem Raum zuweisen':()=>{const e=q('[data-swadd]');return e?e.closest('.pform'):null},
+    'Schalter (Gerät und Anzahl)':()=>{const b=qa('.pkb').find(b=>/Auswählen/.test(b.textContent))||qa('[data-swn]').find(e=>!(+e.value));return b?(b.closest('.row')||b):null},
+    'Raum-Sicherungen':()=>qa('.rfr').find(r=>!r.querySelector('.chp.on')),'Kabel der Raum-Sicherungen (zu wenig Adern)':()=>{const e=q('.rfc .msg.err');return e?e.closest('.rfc'):null},
+    'Hersteller':()=>box('[data-plv=hersteller]'),'Montage (AP/UP)':()=>box('[data-plv=montage]'),'Gehäuse':()=>box('[data-plv=gehaeuse]'),'Zuleitung (Querschnitt)':()=>q('#p-qs'),
+    'Mindestens ein Stromkreis':()=>q('#skRows input[data-sk=name]'),'Mindestens ein Zähler':()=>q('input[data-zl="name"]')};
+  return (F[t]||(()=>null))()}
+function missGo(t,smooth){document.querySelectorAll('.missHl').forEach(e=>e.classList.remove('missHl'));document.querySelectorAll('.missTag').forEach(e=>e.remove());
+  const e=missEl(t);if(!e)return false;e.classList.add('missHl');const tag=document.createElement('div');tag.className='missTag';tag.textContent='Achtung: '+t+' noch auswählen';e.parentNode.insertBefore(tag,e);
+  if(smooth!==false)tag.scrollIntoView({block:'center',behavior:'smooth'});return true}
+const missBox=(items,st)=>`<div class="msg err" id="missBox"><b>Achtung, noch auswählen:</b>${items.map(t=>`<div class="missRow"><span>${esc(t)}</span><button type="button" class="btn small" data-goto="${esc(st+'|'+t)}">Hinführen</button></div>`).join('')}</div>`;
 function stepOk(pl,k){return {smarthome:!!(pl.sh&&(pl.sh.on==='nein'||(pl.sh.on==='ja'&&pl.sh.sys))),matliste:true,heizung:true,verteiler:true,schienen:true,klemmen:true,unterlagen:true,hersteller:!!pl.hersteller,gehaeuse:!!pl.gehaeuse&&!!pl.montage,zuleitung:!!pl.qs&&qsNum(pl.qs)<=QS_MAX,stromkreise:(pl.sk||[]).some(r=>(r.name||'').trim())||(pl.zl||[]).length>1,zaehler:(pl.zl||[]).some(z=>!z.res),extras:true}[k]}
 /* Heizsystem (Tobi 23.11.): Fragen; Sicherungen der Wärmepumpe kommen automatisch ins Schema (Schütz-Steuerung folgt) */
 const HZ_ART=[['wp-fbh','Wärmepumpe','über Fussbodenheizung'],['wp-hk','Wärmepumpe','über Heizkörper'],['gas','Gasheizung',''],['andere','Anderes','']];
@@ -1727,11 +1756,12 @@ function vPlan(){
     ${stepper(pl)}
     ${body}
     ${ed&&S.rsOpen?rsPanel(p):''}
-    ${!last&&shGated(p,stepNext(p,k))&&!shGated(p,k)?`<div class="msg err"><b>Zuerst Smart Home fertig erfassen</b>, erst dann geht es zu ${esc(ST.find(x=>x[0]===stepNext(p,k))[1])} und den Stromkreisen. Es fehlt: ${esc(shMissing(pl).join(', '))}.</div>`:''}
+    ${!last&&k!=='smarthome'&&shGated(p,stepNext(p,k))&&!shGated(p,k)?`<div class="msg err"><b>Zuerst Smart Home fertig erfassen</b>, erst dann geht es zu ${esc(ST.find(x=>x[0]===stepNext(p,k))[1])} und den Stromkreisen.</div>${missBox(shMissing(pl),'smarthome')}`:''}
+    ${!last&&S.missShow===k&&stepMiss(p,k).length?missBox(stepMiss(p,k),k):''}
     <div class="actions">
       ${ed?'<button type="button" class="btn small" data-act="rsOpen" style="order:3">'+(S.rsOpen?'Zurücksetzen schliessen':'Zurücksetzen …')+'</button>':''}
       <button type="button" class="btn" data-act="planPrev">← ${pk2?ST.find(x=>x[0]===pk2)[1]:'Baustellendaten'}</button>
-      <div class="row">${ed?'<button type="button" class="btn" data-act="saveNow">Speichern</button>':''}${last?(k==='verteiler'?'':'<span class="saved">Nächster Schritt folgt</span>'):`<button type="button" class="btn primary" data-act="planNext"${stepOk(pl,k)&&!shGated(p,stepNext(p,k))?'':' disabled'}>Weiter</button>`}</div>
+      <div class="row">${ed?'<button type="button" class="btn" data-act="saveNow">Speichern</button>':''}${last?(k==='verteiler'?'':'<span class="saved">Nächster Schritt folgt</span>'):`<button type="button" class="btn primary" data-act="planNext">Weiter</button>`}</div>
     </div>
   </section>
   ${schemaPreview()}
@@ -1836,7 +1866,7 @@ function skDecor(){
     if(hzWP(pl)&&HZ_RX.test(r.name||''))h.unshift('<span class="warn">Kann es sein, dass das zur Wärmepumpe gehört? Wärmepumpe bitte im Punkt '+(stepIdx('heizung')+1)+' «Heizsystem» separat eintragen, nicht im Stromkreisplan.</span>');
     nEl.innerHTML=h.join('');nEl.hidden=!h.length});
   const si=$('#skInfo');if(si)si.textContent=skInfo(S.site);
-  const nb=$('[data-act=planNext]');if(nb)nb.disabled=!stepOk(pl,pl.step)||shGated(S.site,stepNext(S.site,pl.step));
+  {const k=pl.step,M=stepMiss(S.site,k);if(S.missShow===k&&!M.length)S.missShow=null;const mb=$('#missBox');if(mb&&S.missShow===k&&!M.length)mb.remove()}
 }
 function pagesOf(s){
   const pl=planOf(s),d=pl.docs||{},five=(pl.adern||'5')==='5',hv=s.art==='HV';
@@ -2701,7 +2731,11 @@ document.addEventListener('click',e=>{
   if(act==='print'){printSheet();return}
   if(act==='toPlan'){if(canEdit(S.site))persistSite();planOf(S.site);return go('plan')}
   if(act==='toSite'){return go('baustelle')}
-  if(act==='planNext'){const pl=planOf(S.site),i=stepIdx(pl.step);if(!stepOk(pl,pl.step)||shGated(S.site,stepNext(S.site,pl.step)))return;if(canEdit(S.site)){if(pl.step==='zuleitung'&&S.site.art==='HV'&&pl.nb&&S.site.plz){D.nbMap=D.nbMap||{};D.nbMap[S.site.land+':'+S.site.plz.trim()]=pl.nb}}pl.step=stepNext(S.site,pl.step);if(pl.step==='zaehler'&&S.site.geb==='MFH'&&pl.zl.length<2&&canEdit(S.site))pl.zl.push(zlNew(S.site));if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
+  if(t.dataset.goto&&S.site){const [st,lbl]=t.dataset.goto.split('|'),pl=planOf(S.site);S.hl=lbl;if(pl.step!==st){pl.step=st;S.missShow=st;render()}else missGo(lbl);return}
+  if(act==='planNext'){const pl=planOf(S.site),i=stepIdx(pl.step),M=stepMiss(S.site,pl.step);
+    if(M.length){S.missShow=pl.step;S.hl=M[0];render();return}
+    if(shGated(S.site,stepNext(S.site,pl.step))){const M2=shMissing(pl);S.hl=M2[0]||null;pl.step='smarthome';S.missShow='smarthome';render();return}
+    S.missShow=null;S.hl=null;if(canEdit(S.site)){if(pl.step==='zuleitung'&&S.site.art==='HV'&&pl.nb&&S.site.plz){D.nbMap=D.nbMap||{};D.nbMap[S.site.land+':'+S.site.plz.trim()]=pl.nb}}pl.step=stepNext(S.site,pl.step);if(pl.step==='zaehler'&&S.site.geb==='MFH'&&pl.zl.length<2&&canEdit(S.site))pl.zl.push(zlNew(S.site));if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
   if(act==='planPrev'){const pl=planOf(S.site),pv=stepPrev(S.site,pl.step);if(!pv)return go('baustelle');pl.step=pv;if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
   if(t.dataset.step){const pl=planOf(S.site);pl.step=t.dataset.step;if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
   if(t.dataset.hz&&t.dataset.v!=null&&S.site&&canEdit(S.site)){const h=hzOf(planOf(S.site));h[t.dataset.hz]=t.dataset.v;touchPlan('Heizsystem angepasst');persistSite();render();return}
