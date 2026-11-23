@@ -227,7 +227,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-23.1720';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-23.1726';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -362,6 +362,10 @@ const loxFk=(s,pl)=>{const fmax=Math.max(0,...skLayout(s).list.map(r=>+String(r.
 /* Loxone DALI Extensions (Tobi 23.11.): bis 10 Leuchten klein, bis 64 gross, darüber gross + klein, dann 2 gross usw. */
 const loxDaliN=pl=>{const h=(pl&&pl.sh)||{};if(!loxMs(pl))return 0;return h.daliArt==='lox'?daliLamps(pl):0};
 const loxRelN=pl=>loxRelais(pl).rel;
+/* Licht-Sicherungen (Tobi 23.11.): Nutzer ordnet jeden Raum einer Sicherung zu (h.rf[rid]=Nr.). Relais-Lampengruppen im Raum = je 1 Schaltdraht.
+   Kabel: L braun, N blau, PE gn-ge + Schaltdrähte schwarz, grau (bis 2 Gruppen 5×1,5); mehr Gruppen: 7×1,5 nummeriert (Vorschlag, Tobi bestätigt noch) */
+const rfRooms=pl=>{const h=(pl&&pl.sh)||{};return ((h.fl)||[]).filter(flDone).flatMap(f=>f.rooms.map(r=>({fid:f.id,rid:r.id,name:f.name+' · '+r.name,g:loxGroups(pl).filter(g=>g.rid===r.id&&g.ctl==='rel')})))};
+const rfList=pl=>{const h=(pl&&pl.sh)||{},M=h.rf||{},R=rfRooms(pl),N=[...new Set(R.map(r=>+M[r.rid]).filter(Boolean))].sort((a,b)=>a-b);return N.map(n=>{const rs=R.filter(r=>+M[r.rid]===n),G=rs.flatMap(r=>r.g),k=3+G.length;return {n,rooms:rs,G,cab:G.length<=2?k+'×1,5':G.length<=4?'7×1,5':Math.ceil(G.length/4)+'× 7×1,5 ('+k+' Adern nötig)',cores:['L braun','N blau','PE gn-ge'].concat(G.map((g,i)=>(G.length<=2?['schwarz','grau'][i]:'Ader '+(i+1))+' → '+g.room+(g.n?' ('+g.n+(g.k==='sp'?' Spots':' Lampen')+')':'')))}})};
 const loxDaliExt=pl=>{const N=loxDaliN(pl),big=Math.floor(N/64),r=N%64,L=[];for(let i=0;i<big;i++)L.push({id:'100200',n:64});if(r)L.push({id:r<=10?'100623':'100200',n:r});return L};
 /* Spots pro Raum (spFl[fid].rn {rid:n}), Schalter pro Raum (h.sw {rid:{typ,n}}); Tree-Geräte pro Tree laufend zählen (max. 50) */
 const SW_T=()=>LOX.filter(o=>o.grp==='Schalter');
@@ -1331,6 +1335,18 @@ function rsDo(s,keys){const pl=planOf(s),ST=stepsOf(s);keys.forEach(k=>{(RS_KEYS
     if(k==='zuleitung'){pl.adern='5';pl.nb='';pl.nbAuto=false;if(pl.zl&&pl.zl[0])Object.assign(pl.zl[0],{bez:s.norm==='VDE'?'NH':'DZ',bezA:'',qs:'',adern:'5'})}
     if(k==='extras')pl.material=false;if(k==='matliste'&&pl.partSel)['Verteiler','Verteiler AP','Verteiler UP'].forEach(q=>delete pl.partSel[q])});
   planOf(s);const first=ST.find(x=>keys.includes(x[0]));if(first&&stepIdx(first[0])<stepIdx(pl.step))pl.step=first[0]}
+/* Sperre (Tobi 23.11.): Heizsystem/Stromkreise erst, wenn Smart Home (Spots, Beleuchtung, Schalter) fertig deklariert ist */
+function shMissing(pl){if(!loxOn(pl))return [];const h=pl.sh,M=[];if(!loxPs(pl))M.push('Netzteil');if(!h.au||(h.au==='ja'&&!(+h.mN)))M.push('Audiotechnik');if(!h.wd||(h.wd==='ja'&&(!(+h.wdN)||!h.wdCon)))M.push('Wall Display');if(!loxMs(pl))M.push('Miniserver');
+  if(!flReady(pl))M.push('Stockwerke und Räume');if(!h.sp)M.push('Spots');
+  if(h.sp==='tree'){const F=spFloors(pl);if(!F.length)M.push('Räume mit Tree-Spots');else if(F.some(f=>f.rooms.some(r=>((h.spFl[f.id]||{}).rooms||{})[r.id]&&(!roomSpots(pl,f.id,r.id)||!roomTyp(pl,f.id,r.id)))))M.push('Spot-Typ und Anzahl pro Raum')}
+  if(!h.lp)M.push('Weitere Lampen');
+  {const K=(h.sp==='ext'?['sp']:[]).concat(h.lp==='ja'?['lp']:[]),all=K.flatMap(k=>Object.values(((h.lmX||{})[k])||{}).flat());if(K.length&&(!all.length||all.some(it=>!(+it.n)||!it.ctl)))M.push('Lampengruppen (Anzahl und DALI/Relais)')}
+  if(daliLamps(pl)&&!h.daliArt)M.push('DALI-Ansteuerung');
+  if(h.wd==='ja'){const a=Object.keys(h.sw||{}).reduce((x,rid)=>x+swItems(pl,rid).reduce((y,it)=>y+(it.typ==='100891'?+it.n||0:0),0),0);if(a!==(+h.wdN||0))M.push('Wall Display einem Raum zuweisen')}
+  if(Object.keys(h.sw||{}).some(rid=>swItems(pl,rid).some(it=>!it.typ||!(+it.n))))M.push('Schalter (Gerät und Anzahl)');
+  if(rfRooms(pl).some(r=>!(h.rf||{})[r.rid]))M.push('Sicherungen für die Beleuchtung');
+  return M}
+const shGated=(s,k)=>{const ST=stepsOf(s),i=ST.findIndex(x=>x[0]===k),hz=ST.findIndex(x=>x[0]==='heizung');return hz>=0&&i>=hz&&shMissing(planOf(s)).length>0};
 function stepOk(pl,k){return {smarthome:!!(pl.sh&&(pl.sh.on==='nein'||(pl.sh.on==='ja'&&pl.sh.sys))),matliste:true,heizung:true,verteiler:true,schienen:true,klemmen:true,unterlagen:true,hersteller:!!pl.hersteller,gehaeuse:!!pl.gehaeuse&&!!pl.montage,zuleitung:!!pl.qs&&qsNum(pl.qs)<=QS_MAX,stromkreise:(pl.sk||[]).some(r=>(r.name||'').trim())||(pl.zl||[]).length>1,zaehler:(pl.zl||[]).some(z=>!z.res),extras:true}[k]}
 /* Heizsystem (Tobi 23.11.): Fragen; Sicherungen der Wärmepumpe kommen automatisch ins Schema (Schütz-Steuerung folgt) */
 const HZ_ART=[['wp-fbh','Wärmepumpe','über Fussbodenheizung'],['wp-hk','Wärmepumpe','über Heizkörper'],['gas','Gasheizung',''],['andere','Anderes','']];
@@ -1435,6 +1451,11 @@ function shBody(p,pl,dis){const h=shOf(pl);h.q=h.q||{};loxSyncTe(pl);
       <div class="legend">Dazu automatisch (Standard, änderbar)</div><div class="lxg">${['ps','da'].map(k=>{const x=kxProd(pl,k),c=(h.kx||{})[k]||{};const kim=x.std?loxImg('kx-'+k):null;return `<div class="lxc on">${x.std?(kim?`<img src="${kim}" alt="">`:'<span class="vtn">Bild folgt</span>'):''}<b>${KX_TXT[k]}</b>${x.std&&loxDs('kx-'+k).length?`<button type="button" class="btn link" style="font-size:13px;text-align:left" data-dsview="kx-${k}">Datenblatt ansehen</button>`:''}<span>${esc((x.hst?x.hst+' ':'')+(x.nr?x.nr+' · ':''))}${x.te} TE</span><span>${esc(x.art)}</span><span>${esc(x.lf||'Händler offen')} · ${x.bru!=null?'CHF '+chf(x.bru)+' inkl. MwSt.':'<span style="color:#b42318">Preis offen</span>'}</span>
         <label class="chk" style="margin:4px 0 0"><input type="checkbox" data-kxown="${k}" ${c.own?'checked':''}${dis}> Anderes Produkt</label>${c.own?`<label class="m"><span>Bezeichnung</span><input data-kxf="${k}:art" value="${esc(c.art||'')}" placeholder="Hersteller und Typ"${dis}></label><label class="m"><span>Händler</span><input data-kxf="${k}:lf" value="${esc(c.lf||'')}" placeholder="z. B. digitec.ch"${dis}></label><div class="row" style="gap:6px"><label class="m"><span>Preis CHF</span><input type="number" step="0.05" min="0" data-kxf="${k}:bru" value="${esc(c.bru??'')}"${dis}></label><label class="m"><span>TE</span><input type="number" min="1" max="12" data-kxf="${k}:te" value="${esc(c.te??'')}" placeholder="${KX_STD[k].te}"${dis}></label></div>`:''}</div>`}).join('')}</div>
       <p class="sub">Beide brauchen 230 V. Sie werden zusammen über einen LS C10 2-polig im Verteiler abgesichert.</p>`};
+  const rfUI=()=>{const R=rfRooms(pl);if(!R.length)return '';h.rf=h.rf||{};const L2=rfList(pl),mx=Math.max(0,...L2.map(x=>x.n));
+    return `<div class="legend" style="margin-top:14px">Sicherungen für die Beleuchtung</div><p class="sub">Jeden Raum einer Sicherung zuweisen (z. B. OG Bad und OG Schlafzimmer zusammen). Ist im Raum eine Lampe über die Relay Extension geschaltet, plant die App den Schaltdraht automatisch ein. Standard LS C13.</p>
+      <table class="te">${R.map(r=>`<tr><td>${esc(r.name)}${r.g.length?` <span class="sub">(${r.g.length} Relais-Gruppe${r.g.length>1?'n':''})</span>`:''}</td><td><select data-rfs="${r.rid}"${dis}><option value="">Sicherung …</option>${Array.from({length:mx+1},(_,i)=>`<option value="${i+1}"${+h.rf[r.rid]===i+1?' selected':''}>${i===mx?'neue Sicherung '+(i+1):'Sicherung '+(i+1)}</option>`).join('')}</select></td></tr>`).join('')}</table>
+      ${L2.map(x=>`<div class="pform" style="margin:6px 0"><b>Sicherung ${x.n}</b> · LS C13 · Kabel ${x.cab}<div class="sub">${esc(x.rooms.map(r=>r.name).join(', '))}</div><div class="sub">Adern: ${esc(x.cores.join(' · '))}</div>${x.G.length?'<div class="sub">Von der Sicherung per Zwillingshülse auf die Reihenklemme, L dort mit Steckbrücke durchgebrückt (Klemmentyp folgt).</div>':''}</div>`).join('')}
+      ${R.some(r=>!h.rf[r.rid])?'<div class="msg err">Noch nicht alle Räume einer Sicherung zugewiesen.</div>':''}`};
   const swUI=()=>{const D=((h.fl)||[]).filter(flDone);if(!D.length)return '';const T=SW_T().filter(o=>o.id!=='100891'||h.wd==='ja');h.sw=h.sw||{};const wdA=Object.keys(h.sw).reduce((a,rid)=>a+swItems(pl,rid).reduce((b,it)=>b+(it.typ==='100891'?+it.n||0:0),0),0);
     return `<div class="legend" style="margin-top:14px">Schalter (Tree)</div><p class="sub">Pro Raum ein oder mehrere Geräte wählen (z. B. Taster und Tablet), je mit Anzahl. Tree-Geräte zählen wie die Spots zum Tree (max. 50 pro Tree).${T.length?'':' Die Schalter-Typen werden noch eingepflegt.'}</p>${h.wd==='ja'?`<div class="msg ${wdA===(+h.wdN||0)?'info':'err'}">Wall Display: ${wdA} von ${+h.wdN||0} einem Raum zugewiesen.</div>`:''}
       ${D.map(f=>`<div class="pform" style="margin:6px 0"><b>${esc(f.name)}</b>${f.rooms.map(r=>{const IT=swItems(pl,r.id),e=treeOfRoom(pl,f.id,r.id),fr=e?treeFree(e):50;
@@ -1485,7 +1506,7 @@ function shBody(p,pl,dis){const h=shOf(pl);h.q=h.q||{};loxSyncTe(pl);
   const L=LOX,rb=loxR(),sel=L.filter(o=>(h.q[o.id]||0)>0),te=sel.reduce((a,o)=>a+(+o.te||0)*h.q[o.id],0)+(loxKnxN(pl)?kxProd(pl,'ps').te+kxProd(pl,'da').te:0),bru=sel.reduce((a,o)=>a+(o.bru||0)*h.q[o.id],0),net=sel.reduce((a,o)=>a+(loxNet(o)||0)*h.q[o.id],0);
   b+=`<label class="chk" style="margin-top:12px"><input type="checkbox" data-shds="1" ${h.ds?'checked':''}${dis}> Datenblätter der gewählten Loxone-Bauteile in die Planmappe aufnehmen</label>`;
   b+=`${L.length?`${['Spannungsversorgung','Audioserver','Miniserver'].concat(L.map(o=>o.grp)).filter((g,i,A)=>A.indexOf(g)===i&&L.some(o=>o.grp===g)&&!L.some(o=>o.grp===g&&o.auto)&&(g!=='Audioserver'||ttN(h)>0)).map(g=>`<div class="legend">${esc(g)}</div><div class="lxg">${L.filter(o=>o.grp===g).map(o=>{const n=h.q[o.id]||0,im=loxImg(o.id);return `<div class="lxc${n?' on':''}${!n&&loxBlk(pl,o).startsWith('SOFT:')?' soft':''}">${im?`<img src="${im}" alt="">`:'<span class="vtn">Bild folgt</span>'}<b>${esc(o.art)}</b><span>${esc(o.nr||'')}${o.te?' · '+o.te+' TE':''}</span><span>${rb?'netto '+cur2(loxNet(o)||0)+' · Liste ':''}${cur2(o.bru||0)}</span>${loxDs(o.id).length?`<button type="button" class="btn link" style="font-size:13px;text-align:left" data-dsview="${esc(o.id)}">Datenblatt ansehen</button>`:''}
-    ${LOX_ONE.includes(o.grp)?(()=>{const b0=loxBlk(pl,o),soft=b0.startsWith('SOFT:'),bk=soft?b0.slice(5):b0;return `${bk?`<span style="color:#b42318">${esc(bk)}</span>`:''}<button type="button" class="btn small${n?' primary':''}" style="margin-top:4px" data-loxone="${esc(o.id)}"${bk&&!n&&!soft?' disabled':dis}>${n?'Gewählt ✓':soft?'Trotzdem wählen':'Auswählen'}</button>`})():(()=>{const bk=loxBlk(pl,o);return `${bk?`<span style="color:#b42318">${esc(bk)}</span>`:''}<div class="row" style="gap:6px;margin-top:4px"><button type="button" class="btn small" data-loxq="${esc(o.id)}" data-d="-1"${n?dis:' disabled'}>−</button><b style="min-width:24px;text-align:center">${n}</b><button type="button" class="btn small" data-loxq="${esc(o.id)}" data-d="1"${bk?' disabled':dis}>+</button></div>`})()}</div>`}).join('')}</div>${g==='Spannungsversorgung'?nbUI()+auUI():''}${g==='Miniserver'?flUI()+teUI()+(flReady(pl)?liUI()+swUI():`<div class="msg err" style="margin-top:10px"><b>Beleuchtung noch gesperrt:</b> Zuerst mindestens ein Stockwerk mit Räumen und Trees fertig erfassen und bestätigen. Weitere Stockwerke fertig erfassen oder mit «Wird nachgereicht» überspringen.</div><fieldset disabled style="opacity:.45;border:0;padding:0;margin:0">${liUI()+swUI()}</fieldset>`)+daliUI()+knxUI()+outUI():''}`).join('')}
+    ${LOX_ONE.includes(o.grp)?(()=>{const b0=loxBlk(pl,o),soft=b0.startsWith('SOFT:'),bk=soft?b0.slice(5):b0;return `${bk?`<span style="color:#b42318">${esc(bk)}</span>`:''}<button type="button" class="btn small${n?' primary':''}" style="margin-top:4px" data-loxone="${esc(o.id)}"${bk&&!n&&!soft?' disabled':dis}>${n?'Gewählt ✓':soft?'Trotzdem wählen':'Auswählen'}</button>`})():(()=>{const bk=loxBlk(pl,o);return `${bk?`<span style="color:#b42318">${esc(bk)}</span>`:''}<div class="row" style="gap:6px;margin-top:4px"><button type="button" class="btn small" data-loxq="${esc(o.id)}" data-d="-1"${n?dis:' disabled'}>−</button><b style="min-width:24px;text-align:center">${n}</b><button type="button" class="btn small" data-loxq="${esc(o.id)}" data-d="1"${bk?' disabled':dis}>+</button></div>`})()}</div>`}).join('')}</div>${g==='Spannungsversorgung'?nbUI()+auUI():''}${g==='Miniserver'?flUI()+teUI()+(flReady(pl)?liUI()+swUI()+rfUI():`<div class="msg err" style="margin-top:10px"><b>Beleuchtung noch gesperrt:</b> Zuerst mindestens ein Stockwerk mit Räumen und Trees fertig erfassen und bestätigen. Weitere Stockwerke fertig erfassen oder mit «Wird nachgereicht» überspringen.</div><fieldset disabled style="opacity:.45;border:0;padding:0;margin:0">${liUI()+swUI()+rfUI()}</fieldset>`)+daliUI()+knxUI()+outUI():''}`).join('')}
     <table class="te"><tr><td>Gewählt</td><td style="text-align:right">${sel.reduce((a,o)=>a+h.q[o.id],0)} Bauteile · ${te} TE auf der Hutschiene</td></tr><tr class="sum"><td>Total Loxone</td><td style="text-align:right">${rb?'netto '+cur2(net)+' / ':''}Liste ${cur2(bru)}</td></tr></table>`:'<p class="sub">Die Loxone-Bauteile werden gerade eingepflegt.</p>'}`;
   return b}
 function hzBody(p,pl,dis){const h=hzOf(pl);
@@ -1519,7 +1540,7 @@ function hzBody(p,pl,dis){const h=hzOf(pl);
 function stepper(pl){
   const cur=stepIdx(pl.step);
   const ST=stepsOf(S.site);
-  return `<nav class="steps" aria-label="Planungsschritte">${ST.map(([k,l],i)=>{const reach=ST.slice(0,i).every(x=>stepOk(pl,x[0]));
+  return `<nav class="steps" aria-label="Planungsschritte">${ST.map(([k,l],i)=>{const reach=ST.slice(0,i).every(x=>stepOk(pl,x[0]))&&!shGated(S.site,k);
     return `<button type="button" class="st${k===pl.step?' on':''}${i!==cur&&stepOk(pl,k)?' done':''}" data-step="${k}"${reach||i<=cur?'':' disabled'}><b>${i+1}</b><span>${l}</span></button>`}).join('')}</nav>`;
 }
 function vPlan(){
@@ -1659,10 +1680,11 @@ function vPlan(){
     ${stepper(pl)}
     ${body}
     ${ed&&S.rsOpen?rsPanel(p):''}
+    ${!last&&shGated(p,stepNext(p,k))&&!shGated(p,k)?`<div class="msg err"><b>Zuerst Smart Home fertig erfassen</b>, erst dann geht es zu ${esc(ST.find(x=>x[0]===stepNext(p,k))[1])} und den Stromkreisen. Es fehlt: ${esc(shMissing(pl).join(', '))}.</div>`:''}
     <div class="actions">
       ${ed?'<button type="button" class="btn small" data-act="rsOpen" style="order:3">'+(S.rsOpen?'Zurücksetzen schliessen':'Zurücksetzen …')+'</button>':''}
       <button type="button" class="btn" data-act="planPrev">← ${pk2?ST.find(x=>x[0]===pk2)[1]:'Baustellendaten'}</button>
-      <div class="row">${ed?'<button type="button" class="btn" data-act="saveNow">Speichern</button>':''}${last?(k==='verteiler'?'':'<span class="saved">Nächster Schritt folgt</span>'):`<button type="button" class="btn primary" data-act="planNext"${stepOk(pl,k)?'':' disabled'}>Weiter</button>`}</div>
+      <div class="row">${ed?'<button type="button" class="btn" data-act="saveNow">Speichern</button>':''}${last?(k==='verteiler'?'':'<span class="saved">Nächster Schritt folgt</span>'):`<button type="button" class="btn primary" data-act="planNext"${stepOk(pl,k)&&!shGated(p,stepNext(p,k))?'':' disabled'}>Weiter</button>`}</div>
     </div>
   </section>
   ${schemaPreview()}
@@ -1767,7 +1789,7 @@ function skDecor(){
     if(hzWP(pl)&&HZ_RX.test(r.name||''))h.unshift('<span class="warn">Kann es sein, dass das zur Wärmepumpe gehört? Wärmepumpe bitte im Punkt '+(stepIdx('heizung')+1)+' «Heizsystem» separat eintragen, nicht im Stromkreisplan.</span>');
     nEl.innerHTML=h.join('');nEl.hidden=!h.length});
   const si=$('#skInfo');if(si)si.textContent=skInfo(S.site);
-  const nb=$('[data-act=planNext]');if(nb)nb.disabled=!stepOk(pl,pl.step);
+  const nb=$('[data-act=planNext]');if(nb)nb.disabled=!stepOk(pl,pl.step)||shGated(S.site,stepNext(S.site,pl.step));
 }
 function pagesOf(s){
   const pl=planOf(s),d=pl.docs||{},five=(pl.adern||'5')==='5',hv=s.art==='HV';
@@ -2490,6 +2512,7 @@ document.addEventListener('change',e=>{
     if(t.dataset.kxf){const [k,f]=t.dataset.kxf.split(':');const c=h.kx[k]=h.kx[k]||{own:true};c[f]=t.value}
     touchPlan('KNX-Bauteile angepasst');persistSite();render();return}
   if((t.dataset.spt||t.dataset.sprn||t.dataset.sprt)&&S.site&&canEdit(S.site)){const h=shOf(planOf(S.site));h.spFl=h.spFl||{};if(t.dataset.sprt){const [fid,rid]=t.dataset.sprt.split(':'),c=h.spFl[fid]=h.spFl[fid]||{on:true,rooms:{}};c.rt=c.rt||{};if(t.value)c.rt[rid]=t.value;else delete c.rt[rid]}else if(t.dataset.spt){const c=h.spFl[t.dataset.spt]=h.spFl[t.dataset.spt]||{on:true,rooms:{}};c.typ=t.value}else{const [fid,rid]=t.dataset.sprn.split(':'),c=h.spFl[fid]=h.spFl[fid]||{on:true,rooms:{}};c.rn=c.rn||{};c.rn[rid]=Math.max(0,+t.value||0)}touchPlan('Spots angepasst');persistSite();render();return}
+  if(t.dataset.rfs&&S.site&&canEdit(S.site)){const h=shOf(planOf(S.site));h.rf=h.rf||{};if(t.value)h.rf[t.dataset.rfs]=+t.value;else delete h.rf[t.dataset.rfs];{const U=[...new Set(Object.values(h.rf))].sort((a,b)=>a-b);Object.keys(h.rf).forEach(k=>h.rf[k]=U.indexOf(h.rf[k])+1)}touchPlan('Licht-Sicherungen angepasst');persistSite();render();return}
   if((t.dataset.lmn||t.dataset.lmc)&&S.site&&canEdit(S.site)){const h=shOf(planOf(S.site));const [k,rid,i]=(t.dataset.lmn||t.dataset.lmc).split(':');h.lmX=h.lmX||{};h.lmX[k]=h.lmX[k]||{};const L2=h.lmX[k][rid]=h.lmX[k][rid]||[];const it=L2[+i]=L2[+i]||{n:1,ctl:''};if(t.dataset.lmn)it.n=Math.max(0,+t.value||0);else it.ctl=t.value;touchPlan('Lampen angepasst');persistSite();render();return}
   if((t.dataset.swt||t.dataset.swn)&&S.site&&canEdit(S.site)){const h=shOf(planOf(S.site)),pl2=planOf(S.site);h.sw=h.sw||{};const [rid,i]=(t.dataset.swt||t.dataset.swn).split(':'),c=h.sw[rid]=h.sw[rid]||{};c.items=swItems(pl2,rid).slice();delete c.typ;delete c.n;const it=c.items[+i]=c.items[+i]||{typ:'',n:0};if(t.dataset.swt)it.typ=t.value;else it.n=Math.max(0,+t.value||0);touchPlan('Schalter angepasst');persistSite();render();return}
   if((t.dataset.spfl||t.dataset.sprm)&&S.site&&canEdit(S.site)){const h=shOf(planOf(S.site));h.spFl=h.spFl||{};
@@ -2623,7 +2646,7 @@ document.addEventListener('click',e=>{
   if(act==='print'){printSheet();return}
   if(act==='toPlan'){if(canEdit(S.site))persistSite();planOf(S.site);return go('plan')}
   if(act==='toSite'){return go('baustelle')}
-  if(act==='planNext'){const pl=planOf(S.site),i=stepIdx(pl.step);if(!stepOk(pl,pl.step))return;if(canEdit(S.site)){if(pl.step==='zuleitung'&&S.site.art==='HV'&&pl.nb&&S.site.plz){D.nbMap=D.nbMap||{};D.nbMap[S.site.land+':'+S.site.plz.trim()]=pl.nb}}pl.step=stepNext(S.site,pl.step);if(pl.step==='zaehler'&&S.site.geb==='MFH'&&pl.zl.length<2&&canEdit(S.site))pl.zl.push(zlNew(S.site));if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
+  if(act==='planNext'){const pl=planOf(S.site),i=stepIdx(pl.step);if(!stepOk(pl,pl.step)||shGated(S.site,stepNext(S.site,pl.step)))return;if(canEdit(S.site)){if(pl.step==='zuleitung'&&S.site.art==='HV'&&pl.nb&&S.site.plz){D.nbMap=D.nbMap||{};D.nbMap[S.site.land+':'+S.site.plz.trim()]=pl.nb}}pl.step=stepNext(S.site,pl.step);if(pl.step==='zaehler'&&S.site.geb==='MFH'&&pl.zl.length<2&&canEdit(S.site))pl.zl.push(zlNew(S.site));if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
   if(act==='planPrev'){const pl=planOf(S.site),pv=stepPrev(S.site,pl.step);if(!pv)return go('baustelle');pl.step=pv;if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
   if(t.dataset.step){const pl=planOf(S.site);pl.step=t.dataset.step;if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
   if(t.dataset.hz&&t.dataset.v!=null&&S.site&&canEdit(S.site)){const h=hzOf(planOf(S.site));h[t.dataset.hz]=t.dataset.v;touchPlan('Heizsystem angepasst');persistSite();render();return}
