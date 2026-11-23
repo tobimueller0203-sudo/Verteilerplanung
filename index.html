@@ -227,7 +227,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-23.1436';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-23.1440';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -332,7 +332,7 @@ const loxMs=pl=>{if(!loxOn(pl))return null;const q=pl.sh.q||{},o=LOX.find(x=>x.g
 /* Miniserver erst nach Netzteil und Audio-Frage; ohne Audioserver nur Miniserver mit Tree Turbo (Compact) */
 const loxAs=pl=>{if(!loxOn(pl)||pl.sh.as!=='ja'||pl.sh.au!=='ja')return 0;const n=(pl.sh.q||{})['100428']||0;return pl.sh.m10==='ja'?Math.max(1,n):n};
 /* Tree Extension (Tobi 23.11.): automatisch aus den Trees mit eigenem Anschluss; Miniserver hat 1 Tree, jede Extension 2 */
-const loxTeN=pl=>{if(!loxMs(pl))return 0;const own=flTrees(pl).filter(t=>!t.src).length;return Math.max(0,Math.ceil((own-1)/2))};
+const loxTeN=pl=>{if(!loxMs(pl))return 0;const own=flTrees(pl).filter(t=>!t.src).length;return Math.ceil(own/2)}; /* Tree des Miniservers bleibt immer Reserve (Tobi 23.11.) */
 /* KNX Extension (Tobi 23.11.): wenn bei DALI «KNX Extension + KNX-DALI-Aktor» gewählt (Spots extern oder weitere Lampen) */
 const loxKnxN=pl=>{const h=(pl&&pl.sh)||{};if(!loxMs(pl))return 0;return (h.sp==='ext'&&h.spDali==='ja'&&h.spDaliArt==='knx')||(h.lp==='ja'&&h.lpDali==='ja'&&h.lpDaliArt==='knx')?1:0};
 const loxSyncTe=pl=>{const h=pl&&pl.sh;if(!h||!loxOn(pl))return;h.q=h.q||{};[['100218',loxTeN(pl)],['100322',loxKnxN(pl)]].forEach(([id,n])=>{if(n)h.q[id]=n;else delete h.q[id]})};
@@ -344,7 +344,7 @@ const kxProd=(pl,k)=>{const c=((pl.sh||{}).kx||{})[k];if(!c||!c.own)return {...K
 const loxFk=(s,pl)=>{const fmax=Math.max(0,...skLayout(s).list.map(r=>+String(r.f||'').replace(/\D/g,'')||0));return '-F'+(fmax+((pl.sh||{}).nb==='ja'?3:2))};
 /* Link-Kette ab Miniserver: Tree Extensions, dann KNX Extension */
 const loxLink=pl=>loxDev(pl).filter(v=>v.t==='te'||v.t==='knx').map(v=>v.name);
-const loxTreeMap=pl=>{const own=flTrees(pl).filter(t=>!t.src),nA=loxAs(pl),M=[{dev:'-A1',port:'Tree',t:own[0]}];for(let i=0;i<loxTeN(pl);i++){M.push({dev:'-A'+(2+nA+i),port:'links',te:i,t:own[1+2*i]});M.push({dev:'-A'+(2+nA+i),port:'rechts',te:i,t:own[2+2*i]})}return M};
+const loxTreeMap=pl=>{const own=flTrees(pl).filter(t=>!t.src),nA=loxAs(pl),M=[{dev:'-A1',port:'Tree',res:1}];for(let i=0;i<loxTeN(pl);i++){M.push({dev:'-A'+(2+nA+i),port:'links',te:i,t:own[2*i]});M.push({dev:'-A'+(2+nA+i),port:'rechts',te:i,t:own[2*i+1]})}return M};
 const loxFl=pl=>{const ps=loxPs(pl);return ps&&ps.big&&pl.sh.sp==='tree'?Math.min(7,spFloors(pl).length):0}; /* Stockwerke mit Tree-Spots: je eigener Abgang */
 /* Netzteil-Abgänge laufend zählen (Tobi 23.11.): Miniserver, Audioserver, Tree-Spots-Stockwerke, weitere Abgänge */
 const loxAbg=pl=>{const S=loxSlots(pl);if(!S)return null;const D=S.flat().concat(S.none),cnt=t=>D.filter(v=>v.t===t).length,used=S.filter(x=>x.length).length;return {max:7,ms:cnt('ms'),as:cnt('as'),te:cnt('te'),kx:cnt('knx'),fl:cnt('fl'),ab:0,want:D.length,used,frei:7-used,zuviel:S.none.length}};
@@ -1345,7 +1345,7 @@ function shBody(p,pl,dis){const h=shOf(pl);h.q=h.q||{};loxSyncTe(pl);
       <p><b>Grenzen eines Trees:</b> max. 50 Tree-Geräte und max. 500 m Kabel pro Tree. Mehrere Trees geben Reserve für später.</p>
       <p><b>Fehlersuche:</b> Ein Fehler lässt sich schneller finden, wenn weniger Geräte am gleichen Tree hängen.</p>
       <p><b>Spannung:</b> Auf mehrere Trees verteilt gibt es weniger Spannungsabfall auf den 24-V-Adern bei langen Leitungen.</p>
-      <p class="sub">Der Miniserver hat 1 Tree-Anschluss. Jede Tree Extension bringt 2 weitere Trees.</p></div></details>`;
+      <p class="sub">Jede Tree Extension hat 2 Trees. Der Tree des Miniservers bleibt immer Reserve.</p></div></details>`;
     let x=`<div class="legend">Räume</div><p class="sub">Zuerst alle Stockwerke von oben nach unten anlegen (z. B. Attika, OG, EG, UG), dann pro Stockwerk die Räume eintragen und bestätigen. Ändern geht jederzeit.</p><datalist id="flNames"><option value="Attika / Dachgeschoss"><option value="2. OG"><option value="1. OG"><option value="EG"><option value="UG"></datalist>`;
     F.forEach((f,fi)=>{const above=F.slice(0,fi).reverse().find(g=>g.ok);
       x+=`<div class="pform" style="margin:10px 0"><div class="row between" style="gap:8px;flex-wrap:wrap"><b style="font-size:17px">${fi+1}. ${esc(f.name||'Neues Stockwerk')}</b>${f.ok?'<span style="color:#067647;font-weight:600">✓ Räume bestätigt</span>':f.later?'<span style="color:#666;font-weight:600">wird nachgereicht</span>':'<span style="color:#b42318;font-weight:600">Räume noch nicht bestätigt</span>'}</div>`;
@@ -1362,11 +1362,11 @@ function shBody(p,pl,dis){const h=shOf(pl);h.q=h.q||{};loxSyncTe(pl);
     x+=`<button type="button" class="btn" data-fladd="1"${dis}>+ Stockwerk ${F.length?'darunter ':''}hinzufügen</button>`;
     const P=flProblems(pl),T=flTrees(pl),own=T.filter(t=>!t.src).length;
     if(P.length)x+=`<div class="msg err" style="margin-top:8px">${P.map(esc).join('<br>')}</div>`;
-    if(T.length)x+=`<div class="msg info" style="margin-top:8px"><b>Trees total: ${T.length}</b>, davon ${own} mit eigenem Anschluss${T.length-own?' und '+(T.length-own)+' durchgeschlauft':''}. Der Miniserver hat 1 Tree-Anschluss${own>1?', für die weiteren '+(own-1)+(own===2?' Tree':' Trees')+' braucht es '+loxTeN(pl)+' Tree Extension'+(loxTeN(pl)>1?'s':'')+' (je 2 Trees). Wird automatisch eingeplant':''}.</div>`;
+    if(T.length)x+=`<div class="msg info" style="margin-top:8px"><b>Trees total: ${T.length}</b>, davon ${own} mit eigenem Anschluss${T.length-own?' und '+(T.length-own)+' durchgeschlauft':''}. Der Tree des Miniservers bleibt immer Reserve. Dafür braucht es ${loxTeN(pl)} Tree Extension${loxTeN(pl)>1?'s':''} (je 2 Trees), sie werden automatisch eingeplant.</div>`;
     return x};
   const teUI=()=>{const n=loxTeN(pl),o=LOX.find(x=>x.id==='100218');if(!loxMs(pl)||!o)return '';const im=loxImg(o.id),M=loxTreeMap(pl).filter(m=>m.te!=null);
     return `<div class="legend">Tree Extension (automatisch)</div><div class="lxg"><div class="lxc${n?' on':''}">${im?`<img src="${im}" alt="">`:'<span class="vtn">Bild folgt</span>'}<b>${esc(o.art)}</b><span>${esc(o.nr)} · ${o.te} TE</span><span>${cur2(o.bru)}</span>${loxDs(o.id).length?`<button type="button" class="btn link" style="font-size:13px;text-align:left" data-dsview="${esc(o.id)}">Datenblatt ansehen</button>`:''}<div style="margin-top:4px"><b>Anzahl: ${n}</b></div></div></div>
-      <p class="sub">Wird automatisch aus den Trees mit eigenem Anschluss berechnet: Der Miniserver hat 1 Tree, jede Tree Extension 2 weitere. Sie hängt am Loxone Link (blau/weiss) und bekommt 24 V vom Netzteil.</p>${M.length?`<table class="te">${M.map(m=>`<tr><td>${esc(m.dev)} Tree ${m.port}</td><td style="text-align:right">${m.t?esc(m.t.name):'<span class="sub">Reserve</span>'}</td></tr>`).join('')}</table>`:''}`};
+      <p class="sub">Wird automatisch aus den Trees mit eigenem Anschluss berechnet: Jede Tree Extension hat 2 Trees, der Tree des Miniservers bleibt immer Reserve. Sie hängt am Loxone Link (blau/weiss) und bekommt 24 V vom Netzteil.</p>${M.length?`<table class="te">${M.map(m=>`<tr><td>${esc(m.dev)} Tree ${m.port}</td><td style="text-align:right">${m.t?esc(m.t.name):'<span class="sub">Reserve</span>'}</td></tr>`).join('')}</table>`:''}`};
   const knxUI=()=>{const n=loxKnxN(pl),o=LOX.find(x=>x.id==='100322');if(!n||!o)return '';const im=loxImg(o.id);
     return `<div class="legend">KNX Extension (automatisch)</div><div class="lxg"><div class="lxc on">${im?`<img src="${im}" alt="">`:'<span class="vtn">Bild folgt</span>'}<b>${esc(o.art)}</b><span>${esc(o.nr)} · ${o.te} TE</span><span>${cur2(o.bru)}</span>${loxDs(o.id).length?`<button type="button" class="btn link" style="font-size:13px;text-align:left" data-dsview="${esc(o.id)}">Datenblatt ansehen</button>`:''}<div style="margin-top:4px"><b>Anzahl: ${n}</b></div></div></div>
       <p class="sub">Kommt automatisch dazu, weil bei DALI «KNX Extension + KNX-DALI-Aktor» gewählt ist. Sie hängt am Loxone Link (blau/weiss), bekommt 24 V vom Netzteil und führt den KNX-Bus (rot/schwarz) zum KNX-DALI-Aktor.</p>
@@ -1894,8 +1894,8 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     /* oben: Tree links / rechts (WH, GN) auf -X4 */
     const xs0=gx+200,yx=150,kb=(msA?2:0)+(msA&&msA.tt?2:0)+nA*2+k*4;T(xs0-20,yx+4,'-X4','tb','end');
     M.forEach((m,i)=>{const xg=xs0+i*80,xw=xg+18;[[xg,'WH','trw',1],[xw,'GN','trg',2]].forEach(([x,l,cl,n])=>{term(x,gy,3);T(x,gy+16,l,'tk5','middle');L(x,gy-4,x,yx,cl);term(x,yx);T(x,yx-8,String(kb+i*2+n),'tk','middle')});
-      T((xg+xw)/2,gy+28,'Tree '+m.port,'tk5','middle');T(xg-4,gy-30,'gn-ws','tk5','end');T(xw+4,gy-30,'gn','tk5');T((xg+xw)/2,yx-22,m.t?m.t.name:'Reserve',m.t?'tk2':'tk5','middle')});
-    T(xs0,yx-40,'Loxone Tree (Tree-Kabel, nie Tree Turbo)','tnm2');
+      T((xg+xw)/2,gy+28,'Tree '+m.port,'tk5','middle');T(xg-4,gy-30,'gn-ws','tk5','end');T(xw+4,gy-30,'gn','tk5');T((xg+xw)/2,yx-44,m.t?m.t.name:'Reserve',m.t?'tk2':'tk5','middle');if(m.t){T((xg+xw)/2,yx-33,m.t.rooms.map(r=>r.name).join(', '),'tk5','middle');const via=flTrees(pl).filter(t=>t.src===m.t.f.id+':'+m.t.n);if(via.length)T((xg+xw)/2,yx-23,'durchgeschlauft → '+via.map(t=>t.name).join(', '),'tk5','middle')}});
+    T(xs0,yx-62,'Loxone Tree (Tree-Kabel, nie Tree Turbo)','tnm2');
     /* unten: Versorgung, Link */
     const X={p:gx+40,g:gx+58,lb:gx+110,lw:gx+128};[['p','24V'],['g','GND'],['lb','BU'],['lw','WH']].forEach(([q,l])=>{term(X[q],yb);T(X[q],yb-8,l,'tk5','middle')});T((X.lb+X.lw)/2,yb-22,'Link','tk5','middle');
     const yv=yb+80;L(X.p,yb+4,X.p,yv,'pwo');L(X.g,yb+4,X.g,yv,'pww');arr(X.p,yb+12);arr(X.g,yb+12);T(X.p-4,yb+30,'or','tk5','end');T(X.g+4,yb+30,'ws','tk5');
@@ -1928,8 +1928,8 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     /* Tree: zum Netzteil (Überwachung) und zu den Klemmen fürs Feld */
     const yk=620,yj=yb+56;L(X.tg,yb+4,X.tg,yk,'trg');L(X.tw,yb+4,X.tw,yk,'trw');T(X.tg-4,yb+30,'gn','tk5','end');T(X.tw+4,yb+30,'gn-ws','tk5');
     if(big){dot(X.tg,yj);dot(X.tw,yj+8);L(X.tg,yj,gx+300,yj,'trg');L(X.tw,yj+8,gx+300,yj+8,'trw');o.push(`<path d="M${gx+292} ${yj-5} l8 5 l-8 5" fill="none" stroke="#111" stroke-width="1"/>`);T(gx+306,yj+3,'→ -G1 Tree (Netzteil-Überwachung)','tk2');T(gx+306,yj+14,'nur Tree, nie Tree Turbo','tred')}
-    T(X.tg-20,yk+4,'-X4','tb','end');[[X.tg,'1','Tree'],[X.tw,'2','Tree']].forEach(([x,n,l])=>{term(x,yk);T(x,yk+16,n,'tk','middle');T(x,yk+24,l,'tk5','middle')});
-    T(X.tw+6,yk+44,'Loxone Tree','tnm2','end');T(X.tw+6,yk+55,'zu den Tree-Geräten','tk5','end');
+    T(X.tg-20,yk+4,'-X4','tb','end');[[X.tg,'1','Res.'],[X.tw,'2','Res.']].forEach(([x,n,l])=>{term(x,yk);T(x,yk+16,n,'tk','middle');T(x,yk+24,l,'tk5','middle')});
+    T(X.tw+6,yk+44,'Abgang Reserve','tnm2','end');T(X.tw+6,yk+55,'Loxone Tree, für spätere Erweiterungen','tk5','end');
     if(ms.tt){L(X.ug,yb+4,X.ug,yk,'ttg');L(X.uw,yb+4,X.uw,yk,'ttw');T(X.ug-4,yb+30,'gn','tk5','end');T(X.uw+4,yb+30,'gn-ws','tk5');T((X.ug+X.uw)/2,yb-22,'Tree Turbo','tk5','middle');
       [[X.ug,'3'],[X.uw,'4']].forEach(([x,n])=>{term(x,yk);T(x,yk+16,n,'tk','middle');T(x,yk+24,'Turbo','tk5','middle')});
       T(X.ug-6,yk+44,'Loxone Tree Turbo','tnm2');T(X.ug-6,yk+55,'max. 10 Geräte, 150 m (z. B. Lautsprecher)','tk5');T(X.ug-6,yk+66,'nie mit Tree verbinden, nie ans Netzteil','tred')}
