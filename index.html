@@ -227,7 +227,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-23.1444';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-23.1448';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -1860,9 +1860,10 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     T(gx+20,gy+48,'Versorgung 10–28 VDC · typ. 0,08 W','tm');T(gx+20,gy+62,'bis 500 KNX-Gruppenadressen','tm');T(gx+20,gy+76,'KNX-Bus max. 1000 m, bis KNX-Netzteil max. 350 m','tk5');
     /* 230 V: LS fuer KNX-Netzteil und DALI-Gateway */
     const xs=600,ys=gy,xL=xs+20,xN=xs+40,xE=xs+60,xd=800,dL=xd+20,dN=xd+40,dE=xd+60,xl=560,yL=250,yN=264,yE=278;
-    T(xl-8,86,'von Sammelschiene','tk2','end');T(xl,96,'L1','tk5','middle');L(xl,100,xl,140);LSsym(xl,140,172);LSsym(xl+12,140,172);L(xl,172,xl,yL);T(xl-14,146,FK,'tb','end');T(xl-14,160,'LS C10','t','end');T(xl-14,173,'2-polig','tm','end');T(xl-14,186,'230 V KNX','tm','end');
-    L(xl,yL,dL,yL);dot(xL,yL);L(xL,yL,xL,ys);L(dL,yL,dL,ys);L(xl+12,100,xl+12,140,'wn');L(xl+12,172,xl+12,yN,'wn');L(xl+12,yN,dN,yN,'wn');dot(xN,yN);L(xN,yN,xN,ys,'wn');L(dN,yN,dN,ys,'wn');L(xl+24,100,xl+24,yE,'wpe');L(xl+24,yE,dE,yE,'wpe');dot(xE,yE);L(xE,yE,xE,ys,'wpe');L(dE,yE,dE,ys,'wpe');
-    T(xl+12,96,'N','tk5','middle');T(xl+24,96,'PE','tk5','middle');
+    {const lsk=pagesOf(s).filter(p=>p.kind==='sk').pop(),pref=String(lsk?lsk.no:pg.no-1)+'.9';[['L1','w'],['L2','w'],['L3','w'],['N','wn']].forEach(([n,cl],i)=>{const y=87+i*14;L(76,y,1114,y,cl);T(78,y-3,pref+' '+n,'tr')});L(76,143,1114,143,'wpe');T(78,140,pref+' PE','tr')}
+    dot(xl,87);dot(xl+12,129);dot(xl+24,143);L(xl,87,xl,160);L(xl+12,129,xl+12,160,'wn');LSsym(xl,160,192);LSsym(xl+12,160,192);L(xl,192,xl,yL);T(xl-14,166,FK,'tb','end');T(xl-14,180,'LS C10','t','end');T(xl-14,193,'L1','ta','end');T(xl-14,206,'2-polig','tm','end');T(xl-14,219,'230 V KNX','tm','end');
+    L(xl,yL,dL,yL);dot(xL,yL);L(xL,yL,xL,ys);L(dL,yL,dL,ys);L(xl+12,192,xl+12,yN,'wn');L(xl+12,yN,dN,yN,'wn');dot(xN,yN);L(xN,yN,xN,ys,'wn');L(dN,yN,dN,ys,'wn');L(xl+24,143,xl+24,yE,'wpe');L(xl+24,yE,dE,yE,'wpe');dot(xE,yE);L(xE,yE,xE,ys,'wpe');L(dE,yE,dE,ys,'wpe');
+
     /* KNX-Netzteil */
     Rc(xs,ys,120,gh,'bxw');[[xL,'L'],[xN,'N'],[xE,'PE']].forEach(([x,l])=>{term(x,ys);T(x,ys+16,l,'tk5','middle')});
     T(xs+60,ys+34,'-G2','tb','middle');T(xs+60,ys+48,'KNX-Netzteil','tk2','middle');(XP.std?['MDT STV-0320.02','320/640 mA · 2 TE']:[XP.art.slice(0,24),XP.te+' TE']).forEach((t,i)=>T(xs+60,ys+62+i*11,t,'tk5','middle'));T(xs+60,ys+86,'mit Drossel, 30 VDC Bus','tk5','middle');
@@ -1943,7 +1944,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     T(700,172,'Leiter Versorgung/Link/Tree 0,25–0,8 mm².','tnote');
   }else if(pg.kind==='loxps'){
     T(ix1-12,iy1-6,'Aderfarben: Link blau/weiss · 24 V orange/weiss · Tree grün/weiss · Tree Turbo dunkelgrün/weiss · KNX rot/schwarz (weiss = gestrichelt)','tk5','end');
-    const ps=loxPs(pl),h=pl.sh,big=ps&&ps.big,cw2=(ix1-ix0)/10,cx=c=>ix0+cw2*c+cw2/2,pref=String(pg.no-1)+'.9',dot=(x,y)=>o.push(`<circle cx="${x}" cy="${y}" r="2.3" fill="#111"/>`),term=(x,y)=>o.push(`<circle class="term" cx="${x}" cy="${y}" r="4"/>`);
+    const ps=loxPs(pl),h=pl.sh,big=ps&&ps.big,cw2=(ix1-ix0)/10,cx=c=>ix0+cw2*c+cw2/2,pref=String(((pagesOf(s).filter(p=>p.kind==='sk').pop())||{no:pg.no-1}).no)+'.9',dot=(x,y)=>o.push(`<circle cx="${x}" cy="${y}" r="2.3" fill="#111"/>`),term=(x,y)=>o.push(`<circle class="term" cx="${x}" cy="${y}" r="4"/>`);
     const fmax=Math.max(0,...skLayout(s).list.map(r=>+String(r.f||'').replace(/\D/g,'')||0)),fV='-F'+(fmax+1),fB='-F'+(fmax+2);
     [['L1','w'],['L2','w'],['L3','w'],['N','wn']].forEach(([n,cl],i)=>{const y=87+i*14;L(76,y,1114,y,cl);T(78,y-3,pref+' '+n,'tr')});const yPE=520;L(76,yPE,1114,yPE,'wpe');T(78,yPE-3,pref+' PE','tr');T(78,yPE+14,'PE-Schiene','tm');
     const xa=cx(1)+6,xn=xa+14;dot(xa,87);L(xa,87,xa,190);dot(xn,129);L(xn,129,xn,190,'wn');LSsym(xa,190,222);LSsym(xn,190,222);L(xa,222,xa,250);L(xn,222,xn,250,'wn');
