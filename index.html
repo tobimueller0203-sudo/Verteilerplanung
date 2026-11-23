@@ -1049,7 +1049,7 @@ function stepOk(pl,k){return {heizung:true,verteiler:true,schienen:true,klemmen:
 const HZ_ART=[['wp-fbh','Wärmepumpe','über Fussbodenheizung'],['wp-hk','Wärmepumpe','über Heizkörper'],['gas','Gasheizung',''],['andere','Anderes','']];
 const hzOf=pl=>pl.hz||(pl.hz={});
 const hzWP=pl=>{const h=pl.hz||{};return h.vorh==='ja'&&/^wp/.test(h.art||'')};
-const HZ_RX=/w(ä|ae)rme ?pumpe|\bwp\b|boiler|puffer|innen ?(einheit|station|ger(ä|ae)t|teil)|au(ss|ß)en ?(einheit|ger(ä|ae)t|teil)|heizstab|warmwasserspeicher|heizkreis|hkv/i;
+const HZ_RX=/w(ä|ae)rme ?pumpe|\bwp\b|boiler|puffer|innen ?(einheit|station|ger(ä|ae)t|teil)|au(ss|ß)en ?(einheit|ger(ä|ae)t|teil)|heizstab|warmwasserspeicher|heizkreis|hkv|hzv/i;
 const HZ_DEF={au:['4','C','16','FILS'],in:['2','C','13','FILS'],puf:['4','','','FILS'],boi:['2','','','FILS']};
 /* Boiler und Puffer: Sicherung und Kabel trägt der Planer selbst ein (Tobi), bis dahin rot im Schema und PDF gesperrt (quittierbar in Extras) */
 const HZ_OPEN=['puf','boi'];
@@ -1065,7 +1065,7 @@ function hzSk(s){const pl=planOf(s),h=pl.hz||{};if(!hzWP(pl))return [];const out
   if(h.boiHs==='ja')out.push(fz('boi','Heizstab Boiler',h.boiKw?String(h.boiKw).replace('.',',')+' kW':''));
   if(h.art==='wp-fbh'){const n=hkvN(h),f=hkvF(h),per=Math.ceil(n/f);
     for(let q=0;q<f;q++){const ids=[];for(let k=q*per;k<Math.min(n,(q+1)*per);k++)ids.push(k);if(!ids.length)continue;
-      const loc=ids.map(k=>[h['hkvG'+k],h['hkvZ'+k]].filter(Boolean).join(' ')||'HKV '+(k+1)).join(', ');
+      const loc=ids.map(k=>[h['hkvG'+k],h['hkvZ'+k]].filter(Boolean).join(' ')||'HZV '+(k+1)).join(', ');
       const r={name:'Heizkreisverteiler '+loc,pol:'2',char:'C',amp:'13',typ:'FILS',note:'automatisch (Fussbodenheizung)',kabAuto:true,relais:[],hz:'hkv'};autoKab(r);out.push(r)}}
   return out}
 const hzOpenL=s=>skLayout(s).list.filter(r=>r.hzOpen),hzSig=s=>hzOpenL(s).map(r=>r.name+r.amp+r.adern+r.qs).join('|');
@@ -1092,7 +1092,7 @@ function hzBody(p,pl,dis){const h=hzOf(pl);
   if(h.art==='wp-fbh'){const n=hkvN(h),d=Math.ceil(n/2),f=hkvF(h);
     b+=`<div class="legend">Heizkreisverteiler (Fussbodenheizung)</div><div class="msg info">Pro 2 Heizkreisverteiler kommt automatisch eine Sicherung C13 FI/LS ins Schema.</div>
     <label class="f" style="max-width:260px">Wie viele Heizkreisverteiler?<select data-hz="hkvN"${dis}>${opt([...Array(12)].map((_,k)=>[String(k+1),String(k+1)]),String(n))}</select></label>
-    ${[...Array(n)].map((_,k)=>`<div class="grid" style="align-items:end"><label class="f c3">HKV ${k+1} · Geschoss<input data-hz="hkvG${k}" value="${esc(h['hkvG'+k]||'')}" placeholder="z. B. EG" autocomplete="off"${dis}></label><label class="f c3">Zimmer<input data-hz="hkvZ${k}" value="${esc(h['hkvZ'+k]||'')}" placeholder="z. B. Technik" autocomplete="off"${dis}></label></div>`).join('')}
+    ${[...Array(n)].map((_,k)=>`<div class="grid" style="align-items:end"><label class="f c3">HZV ${k+1} · Geschoss<input data-hz="hkvG${k}" value="${esc(h['hkvG'+k]||'')}" placeholder="z. B. EG" autocomplete="off"${dis}></label><label class="f c3">Zimmer<input data-hz="hkvZ${k}" value="${esc(h['hkvZ'+k]||'')}" placeholder="z. B. Technik" autocomplete="off"${dis}></label></div>`).join('')}
     <label class="f" style="max-width:360px">Anzahl Sicherungen für die Heizkreisverteiler<select data-hz="hkvF"${dis}>${opt([...Array(n)].map((_,k)=>[String(k+1),(k+1)+(k+1===d?' (Standard)':'')]),String(f))}</select></label>`}
   b+=`<div class="legend">Laufen die Heizstäbe über einen Schütz? <span class="hint">folgt</span></div><div class="tiles two-col">${tl('sch','ja','Ja','',1)}${tl('sch','nein','Nein','',1)}</div><p class="sub">Tag/Nacht- bzw. Schützsteuerung wird noch nicht im Plan umgesetzt. Kommt später.</p>`;
   const L=hzSk(p);if(L.length)b+=`<div class="msg info"><b>Kommt automatisch ins Schema:</b><br>${L.map(r=>esc(r.name)+' · '+r.pol+'-polig '+(r.amp?r.char+r.amp:'Sicherung offen')+' '+(r.typ==='FILS'?'FI/LS':'LS')+(r.hzOpen?' · <b style="color:#b42318">noch nachtragen</b>':'')+(r.note&&!/^automatisch/.test(r.note)?' · '+esc(r.note):'')).join('<br>')}</div>`;
