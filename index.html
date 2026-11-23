@@ -159,7 +159,7 @@ input:disabled,select:disabled{opacity:1;background:var(--bg);color:var(--ink);-
 .sptyp{display:flex;align-items:center;gap:8px;width:100%;margin-top:6px;padding:4px 8px;border:1px solid var(--line);border-radius:8px;background:#fff;font:inherit;font-size:13px;color:inherit;text-align:left;cursor:pointer}.sptyp img{width:28px;height:28px;object-fit:contain;flex:none}.sptyp span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sptyp small{color:var(--muted)}.sptyp b{font-size:12px;color:var(--muted);font-weight:600}
 .rfr{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--line)}.rfr small,.rfh small,.rfk small{color:var(--muted);font-size:12px}.rfb{display:flex;gap:4px;flex-wrap:wrap}
 .chp{min-width:38px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;font:inherit;font-size:14px;color:inherit;cursor:pointer}.chp.sm{min-width:0;padding:3px 7px;font-size:12px}.chp.on{background:var(--accent);border-color:#111;font-weight:700}.chp:disabled{cursor:default;opacity:.6}
-.rfc{border:1px solid var(--line);border-radius:10px;padding:10px;margin:8px 0;background:#fff}.rfh{display:flex;flex-direction:column;gap:2px;margin-bottom:6px}.rft{width:100%;border-collapse:collapse;font-size:13px}.rft th{text-align:left;font-size:11px;color:var(--muted);font-weight:600;padding:2px 4px}.rft td{padding:4px;border-top:1px solid var(--line);vertical-align:top}.rft td:nth-child(3),.rft td:nth-child(4){white-space:nowrap}
+.rfc{border:1px solid var(--line);border-radius:10px;padding:10px;margin:8px 0;background:#fff}.rfh{display:flex;flex-direction:column;gap:2px;margin-bottom:6px}.rft{width:100%;border-collapse:collapse;font-size:13px}.rft th{text-align:left;font-size:11px;color:var(--muted);font-weight:600;padding:2px 4px}.rft td{padding:4px;border-top:1px solid var(--line);vertical-align:top}.rft td:nth-child(3){white-space:nowrap}.rft td:nth-child(4) small{display:block;margin-top:2px}.rft .rfb{flex-wrap:nowrap}
 .rfk{margin-top:8px;padding-top:6px;border-top:1px dashed var(--line)}.rfkh{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:2px}
 .ph{display:flex;align-items:center;justify-content:center;background:#f4f4f1;color:var(--muted);border-radius:6px;font-size:11px;text-align:center}
 .lxc.soft{opacity:.5}.lxc img{width:100%;height:120px;object-fit:contain;background:#fff;border-radius:4px}.lxc .vtn{height:120px;display:flex;align-items:center;justify-content:center;background:#f4f4f1;color:var(--muted);border-radius:4px}.lxc span{color:var(--muted)}
@@ -236,7 +236,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-23.1851';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-23.2023';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -383,9 +383,12 @@ const rfCol=(ad,j)=>j===0?['braun','br']:j===1?['blau','bl']:j===2?['grün-gelb'
 const rfGLbl=(g,G)=>{const nn=g.k==='sp'?(g.n>1?'Spots':'Spot'):(g.n>1?'Lampen':'Lampe'),same=G.filter(x=>x.rid===g.rid&&x.k===g.k).length>1;return g.room+' · '+g.n+' '+nn+(same?' (Gr. '+(g.i+1)+')':'')};
 const rfList=pl=>{const h=(pl&&pl.sh)||{},M=h.rf||{},R=rfRooms(pl),N=[...new Set(R.map(r=>+M[r.rid]).filter(Boolean))].sort((a,b)=>a-b),RG=loxGroups(pl).filter(g=>g.ctl==='rel'),RD=loxDev(pl).filter(v=>v.t==='rel');
   return N.map(n=>{const rs=R.filter(r=>+M[r.rid]===n),G=rs.flatMap(r=>r.g),man=((h.rfCab||{})[n]||[]).map(Number).filter(a=>FE0_AD.includes(a)),ads=man.length?man:rfAuto(3+G.length),cabs=ads.map(ad=>({ad,S:[]})),miss=[];
-    rs.forEach(r=>{if(!r.g.length)return;const c=cabs.find(c=>c.ad-3-c.S.length>=r.g.length);if(c)r.g.forEach(g=>c.S.push(g));else r.g.forEach(g=>{const c2=cabs.find(c=>c.ad-3-c.S.length>0);if(c2)c2.S.push(g);else miss.push(g)})});
+    const fr=c=>c.ad-3-c.S.length,put=(g,q)=>{const c=cabs[q];if(c&&fr(c)>0){c.S.push(g);return true}const c2=cabs.find(c=>fr(c)>0);if(c2){c2.S.push(g);return true}miss.push(g);return false},SW=(h.rfSw||{})[n]||{},gk=g=>g.rid+'|'+g.k+'|'+g.i,nC=cabs.length;
+    const RG2=rs.filter(r=>r.g.length),U=RG2.length>=nC?RG2.map(r=>r.g):G.map(g=>[g]),auto={};U.forEach((u,j)=>u.forEach(g=>auto[gk(g)]=Math.floor(j*nC/U.length)));
+    G.filter(g=>SW[gk(g)]!=null&&+SW[gk(g)]<nC).forEach(g=>put(g,+SW[gk(g)]));G.filter(g=>!(SW[gk(g)]!=null&&+SW[gk(g)]<nC)).forEach(g=>put(g,auto[gk(g)]));
+    cabs.forEach(c=>c.S.sort((a,b)=>G.indexOf(a)-G.indexOf(b)));
     let sn=0;const sw=[];
-    cabs.forEach((c,q)=>{c.S=c.S.map((g,j)=>{const ix=RG.findIndex(x=>x.rid===g.rid&&x.k===g.k&&x.i===g.i),d=RD[Math.floor(ix/14)],cl=rfCol(c.ad,3+j),o={id:'S'+(++sn),g,room:g.room,lbl:rfGLbl(g,G),A:d?d.name.split(' ')[0]:'-A?',Q:'Q'+(ix%14+1),cab:q,col:cl[0],ck:cl[1]};sw.push(o);return o});
+    cabs.forEach((c,q)=>{c.S=c.S.map((g,j)=>{const ix=RG.findIndex(x=>x.rid===g.rid&&x.k===g.k&&x.i===g.i),d=RD[Math.floor(ix/14)],cl=rfCol(c.ad,3+j),o={id:'S'+(++sn),g,key:g.rid+'|'+g.k+'|'+g.i,room:g.room,lbl:rfGLbl(g,G),A:d?d.name.split(' ')[0]:'-A?',Q:'Q'+(ix%14+1),cab:q,col:cl[0],ck:cl[1]};sw.push(o);return o});
       c.res=c.ad-3-c.S.length;c.cond=['L','N','PE'].concat(c.S.map(x=>x.id));c.cols=c.cond.map((_,j)=>rfCol(c.ad,j)[1]);c.txt='FE0 '+c.ad+'×1,5';
       c.rooms=[...new Set(c.S.map(x=>x.room))]});
     return {n,rooms:rs,G,cabs,sw,miss,ok:!miss.length,man:!!man.length,ad:cabs.reduce((a,c)=>a+c.ad,0),cab:cabs.map(c=>c.txt).join(' + ')}})};
@@ -1489,7 +1492,7 @@ function shBody(p,pl,dis){const h=shOf(pl);h.q=h.q||{};loxSyncTe(pl);
       <div class="rfg">${R.map(r=>{const cur=+h.rf[r.rid]||0;return `<div class="rfr"><span>${esc(r.name)}${r.g.length?` <small>${gN(r.g.length)}</small>`:''}</span><span class="rfb">${Array.from({length:mx},(_,i)=>`<button type="button" class="chp${cur===i+1?' on':''}" data-rfset="${r.rid}:${i+1}"${dis}>${i+1}</button>`).join('')}<button type="button" class="chp" data-rfset="${r.rid}:${mx+1}"${dis}>+ neu</button></span></div>`}).join('')}</div>
       ${R.some(r=>!h.rf[r.rid])?'<div class="msg err">Noch nicht alle Räume einer Sicherung zugewiesen.</div>':''}
       ${L2.map(x=>`<div class="rfc"><div class="rfh"><b>Sicherung ${x.n}</b><small>FI/LS 2P C13 · ${esc(x.rooms.map(r=>r.name.split(' · ').pop()).join(', '))}</small></div>
-        ${x.sw.length?`<table class="rft"><tr><th>Draht</th><th>Lampen</th><th>Relais</th><th>Kabel</th></tr>${x.sw.map(v=>`<tr><td><b>${v.id}</b></td><td>${esc(v.lbl)}</td><td>${esc(v.A+' '+v.Q)}</td><td>${x.cabs.length>1?'K'+(v.cab+1)+' · ':''}${esc(v.ck)}</td></tr>`).join('')}</table>`:'<div class="sub">Noch keine Relais-Lampen (unten bei den Lampen festlegen).</div>'}
+        ${x.sw.length?`<table class="rft"><tr><th>Draht</th><th>Lampen</th><th>Relais</th><th>${x.cabs.length>1?'Kabel wählen':'Kabel'}</th></tr>${x.sw.map(v=>`<tr><td><b>${v.id}</b></td><td>${esc(v.lbl)}</td><td>${esc(v.A+' '+v.Q)}</td><td>${x.cabs.length>1?`<span class="rfb">${x.cabs.map((_,q)=>`<button type="button" class="chp sm${q===v.cab?' on':''}" data-rfsw="${x.n}|${esc(v.key)}|${q}"${dis}>K${q+1}</button>`).join('')}</span><small>${esc(v.ck)}</small>`:esc(v.ck)}</td></tr>`).join('')}</table>`:'<div class="sub">Noch keine Relais-Lampen (unten bei den Lampen festlegen).</div>'}
         ${x.cabs.map((c,q)=>`<div class="rfk"><div class="rfkh"><b>Kabel ${q+1}</b><span class="rfb">${FE0_AD.filter(a=>a>=5).map(a=>`<button type="button" class="chp sm${a===c.ad?' on':''}" data-rfcab="${x.n}:${q}:${a}"${dis}>${a}×</button>`).join('')}${x.cabs.length>1?`<button type="button" class="chp sm" data-rfcdel="${x.n}:${q}" title="Kabel entfernen"${dis}>✕</button>`:''}</span></div>
           <small>FE0 ${c.ad}×1,5: ${c.cond.map((cn,j)=>c.cols[j]+' '+cn).join(' · ')}${c.res?' · '+c.res+' Reserve':''}</small></div>`).join('')}
         <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><button type="button" class="btn small" data-rfcadd="${x.n}"${dis}>+ Kabel</button>${x.man?`<button type="button" class="btn small" data-rfcstd="${x.n}"${dis}>Standard (1 Kabel)</button>`:'<small class="sub" style="align-self:center">Standard: passendes Kabel automatisch</small>'}</div>
@@ -2759,13 +2762,14 @@ document.addEventListener('click',e=>{
   if(t.dataset.dsview!=null){const k2=t.dataset.dsview.replace(/^kx-/,''),o=LOX.find(x=>x.id===t.dataset.dsview)||(KX_STD[k2]&&/^kx-/.test(t.dataset.dsview)?{art:KX_TXT[k2]}:null),L=loxDs(t.dataset.dsview),di=t.dataset.di;showDocs((o?o.art:'')+' · Datenblatt',(di!=null?[L[+di]]:L).filter(Boolean).map(d=>d.key));return}
   if(t.dataset.dsdel!=null&&S.user&&S.user.admin){const id=t.dataset.dsdel,L=loxDs(id);L.splice(+t.dataset.di,1);cfgSet('CFG:loxds:'+id,null,JSON.stringify(L));return}
   if(t.dataset.loxone&&S.site&&canEdit(S.site)){const h=shOf(planOf(S.site));h.q=h.q||{};const o=LOX.find(x=>x.id===t.dataset.loxone);if(!o)return;const was=h.q[o.id]>0;LOX.filter(x=>x.grp===o.grp).forEach(x=>delete h.q[x.id]);if(!was)h.q[o.id]=1;if(o.grp==='Spannungsversorgung'&&(!LOX_PS[o.id]||!LOX_PS[o.id].big)){delete h.nb;delete h.nbArt}touchPlan('Loxone '+o.grp+' '+(was?'abgewählt':o.art));persistSite();render();return}
-  if((t.dataset.rfset||t.dataset.rfcab||t.dataset.rfcadd||t.dataset.rfcdel||t.dataset.rfcstd)&&S.site&&canEdit(S.site)){const pl2=planOf(S.site),h=shOf(pl2);h.rf=h.rf||{};h.rfCab=h.rfCab||{};
+  if((t.dataset.rfsw||t.dataset.rfset||t.dataset.rfcab||t.dataset.rfcadd||t.dataset.rfcdel||t.dataset.rfcstd)&&S.site&&canEdit(S.site)){const pl2=planOf(S.site),h=shOf(pl2);h.rf=h.rf||{};h.rfCab=h.rfCab||{};
     const cur=n=>{const x=rfList(pl2).find(y=>y.n===n);return x?x.cabs.map(c=>c.ad):[5]};
-    if(t.dataset.rfset){const [rid,n]=t.dataset.rfset.split(':');h.rf[rid]=+n;const U=[...new Set(Object.values(h.rf))].sort((a,b)=>a-b),C={};Object.keys(h.rf).forEach(k=>h.rf[k]=U.indexOf(h.rf[k])+1);U.forEach((o,i)=>{if(h.rfCab[o])C[i+1]=h.rfCab[o]});h.rfCab=C}
+    if(t.dataset.rfset){const [rid,n]=t.dataset.rfset.split(':');h.rf[rid]=+n;const U=[...new Set(Object.values(h.rf))].sort((a,b)=>a-b),C={};Object.keys(h.rf).forEach(k=>h.rf[k]=U.indexOf(h.rf[k])+1);const W={};U.forEach((o,i)=>{if(h.rfCab[o])C[i+1]=h.rfCab[o];if(h.rfSw&&h.rfSw[o])W[i+1]=h.rfSw[o]});h.rfCab=C;h.rfSw=W}
     else if(t.dataset.rfcab){const [n,q,a]=t.dataset.rfcab.split(':').map(Number),L=cur(n);L[q]=a;h.rfCab[n]=L}
     else if(t.dataset.rfcadd){const n=+t.dataset.rfcadd,L=cur(n);L.push(5);h.rfCab[n]=L}
-    else if(t.dataset.rfcdel){const [n,q]=t.dataset.rfcdel.split(':').map(Number),L=cur(n);L.splice(q,1);h.rfCab[n]=L}
-    else delete h.rfCab[+t.dataset.rfcstd];
+    else if(t.dataset.rfcdel){const [n,q]=t.dataset.rfcdel.split(':').map(Number),L=cur(n);L.splice(q,1);h.rfCab[n]=L;const M2=(h.rfSw||{})[n];if(M2)Object.keys(M2).forEach(k=>{if(M2[k]===q)delete M2[k];else if(M2[k]>q)M2[k]--})}
+    else if(t.dataset.rfsw){const [n,rid,k,i,q]=t.dataset.rfsw.split('|');h.rfSw=h.rfSw||{};(h.rfSw[n]=h.rfSw[n]||{})[rid+'|'+k+'|'+i]=+q}
+    else{delete h.rfCab[+t.dataset.rfcstd];if(h.rfSw)delete h.rfSw[+t.dataset.rfcstd]}
     touchPlan('Licht-Sicherungen angepasst');persistSite();render();return}
   if(t.dataset.pickopen!=null){S.pick=S.pick===t.dataset.pickopen?null:t.dataset.pickopen;render();return}
   if(t.dataset.pick!=null&&S.site&&canEdit(S.site)){const pl2=planOf(S.site),h=shOf(pl2),[k,a,b2]=t.dataset.pick.split('|'),v=t.dataset.v;S.pick=null;
