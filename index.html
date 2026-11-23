@@ -1050,14 +1050,14 @@ const HZ_ART=[['wp-fbh','Wärmepumpe','über Fussbodenheizung'],['wp-hk','Wärme
 const hzOf=pl=>pl.hz||(pl.hz={});
 const hzWP=pl=>{const h=pl.hz||{};return h.vorh==='ja'&&/^wp/.test(h.art||'')};
 const HZ_RX=/w(ä|ae)rme ?pumpe|\bwp\b|boiler|puffer|innen ?(einheit|station|ger(ä|ae)t|teil)|au(ss|ß)en ?(einheit|ger(ä|ae)t|teil)|heizstab|warmwasserspeicher|heizkreis|hkv/i;
-const HZ_DEF={au:['4','C','16','FILS'],in:['2','C','13','FILS'],puf:['2','C','','FILS'],boi:['2','C','','FILS']};
+const HZ_DEF={au:['4','C','16','FILS'],in:['2','C','13','FILS'],puf:['4','','','FILS'],boi:['2','','','FILS']};
 /* Boiler und Puffer: Sicherung und Kabel trägt der Planer selbst ein (Tobi), bis dahin rot im Schema und PDF gesperrt (quittierbar in Extras) */
 const HZ_OPEN=['puf','boi'];
 const hzJa=(h,k)=>(h[k]||'ja')==='ja';
 const hkvN=h=>Math.max(1,Math.min(12,+h.hkvN||1)),hkvF=h=>{const n=hkvN(h),d=Math.ceil(n/2),f=+h.hkvF||d;return Math.max(1,Math.min(n,f))};
 /* Stromkreise aus dem Heizsystem, erscheinen automatisch im Schema */
 function hzSk(s){const pl=planOf(s),h=pl.hz||{};if(!hzWP(pl))return [];const out=[];
-  const fz=(pre,name,note)=>{const d=HZ_DEF[pre]||HZ_DEF.in,r={name,pol:h[pre+'Pol']||d[0],char:h[pre+'Char']||d[1],amp:h[pre+'Amp']||d[2],typ:h[pre+'Typ']||d[3],note:note||'',kabAuto:true,relais:[],hz:pre};if(HZ_OPEN.includes(pre)){r.kabAuto=false;r.adern=h[pre+'Adern']||'';r.qs=h[pre+'Qs']||'';r.hzOpen=!r.amp||!r.adern||!r.qs}else autoKab(r);return r};
+  const fz=(pre,name,note)=>{const d=HZ_DEF[pre]||HZ_DEF.in,r={name,pol:h[pre+'Pol']||d[0],char:h[pre+'Char']||d[1],amp:h[pre+'Amp']||d[2],typ:h[pre+'Typ']||d[3],note:note||'',kabAuto:true,relais:[],hz:pre};if(HZ_OPEN.includes(pre)){r.kabAuto=false;r.adern=h[pre+'Adern']||'';r.qs=h[pre+'Qs']||'';r.hzOpen=!r.amp||!r.char||!r.adern||!r.qs}else autoKab(r);return r};
   const kw=h.kw?String(h.kw).replace('.',',')+' kW':'';
   if(hzJa(h,'au'))out.push(fz('au','Wärmepumpe Ausseneinheit',[kw,'Achtung: geht auf Anlagenschalter'].filter(Boolean).join(' · ')));
   if(hzJa(h,'in'))out.push(fz('in','Wärmepumpe Inneneinheit',hzJa(h,'au')?'':kw));
@@ -1074,7 +1074,7 @@ function hzBody(p,pl,dis){const h=hzOf(pl);
   const tl=(key,val,label,sub,off)=>`<button type="button" class="tile" data-hz="${key}" data-v="${esc(val)}" aria-pressed="${h[key]===val}"${off?' disabled':dis}><b>${esc(label)}</b>${sub?`<span>${esc(sub)}</span>`:''}</button>`;
   const jn=(key,q,off)=>`<div class="legend">${q}</div><div class="tiles two-col">${tl(key,'ja','Ja','',off)}${tl(key,'nein','Nein','',off)}</div>`;
   const sel=(key,list,def,label)=>`<label class="m"><span>${label}</span><select data-hz="${key}"${dis}>${opt(list,h[key]||def)}</select></label>`;
-  const fuse=pre=>{const d=HZ_DEF[pre],op=HZ_OPEN.includes(pre);return `<div class="sk2">${sel(pre+'Pol',POL,d[0],'Polzahl')}${sel(pre+'Char',CHAR,d[1],'Char.')}${sel(pre+'Amp',op?[['','offen'],...AMP]:AMP,d[2],'Strom')}${sel(pre+'Typ',TYP,d[3],'Typ')}${op?sel(pre+'Adern',[['','offen'],...SK_ADERN],'','Adern')+sel(pre+'Qs',[['','offen'],...SK_QS],'','mm²'):''}</div>${op&&(!h[pre+'Amp']||!h[pre+'Adern']||!h[pre+'Qs'])?'<div class="msg err">Sicherung und Kabel bitte selbst eintragen. Bis dahin steht es rot im Schema und das PDF ist gesperrt (quittieren in den Extras).</div>':''}`};
+  const fuse=pre=>{const d=HZ_DEF[pre],op=HZ_OPEN.includes(pre);return `<div class="sk2">${sel(pre+'Pol',POL,d[0],'Polzahl')}${sel(pre+'Char',op?[['','offen'],...CHAR]:CHAR,d[1],'Char.')}${sel(pre+'Amp',op?[['','offen'],...AMP]:AMP,d[2],'Strom')}${sel(pre+'Typ',TYP,d[3],'Typ')}${op?sel(pre+'Adern',[['','offen'],...SK_ADERN],'','Adern')+sel(pre+'Qs',[['','offen'],...SK_QS],'','mm²'):''}</div>${op&&(!h[pre+'Amp']||!h[pre+'Adern']||!h[pre+'Qs'])?'<div class="msg err">Sicherung und Kabel bitte selbst eintragen. Bis dahin steht es rot im Schema und das PDF ist gesperrt (quittieren in den Extras).</div>':''}`};
   const inp=(key,label,ph,w)=>`<label class="f" style="max-width:${w||260}px">${label}<input data-hz="${key}" value="${esc(h[key]||'')}" placeholder="${ph}" autocomplete="off"${dis}></label>`;
   let b=`<h2>Heizsystem</h2><p class="sub">Gibt es ein Heizsystem, das über diesen Verteiler läuft? Die Sicherungen der Wärmepumpe kommen automatisch ins Schema.</p>`+jn('vorh','Heizsystem vorhanden?');
   if(h.vorh!=='ja')return b;
