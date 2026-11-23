@@ -209,6 +209,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
+const APP_V='2026-11-23.0832';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -1805,7 +1806,7 @@ function vAdminCloud(){
   <section class="card">
     <h2>Links</h2>
     <div class="ulist">${ADMIN_LINKS.map(([t,u])=>`<div class="uitem"><div><div style="font-weight:600">${esc(t)}</div><span class="sub">${esc(u.replace('https://',''))}</span></div><a class="btn small" href="${u}" target="_blank" rel="noopener">Öffnen</a></div>`).join('')}</div>
-    <p class="sub">Die Zugangsdaten für GitHub und Supabase stehen bewusst nicht hier, weil der Code öffentlich ist.</p>
+    <p class="sub">Die Zugangsdaten für GitHub und Supabase stehen bewusst nicht hier, weil der Code öffentlich ist.</p><p class="sub">App-Version: <b>${APP_V}</b></p>
     <p class="sub">Die Verwaltung kann keine Baustellen ändern oder löschen. Das dürfen nur der Ersteller und die Planer, für die er sie freigegeben hat.</p>
   </section></div>`;
 }
@@ -2036,6 +2037,7 @@ document.addEventListener('click',e=>{
   if(t.dataset.delsite){const s=D.sites.find(x=>x.id===t.dataset.delsite);if(!s||!canDelete(s))return;D.sites=D.sites.filter(x=>x.id!==s.id);save();cloudDel(s.id);S.armed=null;return go('liste',{t:'ok',m:'Baustelle '+(s.kom||'')+' gelöscht.'})}
   if(act==='liste'||act==='back'){if(SITE_SCR.includes(S.screen)&&S.site&&!S.isNew)persistSite();const up={schema:'plan',plan:'baustelle'};return go(act==='back'&&up[S.screen]?up[S.screen]:'liste')}
   if(act==='logout'){if(S.screen==='baustelle'&&S.site&&!S.isNew)persistSite();cloudLogout();S.user=null;S.admin=false;S.sel='';S.site=null;return go('start')}
+  if(act==='appUpdate'){if(SITE_SCR.includes(S.screen)&&S.site&&!S.isNew)persistSite();saveSession();location.reload();return}
   if(act==='adminLogin')return go('adminLogin');
   if(act==='adminOpen'&&SB.on&&S.user&&S.user.admin){S.admin=true;return go('admin')}
   if(act==='adminBack'){S.admin=false;return go('liste')}
@@ -2070,6 +2072,9 @@ const y0=restoreSession();S.pushDepth=history.state&&history.state.screen===S.sc
 if(y0)setTimeout(()=>window.scrollTo(0,y0),50);
 });
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+/* Neue Version: beim Öffnen und alle 5 Minuten prüfen, dann Hinweis mit Knopf */
+async function checkVersion(){try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const v=(await r.json()).v;if(v&&v!==APP_V&&!$('#newVer')){const d=document.createElement('div');d.id='newVer';d.style.cssText='position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:999;background:#111;color:#fff;padding:10px 14px;display:flex;gap:12px;align-items:center;box-shadow:0 4px 16px rgba(0,0,0,.3);max-width:calc(100% - 32px)';d.innerHTML='<span>Neue Version verfügbar</span><button type="button" class="btn small primary" data-act="appUpdate">Aktualisieren</button>';document.body.appendChild(d)}}catch(e){}}
+checkVersion();setInterval(checkVersion,5*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkVersion()});
 })();
 </script>
 </body>
