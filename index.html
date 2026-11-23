@@ -227,7 +227,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-23.1347';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-23.1352';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -343,6 +343,12 @@ function loxCheck(pl){const ps=loxPs(pl);if(!ps)return [];const h=pl.sh,q=h.q||{
   const a=loxAbg(pl);if(a&&a.zuviel)E.push(`Zu viele Netzteil-Abgänge: gebraucht ${a.want}, das Power Supply &amp; Backup hat nur 7. Es fehlen ${a.zuviel}.`);else if(a&&a.want&&!a.frei)E.push('Alle 7 Netzteil-Abgänge sind belegt. Für weitere Verbraucher braucht es ein weiteres Netzteil.');
   return E}
 function loxCheckBox(pl){const E=loxCheck(pl);return E.length?`<div class="msg err alarm"><b>Achtung Netzteil:</b><ul style="margin:4px 0 0 18px;padding:0">${E.map(e=>`<li>${e}</li>`).join('')}</ul></div>`:''}
+/* Belegung der 7 Netzteil-Abgänge: Geräte nach Wahl (h.out), sonst erster freier; Tree-Spots-Stockwerke füllen den Rest */
+const loxDev=pl=>{const d=[];if(loxMs(pl))d.push({key:'ms',t:'ms',name:'-A1 Miniserver'});for(let i=0;i<loxAs(pl);i++)d.push({key:'as'+i,t:'as',i,name:'-A'+(i+2)+' Audioserver'});return d};
+const loxSlots=pl=>{const ps=loxPs(pl);if(!ps||!ps.big)return null;const o=pl.sh.out||{},S=Array(7).fill(null),D=loxDev(pl),rest=[];
+  D.forEach(v=>{const n=+o[v.key];if(n>=1&&n<=7&&!S[n-1])S[n-1]=v;else rest.push(v)});rest.forEach(v=>{const d=v.t==='ms'?0:1+v.i;const f=d<7&&!S[d]?d:S.indexOf(null);if(f>=0)S[f]=v});
+  const nf=loxFl(pl);let c=0;for(let k=0;k<7&&c<nf;k++)if(!S[k])S[k]={t:'fl',i:c++};return S};
+const loxSlotNo=(pl,key)=>{const S=loxSlots(pl);if(!S)return 0;const k=S.findIndex(v=>v&&v.key===key);return k+1};
 const loxRes=pl=>(loxMs(pl)?1:0)+loxAs(pl); /* reservierte Netzteil-Abgänge (Miniserver, Audioserver) */
 const loxBlk=(pl,o)=>{const h=pl.sh||{};if(o.grp==='Audioserver'){const ps=loxPs(pl);if(!ps)return 'Zuerst ein Netzteil wählen.';if(h.au!=='ja'||h.as!=='ja')return 'Nur bei Audiotechnik mit Audioserver.';if(!ps.big)return 'Das Netzteil 4,2A reicht nicht (Audioserver bis 110 W). Power Supply & Backup wählen.';if(loxRes(pl)>=7)return 'Keine freien Netzteil-Abgänge mehr.';return ''}
   if(o.grp!=='Miniserver')return '';if(!loxPs(pl))return 'Zuerst ein Netzteil wählen.';if(!h.au||(h.au==='ja'&&(!h.m10||!h.as)))return 'Zuerst die Frage zur Audiotechnik beantworten.';if(loxMsOnlyCompact(h)&&!o.tt)return 'SOFT:Mit Audiotechnik ohne Audioserver nicht möglich (kein Tree Turbo). Wenn du ihn trotzdem wählst, wird der Audioserver automatisch dazugenommen.';return ''};
@@ -1302,6 +1308,8 @@ function shBody(p,pl,dis){const h=shOf(pl);h.q=h.q||{};
     return `<p class="sub">Vorsicherung: LS ${ps.vs} 2-polig.</p>${ab}<div class="legend">Notstrom?</div><div class="tiles two-col">${tl('nb','nein','Nein','')}${tl('nb','ja','Ja','')}</div>${h.nb==='ja'?`<div class="legend">Notstrom über</div><div class="tiles two-col">${tl('nbArt','pv','PV-Speicher','')}${tl('nbArt','bat','Externe Batterie','')}</div><div class="msg info">Kommt als Hinweis ins Schema. Genauere Informationen folgen.</div>`:''}`};
   const tl=(key,val,label,sub,off)=>`<button type="button" class="tile" data-sh="${key}" data-v="${esc(val)}" aria-pressed="${h[key]===val}"${off?' disabled':dis}><b>${esc(label)}</b>${sub?`<span>${esc(sub)}</span>`:''}</button>`;
   const auUI=()=>{if(!loxPs(pl))return '';return `<div class="legend">Audiotechnik (Loxone-Lautsprecher, z. B. Decke oder TV)?</div><div class="tiles two-col">${tl('au','nein','Nein','')}${tl('au','ja','Ja','')}</div>${h.au==='ja'?`<div class="legend">Mehr als 10 Master-Lautsprecher? (Slaves am Master zählen nicht)</div><div class="tiles two-col">${tl('m10','nein','Nein','bis 10 Master')}${tl('m10','ja','Ja','mehr als 10 Master')}</div>`:''}${h.au==='ja'&&h.m10?`<div class="legend">Audioserver von Loxone benutzen?</div><div class="tiles two-col">${tl('as','ja','Ja','alle Miniserver möglich')}${tl('as','nein','Nein',h.m10==='ja'?'nicht möglich bei mehr als 10 Master':'nur Miniserver Compact (Tree Turbo)',h.m10==='ja')}</div>${h.m10==='ja'?'<div class="msg info">Bei mehr als 10 Master-Lautsprechern braucht es einen Audioserver. Er wird automatisch gewählt und ins Schema eingebaut.</div>':''}`:''}${h.au&&(h.au==='nein'||(h.m10&&h.as))?`<div class="msg info">${loxMsOnlyCompact(h)?'Ohne Audioserver ist nur der Miniserver Compact möglich, weil nur er einen Tree-Turbo-Ausgang hat.':'Alle Miniserver sind möglich.'} Die Miniserver folgen.</div>`:''}`};
+  const outUI=()=>{const S=loxSlots(pl);if(!S)return '';const D=loxDev(pl);if(!D.length)return '';
+    return `<div class="legend">Anschluss am Netzteil (Abgang)</div><div class="row" style="gap:10px;flex-wrap:wrap">${D.map(v=>{const cur=loxSlotNo(pl,v.key);return `<label class="m" style="max-width:220px"><span>${esc(v.name)}</span><select data-shout="${v.key}"${dis}>${[1,2,3,4,5,6,7].map(n=>{const occ=S[n-1]&&S[n-1].key&&S[n-1].key!==v.key;return `<option value="${n}"${n===cur?' selected':''}${occ?' disabled':''}>Abgang ${n}${occ?' (belegt: '+esc(S[n-1].name)+')':''}</option>`}).join('')}</select></label>`}).join('')}</div><p class="sub">Die 24 V für das Gerät kommen von diesem Abgang (eigene Kfz-Sicherung F1–F7).</p>`};
   const liUI=()=>{const ms=loxMs(pl);if(!ms)return '';const rb=loxRelais(pl);
     const nSel=(key,lbl)=>`<label class="m" style="margin-top:8px;max-width:420px"><span>${lbl}</span><select data-shsel="${key}"${dis}>${opt(Array.from({length:41},(_,n)=>[String(n),n?String(n):'wählen …']),String(h[key]||0))}</select></label>`;
     const grp=(pre,title,a,b2)=>{const D=pre+'Dali',A=pre+'DaliArt',N=pre+'N';let x=`<div class="legend">${title}: DALI?</div><div class="tiles two-col">${tl(D,'nein','Nicht DALI','über Relais geschaltet')}${tl(D,'ja','DALI','')}</div>`;
@@ -1323,7 +1331,7 @@ function shBody(p,pl,dis){const h=shOf(pl);h.q=h.q||{};
   const L=LOX,rb=loxR(),sel=L.filter(o=>(h.q[o.id]||0)>0),te=sel.reduce((a,o)=>a+(+o.te||0)*h.q[o.id],0),bru=sel.reduce((a,o)=>a+(o.bru||0)*h.q[o.id],0),net=sel.reduce((a,o)=>a+(loxNet(o)||0)*h.q[o.id],0);
   b+=`<label class="chk" style="margin-top:12px"><input type="checkbox" data-shds="1" ${h.ds?'checked':''}${dis}> Datenblätter der gewählten Loxone-Bauteile in die Planmappe aufnehmen</label>`;
   b+=`${L.length?`${['Spannungsversorgung','Audioserver','Miniserver'].concat(L.map(o=>o.grp)).filter((g,i,A)=>A.indexOf(g)===i&&L.some(o=>o.grp===g)&&(g!=='Audioserver'||(h.au==='ja'&&h.as==='ja'))).map(g=>`<div class="legend">${esc(g)}</div><div class="lxg">${L.filter(o=>o.grp===g).map(o=>{const n=h.q[o.id]||0,im=loxImg(o.id);return `<div class="lxc${n?' on':''}${!n&&loxBlk(pl,o).startsWith('SOFT:')?' soft':''}">${im?`<img src="${im}" alt="">`:'<span class="vtn">Bild folgt</span>'}<b>${esc(o.art)}</b><span>${esc(o.nr||'')}${o.te?' · '+o.te+' TE':''}</span><span>${rb?'netto '+cur2(loxNet(o)||0)+' · Liste ':''}${cur2(o.bru||0)}</span>${loxDs(o.id).length?`<button type="button" class="btn link" style="font-size:13px;text-align:left" data-dsview="${esc(o.id)}">Datenblatt ansehen</button>`:''}
-    ${LOX_ONE.includes(o.grp)?(()=>{const b0=loxBlk(pl,o),soft=b0.startsWith('SOFT:'),bk=soft?b0.slice(5):b0;return `${bk?`<span style="color:#b42318">${esc(bk)}</span>`:''}<button type="button" class="btn small${n?' primary':''}" style="margin-top:4px" data-loxone="${esc(o.id)}"${bk&&!n&&!soft?' disabled':dis}>${n?'Gewählt ✓':soft?'Trotzdem wählen':'Auswählen'}</button>`})():(()=>{const bk=loxBlk(pl,o);return `${bk?`<span style="color:#b42318">${esc(bk)}</span>`:''}<div class="row" style="gap:6px;margin-top:4px"><button type="button" class="btn small" data-loxq="${esc(o.id)}" data-d="-1"${n?dis:' disabled'}>−</button><b style="min-width:24px;text-align:center">${n}</b><button type="button" class="btn small" data-loxq="${esc(o.id)}" data-d="1"${bk?' disabled':dis}>+</button></div>`})()}</div>`}).join('')}</div>${g==='Spannungsversorgung'?nbUI()+auUI():''}${g==='Miniserver'?liUI():''}`).join('')}
+    ${LOX_ONE.includes(o.grp)?(()=>{const b0=loxBlk(pl,o),soft=b0.startsWith('SOFT:'),bk=soft?b0.slice(5):b0;return `${bk?`<span style="color:#b42318">${esc(bk)}</span>`:''}<button type="button" class="btn small${n?' primary':''}" style="margin-top:4px" data-loxone="${esc(o.id)}"${bk&&!n&&!soft?' disabled':dis}>${n?'Gewählt ✓':soft?'Trotzdem wählen':'Auswählen'}</button>`})():(()=>{const bk=loxBlk(pl,o);return `${bk?`<span style="color:#b42318">${esc(bk)}</span>`:''}<div class="row" style="gap:6px;margin-top:4px"><button type="button" class="btn small" data-loxq="${esc(o.id)}" data-d="-1"${n?dis:' disabled'}>−</button><b style="min-width:24px;text-align:center">${n}</b><button type="button" class="btn small" data-loxq="${esc(o.id)}" data-d="1"${bk?' disabled':dis}>+</button></div>`})()}</div>`}).join('')}</div>${g==='Spannungsversorgung'?nbUI()+auUI():''}${g==='Miniserver'?outUI()+liUI():''}`).join('')}
     <table class="te"><tr><td>Gewählt</td><td style="text-align:right">${sel.reduce((a,o)=>a+h.q[o.id],0)} Bauteile · ${te} TE auf der Hutschiene</td></tr><tr class="sum"><td>Total Loxone</td><td style="text-align:right">${rb?'netto '+cur2(net)+' / ':''}Liste ${cur2(bru)}</td></tr></table>`:'<p class="sub">Die Loxone-Bauteile werden gerade eingepflegt.</p>'}`;
   return b}
 function hzBody(p,pl,dis){const h=hzOf(pl);
@@ -1749,7 +1757,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     if((pg.part||0)===nParts-1){const ks=klStrips(s).filter(k=>k.mm||k.offen),kt=ks.reduce((a,k)=>a+k.mm,0);T(ix0+40,iy0+120+part.length*26+4,'Klemmenleisten (Breite mit Endhalter + Deckel): '+ks.map(k=>k.X+' '+klPos(pl,k.X)+' '+(k.offen&&!k.mm?'folgt':mmTxt(k.mm))).join(' · ')+' · Total '+mmTxt(kt)+' = '+klTE(kt)+' TE','tb')}
     if((pg.part||0)===nParts-1)T(ix0+40,iy0+120+part.length*26+24,noKl(s)?'Ohne Abgangsklemmen: Die Kabel der Stromkreise kommen direkt an die Sicherungen. Die Masse der Klemmblöcke werden am Ende für den Verteilerbauer ausgegeben.':sk.length?'Abgänge: Phoenix PT 2,5-QUATTRO bis 4 mm², PT 6-TWIN 6 bis 10 mm². Bei «2 Kabel» werden zwei Kabel an denselben Klemmen angeschlossen. Die Masse der Klemmblöcke werden am Ende für den Verteilerbauer ausgegeben.':'Weitere Klemmblöcke folgen mit den Stromkreisen. Die Masse der Klemmblöcke werden am Ende für den Verteilerbauer ausgegeben.','tm');
   }else if(pg.kind==='loxas'){
-    const ps=loxPs(pl),msA=loxMs(pl),k=pg.k||0,A='-A'+(k+2),fo=(msA?1:0)+k+1,term=(x,y,r)=>o.push(`<circle class="term" cx="${x}" cy="${y}" r="${r||4}"/>`),arr=(x,y)=>o.push(`<path d="M${x-5} ${y-8} l5 8 l5 -8" fill="none" stroke="#111" stroke-width="1"/>`);
+    const ps=loxPs(pl),msA=loxMs(pl),k=pg.k||0,A='-A'+(k+2),fo=loxSlotNo(pl,'as'+k)||((msA?1:0)+k+1),term=(x,y,r)=>o.push(`<circle class="term" cx="${x}" cy="${y}" r="${r||4}"/>`),arr=(x,y)=>o.push(`<path d="M${x-5} ${y-8} l5 8 l5 -8" fill="none" stroke="#111" stroke-width="1"/>`);
     const gx=330,gy=300,gw=560,gh=150,yb=gy+gh;
     Rc(gx,gy,gw,gh,'bxw');Rc(gx+4,gy+4,gw-8,gh-8,'bxd');
     T(gx-8,gy+16,A,'tbig','end');T(gx-8,gy+32,'Loxone','t','end');T(gx-8,gy+44,'Audioserver','t','end');T(gx-8,gy+58,'100428 · 9 TE','tm','end');T(gx-8,gy+70,'Hutschiene','tm','end');
@@ -1786,7 +1794,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     T((X.p+X.g)/2,yb+48,'','tk5');
     /* Versorgung vom Netzteil */
     const yv=yb+80;L(X.p,yb+4,X.p,yv);L(X.g,yb+4,X.g,yv,'wn');arr(X.p,yb+12);arr(X.g,yb+12);T(X.p-4,yb+30,'or','tk5','end');T(X.g+4,yb+30,'ws','tk5');
-    T(X.p-6,yv+12,'von -G1 '+(big?'Abgang 1 (+1 / GND)':'+24V / GND'),'tk2','end');T(X.p-6,yv+22,'Spannungsversorgung','tk5','end');
+    T(X.p-6,yv+12,'von -G1 '+(big?'Abgang '+loxSlotNo(pl,'ms')+' (+'+loxSlotNo(pl,'ms')+' / GND)':'+24V / GND'),'tk2','end');T(X.p-6,yv+22,'Spannungsversorgung','tk5','end');
     /* Link */
     L(X.lb,yb+4,X.lb,yb+100);L(X.lw,yb+4,X.lw,yb+100,'wn');arr(X.lb,yb+100);arr(X.lw,yb+100);T(X.lb-4,yb+30,'bl','tk5','end');T(X.lw+4,yb+30,'ws','tk5');
     T((X.lb+X.lw)/2,yb+114,'Loxone Link','tnm2','middle');T((X.lb+X.lw)/2,yb+124,'blau / weiss','tk5','middle');T((X.lb+X.lw)/2,yb+134,'→ Extensions (folgen)'+(ms.tt?' · oder Tree':''),'tk5','middle');
@@ -1817,17 +1825,18 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     const yk=620;
     if(big){T(gx+100,gy+22,'Eingang 100–240 VAC · 40 A dauernd / 60 A für 10 s · Lastminderung beachten','tm');
       const ox0=gx+40,dx=58;T(ox0,gy+50,'Ausgänge 24 VDC, je max. 10 A, eigene Kfz-Mini-Flachsicherung + Leistungsmessung','tm');
-      const msA=loxMs(pl),nAs=loxAs(pl),o1=loxRes(pl),nF=Math.min(7-o1,loxFl(pl)),nA=0,xg=ox0+7*dx,xt=xg+dx,yGb=yk-40;let kn=0;const xsK=[];
-      for(let k=0;k<7;k++){const x=ox0+k*dx,fl=k>=o1&&k-o1<nF,u=k>=o1&&k-o1<nF+nA;
-        if(k<o1){const isMs=msA&&k===0,tgt=isMs?"-A1 Miniserver":"-A"+(k+(msA?1:2))+" Audioserver";Rc(x-5,gy+60,10,26,'bx');L(x,gy+56,x,gy+90,'cpl');T(x+8,gy+70,'F'+(k+1),'tk2');T(x+8,gy+81,'≤15 A','tk5');L(x,gy+90,x,gy+gh);term(x,gy+gh);T(x+4,gy+gh-8,'+'+(k+1),'tk2');L(x,gy+gh+4,x,gy+gh+34);o.push(`<path d="M${x-5} ${gy+gh+28} l5 8 l5 -8" fill="none" stroke="#111" stroke-width="1"/>`);T(x+8,gy+gh+20,'→ '+(isMs?'-A1':'-A'+(k+(msA?1:2))),'tk2');T(x+8,gy+gh+40,isMs?'Miniserver':'Audioserver','tk5');T(x+8,gy+gh+30,'or / ws','tk5');continue}Rc(x-5,gy+60,10,26,'bx');L(x,gy+56,x,gy+90,'cpl');T(x+8,gy+70,'F'+(k+1),'tk2');T(x+8,gy+81,'≤15 A','tk5');L(x,gy+90,x,gy+gh);term(x,gy+gh);T(x+4,gy+gh-8,'+'+(k+1),'tk2');
-        if(!u){T(x,gy+gh+18,'frei','tk5','middle');continue}
+      const msA=loxMs(pl),SL=loxSlots(pl)||[],nU=SL.filter(v=>v&&v.t==='fl').length,xg=ox0+7*dx,xt=xg+dx,yGb=yk-40;let kn=0;const xsK=[];
+      for(let k=0;k<7;k++){const x=ox0+k*dx,v=SL[k];Rc(x-5,gy+60,10,26,'bx');L(x,gy+56,x,gy+90,'cpl');T(x+8,gy+70,'F'+(k+1),'tk2');T(x+8,gy+81,'≤15 A','tk5');L(x,gy+90,x,gy+gh);term(x,gy+gh);T(x+4,gy+gh-8,'+'+(k+1),'tk2');
+        if(!v){T(x,gy+gh+18,'frei','tk5','middle');continue}
+        if(v.t!=='fl'){L(x,gy+gh+4,x,gy+gh+34);o.push(`<path d="M${x-5} ${gy+gh+28} l5 8 l5 -8" fill="none" stroke="#111" stroke-width="1"/>`);T(x+8,gy+gh+20,'→ '+v.name.split(' ')[0],'tk2');T(x+8,gy+gh+30,'or / ws','tk5');T(x+8,gy+gh+40,v.name.split(' ')[1],'tk5');continue}
         const xp=x-8,xm=x+8;L(x,gy+gh+4,x,gy+gh+20);L(x,gy+gh+20,xp,gy+gh+20);L(xp,gy+gh+20,xp,yk);dot(xm,yGb);L(xm,yGb,xm,yk,'wn');
         T(xp-2,yk-60,'or','tk5','end');T(xm+2,yk-24,'ws','tk5');
         [[xp,'+24V'],[xm,'GND']].forEach(([xx,l])=>{kn++;term(xx,yk);T(xx,yk+16,String(kn),'tk','middle');T(xx,yk+24,l,'tk5','middle')});
-        if(fl){T(x,yk+44,'Tree-Spots','tnm2','middle');T(x,yk+55,'Stockwerk '+(k-o1+1),'tk5','middle');T(x,yk+65,'Abgang '+(k+1),'tk5','middle')}else T(x,yk+44,'Abgang '+(k+1),'tnm2','middle');if(!fl)T(x,yk+55,'max. 10 A','tk5','middle');xsK.push(xm)}
+        T(x,yk+44,'Tree-Spots','tnm2','middle');T(x,yk+55,'Stockwerk '+(v.i+1),'tk5','middle');T(x,yk+65,'Abgang '+(k+1),'tk5','middle');xsK.push(xm)}
+      const nA=nU;
       term(xg,gy+gh);T(xg+4,gy+gh-8,'GND','tk2');T(xg-30,gy+gh-22,'GND intern verbunden','tk5');
       if(nA){L(xg,gy+gh+4,xg,yGb,'wn');L(Math.min(...xsK),yGb,xg,yGb,'wn');T((Math.max(...xsK)+xg)/2,yGb-4,'GND (weiss)','tk5','middle')}
-      if(!nA)T(ox0+o1*dx,yk-10,'Keine '+(o1?'weiteren ':'')+'24-V-Abgänge benutzt.','tm');
+      
       if(nA)T(gx-8,yk+4,'-X3','tb','end');
       term(xt,gy+gh);term(xt+16,gy+gh);T(xt+20,gy+gh-8,'Tree','tk2');T(xt-10,gy+110,'Tree überwacht','tk5');T(xt-10,gy+119,'24–27 V einstellbar','tk5');
       [xt,xt+16].forEach((x,j)=>{L(x,gy+gh+4,x,yk-70,j?'wn':'w')});o.push(`<path d="M${xt-4} ${yk-60} l12 -10 l12 10" fill="none" stroke="#111" stroke-width="1"/>`);
@@ -2212,6 +2221,7 @@ document.addEventListener('change',e=>{
   if(t.dataset.cedit&&S.user&&S.user.admin&&SB.on){const r=catReg().find(q=>q.key===t.dataset.cedit);if(!r)return;const v=t.value.trim(),k=t.dataset.pk,val=v===''?null:Math.max(0,+v.replace(',','.')||0),lf=t.dataset.lf||'Sonepar';
     const o=lfPrice(r,lf);o[k]=val;catSetLf(r,lf,o.net,o.bru);return}
   if(t.dataset.shsel&&S.site&&canEdit(S.site)){shOf(planOf(S.site))[t.dataset.shsel]=+t.value||0;touchPlan('Smart Home angepasst');persistSite();render();return}
+  if(t.dataset.shout&&S.site&&canEdit(S.site)){const h=shOf(planOf(S.site));h.out=h.out||{};h.out[t.dataset.shout]=+t.value;touchPlan('Netzteil-Abgang '+t.dataset.shout+' → '+t.value);persistSite();render();return}
   if(t.dataset.shds&&S.site&&canEdit(S.site)){shOf(planOf(S.site)).ds=t.checked;touchPlan('Loxone-Datenblätter '+(t.checked?'in der Planmappe':'nicht in der Planmappe'));render();return}
   if(t.dataset.loxds&&S.user&&S.user.admin){const id=t.dataset.loxds,f=t.files&&t.files[0];if(!f)return;const m=$('#dsmsg-'+id);if(m)m.textContent=' wird verarbeitet …';
     pdfImgs(f,20,1600).then(async({out,tot})=>{const key='loxds-'+id+'-'+Date.now();await wpPut(key,out).catch(()=>{});WPIMG[key]=out;await cloudWpPut(key,out);const L=loxDs(id);L.push({key,name:f.name.replace(/\.pdf$/i,''),n:out.length});await cfgSet('CFG:loxds:'+id,null,JSON.stringify(L));}).catch(e=>{if(m)m.textContent=' Fehler: '+(e.message||e)});return}
