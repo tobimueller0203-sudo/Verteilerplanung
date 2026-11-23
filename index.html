@@ -309,7 +309,8 @@ async function cloudParts(){if(!SB.on||!SB.sess)return;
 /* Smart Home Loxone (Tobi 23.11., noch nicht live): Bauteile mit Listenpreis brutto (loxone.com), Netto = Brutto minus Sammelrabatt aus der Verwaltung */
 const LOX_CUR='CHF'; /* Listenpreise Schweizer Loxone-Shop (shop.loxone.com, CHF) */
 const LOX=[ /* {id,art,nr,te,bru,net:null,grp}; Bilder und Datenblätter lädt die Verwaltung in die Cloud */
-  {id:'100401',nr:'100401',art:'Power Supply & Backup',grp:'Spannungsversorgung',te:18,bru:813.00,net:null}];
+  {id:'100401',nr:'100401',art:'Power Supply & Backup',grp:'Spannungsversorgung',te:18,bru:813.00,net:null},
+  {id:'100617',nr:'100617',art:'Power Supply 4,2A',grp:'Spannungsversorgung',te:2,bru:83.00,net:null}];
 const loxDs=id=>{const c=(D.cat||[]).find(x=>x.key==='CFG:loxds:'+id);try{return c&&c.art?JSON.parse(c.art):[]}catch(e){return []}};
 const cur2=v=>chf(v)+' '+LOX_CUR;
 const loxR=()=>{const c=(D.cat||[]).find(x=>x.key==='CFG:loxRabatt');return c&&c.net!=null?+c.net:0};
