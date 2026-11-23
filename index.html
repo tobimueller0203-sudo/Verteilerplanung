@@ -212,7 +212,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-23.0912';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-23.0915';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -272,7 +272,7 @@ async function cloudPull(){
   for(const s of up){try{await cloudPush(s);delete s.dirty;cloud.set(s.id,siteRow(s))}catch(e){s.dirty=1}}
   const before=JSON.stringify(D.sites);
   D.sites=[...cloud.values()].map(r=>{const d=r.data||{};d.id=r.id;d.owner=r.owner;if(!Array.isArray(d.editors))d.editors=[];return d}).concat(D.sites.filter(s=>s.dirty&&!cloud.has(s.id)));
-  await cloudParts();D.cloudDone=true;save();cloudStat(up.some(s=>s.dirty)?'err':'ok');return before!==JSON.stringify(D.sites)}
+  await cloudParts();await cloudCat();D.cloudDone=true;save();cloudStat(up.some(s=>s.dirty)?'err':'ok');return before!==JSON.stringify(D.sites)}
 async function cloudDel(id){if(!SB.on||!SB.sess)return;try{await sb('/rest/v1/sites?id=eq.'+encodeURIComponent(id),{method:'DELETE'})}catch(e){cloudStat('err',e)}}
 async function cloudLogin(u,pw,isNew){
   if(isNew){const js=await sbRaw('/auth/v1/signup',{method:'POST',body:{email:sbMail(u.id),password:pw}},false);
@@ -292,6 +292,31 @@ async function cloudParts(){if(!SB.on||!SB.sess)return;
     const rows=await sb('/rest/v1/parts?select=*&order=kind'),loc=partsAll().filter(x=>x.dirty);
     D.parts=(rows||[]).map(r=>({id:r.id,kind:r.kind,hst:r.hst,lf:r.lf,typ:r.typ,enr:r.enr,net:r.net==null?null:+r.net,bru:r.bru==null?null:+r.bru,by:r.created_by,at:r.created_at,cl:1})).filter(x=>!loc.some(l=>l.id===x.id)).concat(loc.filter(l=>!l.del));save()}
   catch(e){console.warn('Bauteile',e)}}
+/* Produktkatalog in der Cloud (Tobi 23.11.): Tabelle catalog spiegelt alle eingebauten Produkte (src 'code').
+   Von der Verwaltung geänderte Preise (src 'admin') gelten für alle. Eingebaute Werte sind nur Rückfall ohne Cloud. */
+let CATR=null;
+function catReg(){if(CATR)return CATR;const R=[],add=(g,id,o,grp)=>{o._b=o._b||{net:o.net,bru:o.bru};R.push({key:g+':'+id,grp,o})};
+  PROD.forEach(o=>add('PROD',o.nr,o,o.k==='FILS'||o.k==='LS'||o.k==='NT'?'Sicherungen und N-Trenner':o.k==='REL'?'Relais':'Zubehör'));
+  Object.entries(HS_PROD).forEach(([k,o])=>add('HS',k,o,'Hauptschalter'));add('HSKA','1',HS_KA,'Hauptschalter');
+  Object.entries(KL).forEach(([k,o])=>add('KL',k,o,'Klemmen Phoenix'));add('KLUT','UT22B',KL_UT,'Klemmen Phoenix');
+  Object.entries(BUS_P).forEach(([k,o])=>add('BUS',k,o,'Sammel- und Etagenschienen'));
+  Object.entries(LITZE).forEach(([k,o])=>add('LITZE',k,o,'Litze'));return CATR=R}
+const catRow=(r,src)=>({key:r.key,grp:r.grp,nr:r.o.nr||'',art:r.o.art||'',lf:r.o.lf||'Sonepar',net:src==='admin'?r.o.net??null:r.o._b.net??null,bru:src==='admin'?r.o.bru??null:r.o._b.bru??null,src,updated_at:now()});
+function catApply(){const R=catReg(),rows=D.cat||[];R.forEach(r=>{const c=rows.find(x=>x.key===r.key&&x.src==='admin');r.o.net=c&&c.net!=null?+c.net:r.o._b.net;r.o.bru=c&&c.bru!=null?+c.bru:r.o._b.bru;r.c=c||null})}
+async function cloudCat(){if(!SB.on||!SB.sess)return;
+  try{let rows=await sb('/rest/v1/catalog?select=*');SB.catErr='';
+    if(S.user&&S.user.admin){const R=catReg(),miss=R.filter(r=>!rows.some(x=>x.key===r.key)),old=R.filter(r=>{const x=rows.find(y=>y.key===r.key);return x&&x.src!=='admin'&&(+x.net!==+r.o._b.net||+x.bru!==+r.o._b.bru||x.art!==r.o.art)});
+      if(miss.length)await sb('/rest/v1/catalog',{method:'POST',headers:{Prefer:'return=minimal'},body:miss.map(r=>catRow(r,'code'))});
+      for(const r of old)await sb('/rest/v1/catalog?key=eq.'+encodeURIComponent(r.key),{method:'PATCH',headers:{Prefer:'return=minimal'},body:catRow(r,'code')});
+      if(miss.length||old.length)rows=await sb('/rest/v1/catalog?select=*')}
+    D.cat=rows;save();catApply()}catch(e){SB.catErr=e.message||String(e);console.warn('Katalog',e)}}
+async function catSet(r,net,bru){const by=S.user.id;if(net==null&&bru==null){r.o.net=r.o._b.net;r.o.bru=r.o._b.bru}else{r.o.net=net;r.o.bru=bru}
+  const row={...catRow(r,net==null&&bru==null?'code':'admin'),updated_by:by};D.cat=(D.cat||[]).filter(x=>x.key!==r.key).concat([row]);save();catApply();
+  try{await sb('/rest/v1/catalog?key=eq.'+encodeURIComponent(r.key),{method:'PATCH',headers:{Prefer:'return=minimal'},body:row});SB.catErr=''}catch(e){SB.catErr=e.message||String(e)}render()}
+function catAdmin(){const R=catReg(),G=[...new Set(R.map(r=>r.grp))],num=(r,k)=>`<input class="pct" style="width:100px" type="number" step="0.05" min="0" data-cedit="${esc(r.key)}" data-pk="${k}" value="${r.o[k]??''}">`;
+  return `<section class="card" style="grid-column:1/-1"><h2>Produktkatalog (Cloud)</h2><p class="sub">Alle Produkte mit Preisen. Änderst du hier einen Preis, gilt er sofort für alle Planer. «Standard» heisst: Preis wie im Code hinterlegt.</p>
+  ${SB.catErr?`<div class="msg err">Katalog in der Cloud nicht erreichbar (${esc(SB.catErr)}). Wurde das SQL-Skript für den Katalog schon ausgeführt?</div>`:(D.cat||[]).length?`<p class="sub">${(D.cat||[]).length} Produkte in der Cloud.</p>`:''}
+  ${G.map(g=>det('cat-'+g,g+' ('+R.filter(r=>r.grp===g).length+')',`<table class="te">${R.filter(r=>r.grp===g).map(r=>`<tr><td><b>${esc(r.o.art)}</b><br><span class="sub">${esc(r.o.nr||'')}${r.c?' · geändert von '+esc(userName(r.c.updated_by))+(r.c.updated_at?' am '+fmtDate(r.c.updated_at):''):' · Standard'}</span></td><td style="white-space:nowrap;text-align:right">netto ${num(r,'net')} brutto ${num(r,'bru')} CHF${r.c?`<div style="margin-top:4px"><button type="button" class="btn small" data-cstd="${esc(r.key)}">Zurück auf Standard</button></div>`:''}</td></tr>`).join('')}</table>`)).join('')}</section>`}
 function partSave(x){x.dirty=1;save();cloudParts().then(()=>{if(!document.querySelector('#pf-enr'))render()})}
 async function cloudWpGet(key){if(!SB.on||!SB.sess)return null;try{const v=await sb('/storage/v1/object/authenticated/wp/'+encodeURIComponent(key)+'.json');return Array.isArray(v)?v:null}catch(e){return null}}
 
@@ -1374,7 +1399,7 @@ function partUI(t,dis,pn,pb){const L=partsOf(t),cur=(planOf(S.site).partSel||{})
   return h+`<div class="pform"><b>Produkt hinterlegen: ${esc(manTxt(t))}</b><p class="sub" style="margin:2px 0 6px">Danach können alle Planer es hier auswählen. Die E-Nummer ist Pflicht.</p>
     <div class="row" style="gap:8px;flex-wrap:wrap">${f('hst','Hersteller','')}<label class="m"><span>Grosshändler</span><select id="pf-lf">${opt(LF_LIST.map(x=>[x,x]),'Sonepar')}</select></label>${f('typ','Typ','')}${f('enr','E-Nummer *','','inputmode="numeric"')}${f('net','Netto CHF',pn,'type="number" step="0.05" min="0" style="width:100px"')}${f('bru','Brutto CHF',pb,'type="number" step="0.05" min="0" style="width:100px"')}</div>
     <div id="pf-msg"></div><div class="row" style="margin-top:8px"><button type="button" class="btn primary small" data-act="pSave" data-t="${esc(t)}">Produkt speichern</button><button type="button" class="btn small" data-act="pCancel">Abbrechen</button></div></div>`}
-function partsAdmin(){const L=partsAll().filter(x=>!x.del).sort((a,b)=>a.kind.localeCompare(b.kind)),num=(x,k)=>`<input class="pct" style="width:80px" type="number" step="0.05" min="0" data-pedit="${x.id}" data-pk="${k}" value="${x[k]??''}">`;
+function partsAdmin(){const L=partsAll().filter(x=>!x.del).sort((a,b)=>a.kind.localeCompare(b.kind)),num=(x,k)=>`<input class="pct" style="width:100px" type="number" step="0.05" min="0" data-pedit="${x.id}" data-pk="${k}" value="${x[k]??''}">`;
   return `<section class="card" style="grid-column:1/-1"><h2>Hinterlegte Bauteile</h2><p class="sub">Von den Planern freiwillig erfasst. Nur die Verwaltung sieht, wer ein Bauteil hinzugefügt hat.</p>${L.length?`<table class="te">${L.map(x=>`<tr><td><b>${esc(manTxt(x.kind))}</b><br><span class="sub">${esc([x.hst,x.typ,x.lf].filter(Boolean).join(' · '))} · E-Nr. ${esc(x.enr)}</span><br><span class="sub">hinzugefügt von <b>${esc(userName(x.by))}</b>${x.at?' am '+fmtDate(x.at):''}</span></td><td style="white-space:nowrap;text-align:right">netto ${num(x,'net')} brutto ${num(x,'bru')} CHF<div style="margin-top:6px">${S.armed==='p'+x.id?`<button type="button" class="btn small danger" data-pdel="${x.id}">Sicher löschen?</button>`:`<button type="button" class="btn small danger" data-arm="p${x.id}">Löschen</button>`}</div></td></tr>`).join('')}</table>`:'<p class="sub">Noch keine Bauteile hinterlegt.</p>'}</section>`}
 function det(id,title,html,badge){if(!html)return '';const o=S.det&&S.det.has(id);return `<details class="exd" data-det="${id}"${o?' open':''}><summary>${title}${badge||''}</summary><div class="exd-b">${html}</div></details>`}
 function teBox(s,pl,dis){
@@ -1863,7 +1888,7 @@ function vAdminCloud(){
     <div class="ulist">${ADMIN_LINKS.map(([t,u])=>`<div class="uitem"><div><div style="font-weight:600">${esc(t)}</div><span class="sub">${esc(u.replace('https://',''))}</span></div><a class="btn small" href="${u}" target="_blank" rel="noopener">Öffnen</a></div>`).join('')}</div>
     <p class="sub">Die Zugangsdaten für GitHub und Supabase stehen bewusst nicht hier, weil der Code öffentlich ist.</p><p class="sub">App-Version: <b>${APP_V}</b></p>
     <p class="sub">Die Verwaltung kann keine Baustellen ändern oder löschen. Das dürfen nur der Ersteller und die Planer, für die er sie freigegeben hat.</p>
-  </section>${partsAdmin()}</div>`;
+  </section>${partsAdmin()}${SB.on?catAdmin():''}</div>`;
 }
 async function loadPeople(){const ppl=await sbRaw('/rest/v1/people?select=id,name,admin,auth_uid&order=name',{},false);D.users=ppl.map(p=>({id:p.id,name:p.name,admin:!!p.admin,hash:p.auth_uid?'cloud':undefined}));if(S.user)S.user=D.users.find(u=>u.id===S.user.id)||S.user}
 function vAdmin(){if(SB.on)return vAdminCloud();
@@ -1889,7 +1914,7 @@ function vAdmin(){if(SB.on)return vAdminCloud();
       <button class="btn" type="submit">Ändern</button>
     </form>
     <p class="sub">Die Verwaltung kann keine Baustellen ändern oder löschen. Das dürfen nur der Ersteller und die Planer, für die er sie freigegeben hat.</p>
-  </section>${partsAdmin()}</div>`;
+  </section>${partsAdmin()}${SB.on?catAdmin():''}</div>`;
 }
 
 /* ---------- Ereignisse ---------- */
@@ -1930,6 +1955,8 @@ document.addEventListener('change',e=>{
   if(t.dataset.rladd!=null&&t.value&&S.site&&canEdit(S.site)){const pl=planOf(S.site),r=pl.sk[+t.dataset.rladd];if(r){r.relais=r.relais||[];r.relais.push(t.value);touchPlan('Relais '+relInfo(t.value)[1]+' bei '+(r.name||'Stromkreis'));render()}return}
   if(t.dataset.klpos&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.klPos=pl.klPos||{};if(t.dataset.klpos==='-X0'&&((pl.klPos['-X0']==='u')!==(t.value==='u')))(pl.busSeen&&(pl.x0Moved=true));if(t.value==='u')pl.klPos[t.dataset.klpos]='u';else delete pl.klPos[t.dataset.klpos];touchPlan('Klemmen '+t.dataset.klpos+' '+(t.value==='u'?'unten':'oben'));render();return}
   if(t.dataset.psel!=null&&S.site&&canEdit(S.site)){const pl=planOf(S.site),k=t.dataset.psel;pl.partSel=pl.partSel||{};if(t.value)pl.partSel[k]=t.value;else delete pl.partSel[k];touchPlan('Produkt gewählt: '+manTxt(k));render();return}
+  if(t.dataset.cedit&&S.user&&S.user.admin&&SB.on){const r=catReg().find(q=>q.key===t.dataset.cedit);if(!r)return;const v=t.value.trim(),k=t.dataset.pk,val=v===''?null:Math.max(0,+v.replace(',','.')||0);
+    const o={net:r.o.net,bru:r.o.bru};o[k]=val;catSet(r,o.net,o.bru);return}
   if(t.dataset.pedit&&S.user&&S.user.admin){const x=partsAll().find(q=>q.id===t.dataset.pedit);if(!x)return;const v=t.value.trim();x[t.dataset.pk]=v===''?null:Math.max(0,+v.replace(',','.')||0);partSave(x);return}
   if(t.dataset.preis&&S.site&&canEdit(S.site)){const pl=planOf(S.site),k=t.dataset.preis;pl.preise=pl.preise||{};const o=pl.preise[k]=pl.preise[k]||{},v=t.value.trim();if(v==='')delete o[t.dataset.pk];else o[t.dataset.pk]=Math.max(0,+v.replace(',','.')||0);if(o.net==null&&o.bru==null)delete pl.preise[k];touchPlan('Preis von Hand: '+manTxt(k));render();return}
   if(t.dataset.ex==='litzeMag'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.litzeMag=t.checked;touchPlan('Litze '+(t.checked?'aus dem Magazin':'auf Kommission'));render();return}
@@ -2103,7 +2130,7 @@ document.addEventListener('click',e=>{
   if(act==='rsDo'&&S.site&&canEdit(S.site)){const ks=[...(S.rsSel||[])],L=stepsOf(S.site).filter(x=>ks.includes(x[0])).map(x=>x[1]);rsDo(S.site,ks);S.rsOpen=false;S.rsSel=new Set();S.armed=null;touchPlan('Zurückgesetzt: '+L.join(', '));persistSite();render();return}
   if(act==='appUpdate'){if(SITE_SCR.includes(S.screen)&&S.site&&!S.isNew)persistSite();saveSession();location.reload();return}
   if(act==='adminLogin')return go('adminLogin');
-  if(act==='adminOpen'&&SB.on&&S.user&&S.user.admin){S.admin=true;cloudParts().then(()=>{if(S.screen==='admin')render()});return go('admin')}
+  if(act==='adminOpen'&&SB.on&&S.user&&S.user.admin){S.admin=true;Promise.all([cloudParts(),cloudCat()]).then(()=>{if(S.screen==='admin')render()});return go('admin')}
   if(act==='adminBack'){S.admin=false;return go('liste')}
   if(act==='adminOut'){S.admin=false;return go('start')}
   if(t.dataset.padd!=null&&S.site&&canEdit(S.site)){S.pForm=t.dataset.padd;render();setTimeout(()=>{const f=$('#pf-hst');if(f)f.focus()},0);return}
@@ -2112,6 +2139,7 @@ document.addEventListener('click',e=>{
     if(!enr){$('#pf-msg').innerHTML='<div class="msg err" style="margin-top:8px">Bitte die E-Nummer eintragen. Ohne E-Nummer kann das Produkt nicht gespeichert werden.</div>';$('#pf-enr').focus();return}
     const x={id:'pt-'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),kind:k,hst:g('hst').trim(),lf:g('lf'),typ:g('typ').trim(),enr,net:nm(g('net')),bru:nm(g('bru')),by:S.user.id,at:now()};
     partsAll().push(x);const pl=planOf(S.site);pl.partSel=pl.partSel||{};pl.partSel[k]=x.id;S.pForm=null;touchPlan('Produkt hinterlegt: '+manTxt(k));partSave(x);render();return}
+  if(t.dataset.cstd&&S.user&&S.user.admin){const r=catReg().find(q=>q.key===t.dataset.cstd);if(r)catSet(r,null,null);return}
   if(t.dataset.pdel&&S.user&&S.user.admin){const x=partsAll().find(q=>q.id===t.dataset.pdel);S.armed=null;if(x){x.del=1;partSave(x)}render();return}
   if(act==='home')return go('start');
   if(act==='export'){
@@ -2138,6 +2166,7 @@ function skAddRow(){const pl=planOf(S.site);pl.sk.push(skNew(S.site));persistSit
 document.addEventListener('keydown',e=>{const t=e.target;if(e.key==='Enter'&&t.dataset&&t.dataset.sk&&S.site&&canEdit(S.site)){e.preventDefault();const pl=planOf(S.site),i=+t.closest('.sk').dataset.i,ins=[...document.querySelectorAll('#skRows input[data-sk="name"]')],pos=ins.findIndex(x=>+x.closest('.sk').dataset.i===i);if(pos===ins.length-1){if(!(pl.sk[i].name||'').trim())return;touchPlan('Stromkreis '+pl.sk[i].name);skAddRow()}else if(ins[pos+1])ins[pos+1].focus()}});
 drawPattern();
 $('#main').innerHTML='<section class="card narrow"><p class="sub">Verbinde mit der Cloud …</p></section>';
+try{catApply()}catch(e){}
 cloudBoot().then(()=>{
 const y0=restoreSession();S.pushDepth=history.state&&history.state.screen===S.screen?(LV[S.screen]||0):0;render();try{history.replaceState({...navState(),prev:(history.state&&history.state.screen===S.screen&&history.state.prev)||null},'','#'+S.screen)}catch(e){}
 if(y0)setTimeout(()=>window.scrollTo(0,y0),50);
