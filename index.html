@@ -164,6 +164,7 @@ input:disabled,select:disabled{opacity:1;background:var(--bg);color:var(--ink);-
 .missHl{outline:3px solid #d0021b !important;outline-offset:4px;border-radius:8px;animation:missP 1s ease 2}@keyframes missP{50%{outline-color:#ff8a8a}}
 .missTag{display:inline-block;margin:8px 0 6px;padding:6px 10px;border-radius:6px;background:#d0021b;color:#fff;font-weight:700;font-size:14px}
 .missRow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;flex-wrap:wrap}
+.swc{display:flex;gap:6px;flex-wrap:wrap;flex-basis:100%;margin:2px 0 4px}.swcb{display:flex;align-items:center;gap:6px;padding:5px 10px 5px 6px;border:1px solid var(--line);border-radius:8px;background:#f3f3f1;font:inherit;font-size:13px;color:inherit;cursor:pointer}.swcb i{width:20px;height:20px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}.swcb.on{background:#111;color:#fff;border-color:#111}.swcb small{color:#b42318;font-size:11px}.swcb.on small{color:#ffb4ab}
 .ph{display:flex;align-items:center;justify-content:center;background:#f4f4f1;color:var(--muted);border-radius:6px;font-size:11px;text-align:center}
 .lxc.soft{opacity:.5}.lxc img{width:100%;height:120px;object-fit:contain;background:#fff;border-radius:4px}.lxc .vtn{height:120px;display:flex;align-items:center;justify-content:center;background:#f4f4f1;color:var(--muted);border-radius:4px}.lxc span{color:var(--muted)}
 .mlx{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}.mlx>.ml{min-width:680px}.ml td,.ml th{padding-right:12px}.ml td:nth-child(1),.ml td:nth-child(2),.ml td:nth-child(4){white-space:nowrap}.ml td:nth-child(3){min-width:220px}
@@ -239,7 +240,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-23.2241';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-23.2247';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -338,6 +339,12 @@ const LOX=[ /* {id,art,nr,te,bru,net:null,grp}; Bilder und Datenblätter lädt d
   {id:'100330',nr:'100330',art:'LED Spot RGBW Tree Weiss Gen. 1',grp:'Spots',te:0,bru:105.00,net:null,auto:1,w:7.5},
   {id:'100038',nr:'100038',art:'Relay Extension',grp:'Relay Extension',te:9,bru:416.00,net:null,auto:1}, /* 14 Relais potentialfrei 16 A, 24 V max. 3,8 W, Link (Tobi 23.11.) */
   {id:'100891',nr:'100891',art:'Wall Display 10"',grp:'Schalter',te:0,bru:890.00,net:null,auto:1,tree:false,w:13},
+{id:'100673',nr:'100673',art:'Touch Pure Flex Tree',grp:'Schalter',te:0,bru:262.80,net:null,auto:1,tree:true,w:0.9,col:'Signalweiss',hex:'#e9edf0'},
+{id:'tpf-samt',nr:'',art:'Touch Pure Flex Tree Samtweiss',grp:'Schalter',te:0,bru:null,net:null,auto:1,tree:true,w:0.9,vbase:'100673',col:'Samtweiss',hex:'#e4e2d6'},
+{id:'tpf-anth',nr:'',art:'Touch Pure Flex Tree Anthrazit',grp:'Schalter',te:0,bru:null,net:null,auto:1,tree:true,w:0.9,vbase:'100673',col:'Anthrazit',hex:'#4b4e53'},
+{id:'tpf-gold',nr:'',art:'Touch Pure Flex Tree Gold',grp:'Schalter',te:0,bru:null,net:null,auto:1,tree:true,w:0.9,vbase:'100673',col:'Gold',hex:'#d7bd6e'},
+{id:'100887',nr:'100887',art:'Touch Pure Display Tree',grp:'Schalter',te:0,bru:420.00,net:null,auto:1,tree:true,w:3,col:'Anthrazit',hex:'#2a2b2e'},
+{id:'100889',nr:'100889',art:'Touch Pure Display CO2 Tree',grp:'Schalter',te:0,bru:468.00,net:null,auto:1,tree:true,w:3,col:'Anthrazit',hex:'#2a2b2e'},
 {id:'100602',nr:'100602',art:'Stellantrieb Tree',grp:'Heizung',te:0,bru:101.70,net:null,auto:1,tree:true,w:3.6}]; /* Wall Display (Tobi 23.11.): 18–27 VDC, max. 13 W, Tree Turbo (Audioserver/Compact) oder LAN über USB-C-Adapter */
 /* Loxone Tree Spots (Tobi 23.11.): w = max. Leistung laut Datenblatt; weitere Typen folgen, nichts erfinden */
 const SPOT_T=LOX.filter(o=>o.grp==='Spots');
@@ -365,7 +372,7 @@ const lmItems=(pl,k,rid)=>((((pl.sh||{}).lmX)||{})[k]||{})[rid]||[];
 const loxGroups=pl=>{const h=(pl&&pl.sh)||{},K=(h.sp==='ext'?['sp']:[]).concat(h.lp==='ja'?['lp']:[]),G=[];((h.fl)||[]).filter(flDone).forEach(f=>f.rooms.forEach(r=>K.forEach(k=>lmItems(pl,k,r.id).forEach((it,i)=>{if(+it.n>0&&it.ctl)G.push({k,fid:f.id,rid:r.id,room:r.name,floor:f.name,i,n:+it.n,ctl:it.ctl})}))));return G};
 const daliLamps=pl=>loxGroups(pl).filter(g=>g.ctl==='dali').reduce((a,g)=>a+g.n,0);
 const loxKnxN=pl=>{const h=(pl&&pl.sh)||{};if(!loxMs(pl))return 0;return daliLamps(pl)&&h.daliArt==='knx'?1:0};
-const loxSyncTe=pl=>{const h=pl&&pl.sh;if(!h||!loxOn(pl))return;h.q=h.q||{};{const r=loxAsReq(pl);if(!ttN(h))delete h.q['100428'];else{const n=Math.max(r,+h.asU||0);if(n)h.q['100428']=n;else delete h.q['100428']}}const DX=loxDaliExt(pl);[['100218',loxTeN(pl)],['100322',loxKnxN(pl)],['100623',DX.filter(x=>x.id==='100623').length],['100200',DX.filter(x=>x.id==='100200').length],...SPOT_T.map(t=>[t.id,spFloors(pl).reduce((a,f)=>a+f.rooms.reduce((b,r)=>b+(roomTyp(pl,f.id,r.id)===t.id?roomSpots(pl,f.id,r.id):0),0),0)]),['100038',loxRelN(pl)],['100891',h.wd==='ja'?+h.wdN||0:0],['100602',h.stA==='lox'?+h.stN||0:0],...SW_T().filter(t=>t.id!=='100891').map(t=>[t.id,Object.keys(h.sw||{}).reduce((a,rid)=>a+swItems(pl,rid).reduce((b,it)=>b+(it.typ===t.id?+it.n||0:0),0),0)])].forEach(([id,n])=>{if(n)h.q[id]=n;else delete h.q[id]})};
+const loxSyncTe=pl=>{const h=pl&&pl.sh;if(!h||!loxOn(pl))return;h.q=h.q||{};{const r=loxAsReq(pl);if(!ttN(h))delete h.q['100428'];else{const n=Math.max(r,+h.asU||0);if(n)h.q['100428']=n;else delete h.q['100428']}}const DX=loxDaliExt(pl);[['100218',loxTeN(pl)],['100322',loxKnxN(pl)],['100623',DX.filter(x=>x.id==='100623').length],['100200',DX.filter(x=>x.id==='100200').length],...SPOT_T.map(t=>[t.id,spFloors(pl).reduce((a,f)=>a+f.rooms.reduce((b,r)=>b+(roomTyp(pl,f.id,r.id)===t.id?roomSpots(pl,f.id,r.id):0),0),0)]),['100038',loxRelN(pl)],['100891',h.wd==='ja'?+h.wdN||0:0],['100602',h.stA==='lox'?+h.stN||0:0],...LOX.filter(o=>o.grp==='Schalter'&&o.id!=='100891').map(t=>[t.id,Object.keys(h.sw||{}).reduce((a,rid)=>a+swItems(pl,rid).reduce((b,it)=>b+(it.typ===t.id?+it.n||0:0),0),0)])].forEach(([id,n])=>{if(n)h.q[id]=n;else delete h.q[id]})};
 /* KNX-Spannungsversorgung und KNX-DALI-Gateway: Standard laut Tobi 23.11., Preis und Händler 1:1 (inkl. MwSt.), von Hand änderbar (h.kx) */
 const KX_STD={ps:{hst:'MDT',nr:'STV-0320.02',art:'EIB/KNX Busspannungsversorgung 320/640 mA, REG',te:2,lf:'digitec.ch',bru:138.00},
   da:{hst:'MDT',nr:'SCN-DA641.04',art:'KNX DALI Control 64 Gateway, REG',te:4,lf:'eibabo.ch',bru:254.84,ean:'4251916130718'}};
@@ -398,14 +405,16 @@ const rfList=pl=>{const h=(pl&&pl.sh)||{},M=h.rf||{},R=rfRooms(pl),N=[...new Set
     return {n,rooms:rs,G,cabs,sw,miss,ok:!miss.length,man:!!man.length,ad:cabs.reduce((a,c)=>a+c.ad,0),cab:cabs.map(c=>c.txt).join(' + ')}})};
 const loxDaliExt=pl=>{const N=loxDaliN(pl),big=Math.floor(N/64),r=N%64,L=[];for(let i=0;i<big;i++)L.push({id:'100200',n:64});if(r)L.push({id:r<=10?'100623':'100200',n:r});return L};
 /* Spots pro Raum (spFl[fid].rn {rid:n}), Schalter pro Raum (h.sw {rid:{typ,n}}); Tree-Geräte pro Tree laufend zählen (max. 50) */
-const SW_T=()=>LOX.filter(o=>o.grp==='Schalter');
+const SW_T=()=>LOX.filter(o=>o.grp==='Schalter'&&!o.vbase);
+const swBase=id=>{const o=LOX.find(x=>x.id===id);return o&&o.vbase?o.vbase:id};
+const swVars=base=>LOX.filter(o=>o.id===base||o.vbase===base).filter(o=>o.col);
 const roomSpots=(pl,fid,rid)=>{const h=(pl&&pl.sh)||{},c=(h.spFl||{})[fid]||{};return h.sp==='tree'&&c.on&&(c.rooms||{})[rid]?+((c.rn||{})[rid])||0:0};
 const spotN=(pl,fid)=>{const f=(((pl.sh||{}).fl)||[]).find(x=>x.id===fid);return f?f.rooms.reduce((a,r)=>a+roomSpots(pl,fid,r.id),0):0};
 /* Spot-Typ pro Raum (Tobi 23.11.): c.rt[rid], sonst Standard des Stockwerks c.typ */
 const roomTyp=(pl,fid,rid)=>{const c=(((pl.sh||{}).spFl)||{})[fid]||{};return (c.rt||{})[rid]||c.typ||''};
 const roomSpW=(pl,fid,rid)=>{const t=SPOT_T.find(x=>x.id===roomTyp(pl,fid,rid));return t?roomSpots(pl,fid,rid)*(+t.w||0):0};
 const spotW=(pl,fid)=>{const f=(((pl.sh||{}).fl)||[]).find(x=>x.id===fid);return f?f.rooms.reduce((a,r)=>a+roomSpW(pl,fid,r.id),0):0};
-const treeW=(pl,e)=>{if(!e)return 0;return e.trees.reduce((a,t)=>a+(t.hzv?(+((pl.sh||{}).stN)||0)*3.6:0)+t.rooms.reduce((b,r)=>b+roomSpW(pl,t.f.id,r.id)+roomSt(pl,r.id)*3.6,0),0)};
+const treeW=(pl,e)=>{if(!e)return 0;return e.trees.reduce((a,t)=>a+(t.hzv?(+((pl.sh||{}).stN)||0)*3.6:0)+t.rooms.reduce((b,r)=>b+roomSpW(pl,t.f.id,r.id)+roomSt(pl,r.id)*3.6+swItems(pl,r.id).reduce((c,it)=>{const o=LOX.find(x=>x.id===it.typ);return c+(o&&o.tree!==false?(+o.w||0)*(+it.n||0):0)},0),0),0)};
 /* Schalter: mehrere Geräte pro Raum (Tobi 23.11.), h.sw[rid].items=[{typ,n}]; nur Tree-Geräte zählen zum Tree (Typ mit tree:false, z. B. iPad, nicht) */
 const swItems=(pl,rid)=>{const c=((((pl.sh||{}).sw)||{})[rid])||{};return c.items||(c.n?[{typ:c.typ||'',n:c.n}]:[])};
 const roomSw=(pl,rid)=>swItems(pl,rid).reduce((a,it)=>{const t=LOX.find(o=>o.id===it.typ);return a+(t&&t.tree===false?0:+it.n||0)},0);
@@ -1545,7 +1554,7 @@ function shBody(p,pl,dis){const h=shOf(pl);h.q=h.q||{};loxSyncTe(pl);
     return `<div class="legend" style="margin-top:14px">Schalter (Tree)</div><p class="sub">Pro Raum ein oder mehrere Geräte wählen (z. B. Taster und Tablet), je mit Anzahl. Tree-Geräte zählen wie die Spots zum Tree (max. 50 pro Tree).${T.length?'':' Die Schalter-Typen werden noch eingepflegt.'}</p>${h.wd==='ja'?`<div class="msg ${wdA===(+h.wdN||0)?'info':'err'}">Wall Display: ${wdA} von ${+h.wdN||0} einem Raum zugewiesen.</div>`:''}
       ${D.map(f=>`<div class="pform" style="margin:6px 0"><b>${esc(f.name)}</b>${f.rooms.map(r=>{const IT=swItems(pl,r.id),e=treeOfRoom(pl,f.id,r.id),fr=e?treeFree(e):50;
         return `<div style="margin:6px 0;padding:6px 0;border-top:1px solid var(--line)"><div class="row between" style="gap:6px;flex-wrap:wrap"><b style="font-weight:600">${esc(r.name)}</b><span class="sub">${e?esc(e.root.name)+' · noch '+fr+' frei':''}</span></div>
-        ${IT.map((it,i)=>{const ty=LOX.find(o=>o.id===it.typ),im=ty?loxImg(ty.id):null;return `<div class="row" style="gap:6px;margin-top:4px;flex-wrap:wrap;align-items:center">${T.length?pickUI('sw|'+r.id+'|'+i,it.typ||'',T.map(o=>({id:o.id,label:o.art,sub:o.nr+' · '+cur2(o.bru||0)+(o.tree===false?' · kein Tree-Gerät':''),img:loxImg(o.id)})),dis):'<span class="sub">Schalter-Typen folgen</span>'}<input type="number" min="0" max="${Math.max(0,(+it.n||0)+fr)}" style="width:80px" data-swn="${r.id}:${i}" value="${it.n||''}" placeholder="Anzahl"${dis}><button type="button" class="btn small" data-swdel="${r.id}:${i}" title="entfernen"${dis}>✕</button></div>`}).join('')}
+        ${IT.map((it,i)=>{const ty=LOX.find(o=>o.id===it.typ),im=ty?loxImg(ty.id):null;return `<div class="row" style="gap:6px;margin-top:4px;flex-wrap:wrap;align-items:center">${T.length?pickUI('sw|'+r.id+'|'+i,swBase(it.typ||''),T.map(o=>({id:o.id,label:o.art,sub:o.nr+' · '+cur2(o.bru||0)+(o.tree===false?' · kein Tree-Gerät':'')+(swVars(o.id).length>1?' · '+swVars(o.id).length+' Farben':''),img:loxImg(o.id)})),dis)+(swVars(swBase(it.typ||'')).length>1?`<div class="swc">${swVars(swBase(it.typ)).map(v=>`<button type="button" class="swcb${v.id===it.typ?' on':''}" data-swcol="${r.id}:${i}:${esc(v.id)}"${dis}><i style="background:${v.hex}"></i>${esc(v.col)}${v.bru==null?' <small>Art.-Nr./Preis folgen</small>':''}</button>`).join('')}</div>`:''):'<span class="sub">Schalter-Typen folgen</span>'}<input type="number" min="0" max="${Math.max(0,(+it.n||0)+fr)}" style="width:80px" data-swn="${r.id}:${i}" value="${it.n||''}" placeholder="Anzahl"${dis}><button type="button" class="btn small" data-swdel="${r.id}:${i}" title="entfernen"${dis}>✕</button></div>`}).join('')}
         <button type="button" class="btn small" style="margin-top:4px" data-swadd="${r.id}"${dis}>+ Gerät</button></div>`}).join('')}</div>`).join('')}${treeBox(pl)}`};
   const daliUI=()=>{const DX=loxDaliExt(pl);if(!DX.length)return '';const N=loxDaliN(pl);
     return `<div class="legend">Loxone DALI Extension (automatisch)</div><div class="lxg">${['100623','100200'].map(id=>{const o=LOX.find(x=>x.id===id),n=DX.filter(x=>x.id===id).length;if(!n)return '';const im=loxImg(id);return `<div class="lxc on">${im?`<img src="${im}" alt="">`:'<span class="vtn">Bild folgt</span>'}<b>${esc(o.art)}</b><span>${esc(o.nr)} · ${o.te} TE · bis ${o.dmax} Geräte</span><span>${cur2(o.bru)}</span>${loxDs(id).length?`<button type="button" class="btn link" style="font-size:13px;text-align:left" data-dsview="${id}">Datenblatt ansehen</button>`:''}<div style="margin-top:4px"><b>Anzahl: ${n}</b></div></div>`}).join('')}</div>
@@ -2823,6 +2832,7 @@ document.addEventListener('click',e=>{
     else{delete h.rfCab[+t.dataset.rfcstd];if(h.rfSw)delete h.rfSw[+t.dataset.rfcstd]}
     touchPlan('Raum-Sicherungen angepasst');persistSite();render();return}
   if((t.dataset.stadd||t.dataset.stdel!=null)&&S.site&&canEdit(S.site)){const pl2=planOf(S.site),h=shOf(pl2);h.stR=stItems(pl2).map(x=>({...x}));if(t.dataset.stadd)h.stR.push({rid:'',n:0});else h.stR.splice(+t.dataset.stdel,1);touchPlan('Stellantriebe angepasst');persistSite();render();return}
+  if(t.dataset.swcol&&S.site&&canEdit(S.site)){const pl2=planOf(S.site),h=shOf(pl2),[rid,i,v]=t.dataset.swcol.split(':');h.sw=h.sw||{};const c=h.sw[rid]=h.sw[rid]||{};c.items=swItems(pl2,rid).slice();delete c.typ;delete c.n;const it=c.items[+i]=c.items[+i]||{typ:'',n:0};it.typ=v;touchPlan('Schalter angepasst');persistSite();render();return}
   if(t.dataset.pickopen!=null){S.pick=S.pick===t.dataset.pickopen?null:t.dataset.pickopen;render();return}
   if(t.dataset.pick!=null&&S.site&&canEdit(S.site)){const pl2=planOf(S.site),h=shOf(pl2),[k,a,b2]=t.dataset.pick.split('|'),v=t.dataset.v;S.pick=null;
     if(k==='sw'){h.sw=h.sw||{};const c=h.sw[a]=h.sw[a]||{};c.items=swItems(pl2,a).slice();delete c.typ;delete c.n;const it=c.items[+b2]=c.items[+b2]||{typ:'',n:0};it.typ=v;if(!(+it.n))it.n=1;touchPlan('Schalter angepasst')}
