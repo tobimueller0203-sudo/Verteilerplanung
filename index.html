@@ -143,6 +143,7 @@ input:disabled,select:disabled{opacity:1;background:var(--bg);color:var(--ink);-
 .plangrid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:20px;align-items:start}
 @media (max-width:900px){.plangrid{grid-template-columns:minmax(0,1fr)}}
 .sk{display:flex;flex-direction:column;gap:6px;padding:10px 0;border-bottom:1px solid var(--line)}
+.pform{border:1px solid var(--line);border-radius:4px;padding:10px;margin-top:6px;background:var(--bg)}
 .skro .sk{opacity:.6;background:var(--bg);padding:10px 8px}.skro .sk input,.skro .sk select{cursor:not-allowed}
 .sk1{display:flex;gap:8px;align-items:center}.sk1 input{flex:1;padding:9px 10px}
 .sk2{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
@@ -211,7 +212,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-23.0901';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-23.0910';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -271,7 +272,7 @@ async function cloudPull(){
   for(const s of up){try{await cloudPush(s);delete s.dirty;cloud.set(s.id,siteRow(s))}catch(e){s.dirty=1}}
   const before=JSON.stringify(D.sites);
   D.sites=[...cloud.values()].map(r=>{const d=r.data||{};d.id=r.id;d.owner=r.owner;if(!Array.isArray(d.editors))d.editors=[];return d}).concat(D.sites.filter(s=>s.dirty&&!cloud.has(s.id)));
-  D.cloudDone=true;save();cloudStat(up.some(s=>s.dirty)?'err':'ok');return before!==JSON.stringify(D.sites)}
+  await cloudParts();D.cloudDone=true;save();cloudStat(up.some(s=>s.dirty)?'err':'ok');return before!==JSON.stringify(D.sites)}
 async function cloudDel(id){if(!SB.on||!SB.sess)return;try{await sb('/rest/v1/sites?id=eq.'+encodeURIComponent(id),{method:'DELETE'})}catch(e){cloudStat('err',e)}}
 async function cloudLogin(u,pw,isNew){
   if(isNew){const js=await sbRaw('/auth/v1/signup',{method:'POST',body:{email:sbMail(u.id),password:pw}},false);
@@ -282,6 +283,16 @@ async function cloudLogin(u,pw,isNew){
 async function cloudLogout(){if(SB.sess){try{await sbRaw('/auth/v1/logout',{method:'POST'})}catch(e){}}SB.sess=null;sbSave()}
 /* WP-Schema-Bilder in der Cloud (Speicher «wp») */
 async function cloudWpPut(key,arr){if(!SB.on||!SB.sess)return;try{await sb('/storage/v1/object/wp/'+encodeURIComponent(key)+'.json',{method:'POST',headers:{'x-upsert':'true'},body:JSON.stringify(arr)})}catch(e){cloudStat('err',e)}}
+/* Hinterlegte Bauteile (Tobi 23.11.): Planer erfassen freiwillig Produkte für Bauteile ohne Preis; nur die Verwaltung sieht, wer was hinzugefügt hat */
+const LF_LIST=['EM','Sonepar','Standard AG'];
+const partsAll=()=>D.parts||(D.parts=[]),partsOf=k=>partsAll().filter(x=>x.kind===k&&!x.del);
+const partRow=x=>({id:x.id,kind:x.kind,hst:x.hst||'',lf:x.lf||'',typ:x.typ||'',enr:x.enr,net:x.net??null,bru:x.bru??null,created_by:x.by||null,updated_at:now()});
+async function cloudParts(){if(!SB.on||!SB.sess)return;
+  try{for(const x of partsAll().filter(x=>x.dirty)){if(x.del)await sb('/rest/v1/parts?id=eq.'+encodeURIComponent(x.id),{method:'DELETE'});else if(x.cl){const r=partRow(x);delete r.id;delete r.created_by;await sb('/rest/v1/parts?id=eq.'+encodeURIComponent(x.id),{method:'PATCH',headers:{Prefer:'return=minimal'},body:r})}else{await sb('/rest/v1/parts',{method:'POST',headers:{Prefer:'return=minimal'},body:[partRow(x)]});x.cl=1}delete x.dirty}
+    const rows=await sb('/rest/v1/parts?select=*&order=kind'),loc=partsAll().filter(x=>x.dirty);
+    D.parts=(rows||[]).map(r=>({id:r.id,kind:r.kind,hst:r.hst,lf:r.lf,typ:r.typ,enr:r.enr,net:r.net==null?null:+r.net,bru:r.bru==null?null:+r.bru,by:r.created_by,at:r.created_at,cl:1})).filter(x=>!loc.some(l=>l.id===x.id)).concat(loc.filter(l=>!l.del));save()}
+  catch(e){console.warn('Bauteile',e)}}
+function partSave(x){x.dirty=1;save();cloudParts().then(()=>{if(!document.querySelector('#pf-enr'))render()})}
 async function cloudWpGet(key){if(!SB.on||!SB.sess)return null;try{const v=await sb('/storage/v1/object/authenticated/wp/'+encodeURIComponent(key)+'.json');return Array.isArray(v)?v:null}catch(e){return null}}
 
 let S={screen:'start',user:null,admin:false,msg:null,sel:'',site:null,isNew:false,savedAt:null,q:'',fNorm:'',fKanton:'',fOrt:'',onlyMine:false,armed:null};
@@ -780,6 +791,8 @@ function matList(s,lf){const pl=planOf(s),hst=pl.hersteller||'',L=skLayout(s),m=
   const lzm={};L.list.forEach(r=>{const n=r.cond.filter(c=>c!=='PE').length,q=+r.amp<=13?'1.5':+r.amp<=16?'2.5':'';if(q)lzm[q]=(lzm[q]||0)+n*0.3;else miss.set('Litze für '+r.char+r.amp+' (Querschnitt offen)',(miss.get('Litze für '+r.char+r.amp+' (Querschnitt offen)')||0)+1)});
   const mag=!!pl.litzeMag&&pl.gehaeuse!=='alu'&&/hager/i.test(pl.hersteller||'');Object.keys(lzm).forEach(q=>{const pr=LITZE[q];if(lf==='Sonepar'&&pr)m.set('LZ'+q,{...pr,lf,hst:'',k:'LZ',n:Math.round(lzm[q]*10)/10,u:'m',mag})});
   /* Bauteile ohne hinterlegten Preis: der Planer kann den Preis selbst eintragen */
+  const psel=pl.partSel||{};[...miss.keys()].forEach(t=>{const q=partsAll().find(x=>x.id===psel[t]&&!x.del);if(!q)return;const n=miss.get(t);miss.delete(t);
+    m.set('PT'+t,{lf:q.lf,hst:q.hst||'',k:'PT',nr:'E-Nr. '+q.enr+(q.lf?' · '+q.lf:''),art:manTxt(t)+(q.typ?' '+q.typ:''),net:+q.net||0,bru:+q.bru||0,n,kind:t,part:q.id,...(/\(Meter\)$/.test(t)?{u:'m'}:{})})});
   const pr=pl.preise||{},man=[...miss].map(([t,n])=>{const q=pr[t]||{},has=q.net!=null||q.bru!=null;return {t,n,has,pn:q.net,pb:q.bru,net:has?(q.net??q.bru):0,bru:has?(q.bru??q.net):0}});
   const it=[...m.values()],cnt=it.filter(x=>!x.mag);return {it,man,miss:man.filter(x=>!x.has).map(x=>[x.t,x.n]),net:cnt.reduce((a,x)=>a+x.net*x.n,0)+man.reduce((a,x)=>a+x.net*x.n,0),bru:cnt.reduce((a,x)=>a+x.bru*x.n,0)+man.reduce((a,x)=>a+x.bru*x.n,0),hst}}
 const manQty=x=>/\(Meter\)$/.test(x.t)?String(x.n).replace('.',',')+' m':x.n+'×',manTxt=t=>t.replace(/ \(Meter\)$/,'');
@@ -1349,6 +1362,16 @@ function zlFields(p,z,j,dis){const five=(planOf(p).adern||'5')==='5';
       <select data-zl="qs" data-zi="${j}"${dis}><option value="">wählen …</option>${opt(QS.filter(q=>qsNum(q)<=QS_MAX).map(q=>[q,qsTxt(q)+' mm²']),z.qs||'')}</select></label>
     <label class="f c3">${j===0?'Adern nach Zähler':'Abgang Adern'}
       <select data-zl="adern" data-zi="${j}"${dis}>${opt(five?[['5','5-adrig · L1 L2 L3 N PE'],['3','3-adrig · L N PE']]:[['3','3-adrig · L N PE']],five?(z.adern||'5'):'3')}</select></label>`}
+function partUI(t,dis,pn,pb){const L=partsOf(t),cur=(planOf(S.site).partSel||{})[t]||'';let h='';
+  if(L.length)h+=`<label class="m" style="margin-top:6px;max-width:460px"><span>Hinterlegtes Produkt</span><select data-psel="${esc(t)}"${dis}><option value="">anderes (Preis selbst eintragen)</option>${L.map(x=>`<option value="${x.id}"${x.id===cur?' selected':''}>${esc([x.hst,x.typ,x.lf,'E-Nr. '+x.enr].filter(Boolean).join(' · '))}</option>`).join('')}</select></label>`;
+  if(dis||cur)return h;
+  if(S.pForm!==t)return h+`<div style="margin-top:6px"><button type="button" class="btn small" data-padd="${esc(t)}">Produkt hinterlegen (freiwillig)</button></div>`;
+  const f=(id,l,v,ty)=>`<label class="m"><span>${l}</span><input id="pf-${id}" ${ty||''} value="${v??''}" autocomplete="off"></label>`;
+  return h+`<div class="pform"><b>Produkt hinterlegen: ${esc(manTxt(t))}</b><p class="sub" style="margin:2px 0 6px">Danach können alle Planer es hier auswählen. Die E-Nummer ist Pflicht.</p>
+    <div class="row" style="gap:8px;flex-wrap:wrap">${f('hst','Hersteller','')}<label class="m"><span>Grosshändler</span><select id="pf-lf">${opt(LF_LIST.map(x=>[x,x]),'Sonepar')}</select></label>${f('typ','Typ','')}${f('enr','E-Nummer *','','inputmode="numeric"')}${f('net','Netto CHF',pn,'type="number" step="0.05" min="0" style="width:100px"')}${f('bru','Brutto CHF',pb,'type="number" step="0.05" min="0" style="width:100px"')}</div>
+    <div id="pf-msg"></div><div class="row" style="margin-top:8px"><button type="button" class="btn primary small" data-act="pSave" data-t="${esc(t)}">Produkt speichern</button><button type="button" class="btn small" data-act="pCancel">Abbrechen</button></div></div>`}
+function partsAdmin(){const L=partsAll().filter(x=>!x.del).sort((a,b)=>a.kind.localeCompare(b.kind)),num=(x,k)=>`<input class="pct" style="width:80px" type="number" step="0.05" min="0" data-pedit="${x.id}" data-pk="${k}" value="${x[k]??''}">`;
+  return `<section class="card" style="grid-column:1/-1"><h2>Hinterlegte Bauteile</h2><p class="sub">Von den Planern freiwillig erfasst. Nur die Verwaltung sieht, wer ein Bauteil hinzugefügt hat.</p>${L.length?`<table class="te">${L.map(x=>`<tr><td><b>${esc(manTxt(x.kind))}</b><br><span class="sub">${esc([x.hst,x.typ,x.lf].filter(Boolean).join(' · '))} · E-Nr. ${esc(x.enr)}</span><br><span class="sub">hinzugefügt von <b>${esc(userName(x.by))}</b>${x.at?' am '+fmtDate(x.at):''}</span></td><td style="white-space:nowrap;text-align:right">netto ${num(x,'net')} brutto ${num(x,'bru')} CHF<div style="margin-top:6px">${S.armed==='p'+x.id?`<button type="button" class="btn small danger" data-pdel="${x.id}">Sicher löschen?</button>`:`<button type="button" class="btn small danger" data-arm="p${x.id}">Löschen</button>`}</div></td></tr>`).join('')}</table>`:'<p class="sub">Noch keine Bauteile hinterlegt.</p>'}</section>`}
 function det(id,title,html,badge){if(!html)return '';const o=S.det&&S.det.has(id);return `<details class="exd" data-det="${id}"${o?' open':''}><summary>${title}${badge||''}</summary><div class="exd-b">${html}</div></details>`}
 function teBox(s,pl,dis){
   const u=skLayout(s).sum,pct=Math.round(u.res*100),hgr=/hager/i.test(pl.hersteller||'');
@@ -1373,7 +1396,7 @@ function teBox(s,pl,dis){
     return `<div class="legend">Klemmen-Positionen</div><div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px"><button type="button" class="btn small" data-act="klPosAll" data-v="o"${dis}>Alle oben</button><button type="button" class="btn small" data-act="klPosAll" data-v="u"${dis}>Alle unten</button><button type="button" class="btn small" data-act="klPosOpen">Fertig</button></div>
     <table class="te">${ks.map(k=>row(k.X+(k.X==='-X0'?' Einspeisung':'')+' <span class="sub">('+(k.mm?mmTxt(k.mm):'folgt')+')</span>',`<select data-klpos="${k.X}"${dis}><option value="o"${klPos(pl,k.X)==='oben'?' selected':''}>oben</option><option value="u"${klPos(pl,k.X)==='unten'?' selected':''}>unten</option></select>`)).join('')}</table>
     ${mix?'<div class="msg info">Hinweis: Die Klemmen sind oben und unten aufgeteilt. Das braucht mehr Platz im Verteiler: Für die Klemmen unten ist eine eigene Hutschiene eingerechnet.</div>':''}`})()}${(()=>{if(pl.gehaeuse==='alu')return `<p class="sub">Alu-Verteiler: Für die Klemmen einplanen: ${klStrips(s).filter(k=>k.mm).map(k=>k.X+' '+mmTxt(k.mm)+' ('+klTE(k.mm)+' TE)').join(', ')}, zusammen ${klTE(mmT)} TE (${mmT.toFixed(1).replace('.',',')} mm).</p>`;if(!/hager/i.test(pl.hersteller||''))return pl.gehaeuse?`<p class="sub">Klemmen-Hutschiene für ${esc(pl.hersteller||'diesen Hersteller')} folgt.</p>`:'';const n=Math.ceil(mmT/KL_UT.mm);return `<table class="te">${row(n+'× '+KL_UT.art+' <span class="sub">('+KL_UT.mm+' mm Klemmenplatz pro Schiene)</span>',chf(KL_UT.bru*n)+' CHF')}</table><div class="msg err">Achtung: Preis der Hutschiene UT22B ist aus dem Internet (Conrad), nicht unser Preis.</div>`})()}`:''}`})())}
-  ${(()=>{const M=matList(s,'Sonepar');return det('mat','Material und Preise · Sonepar',(()=>{const M=matList(s,'Sonepar');if(!M.it.length&&!M.man.length)return '';return `${M.it.length?`<table class="te">${M.it.map(x=>x.mag?`<tr style="opacity:.45"><td>${String(x.n).replace('.',',')} m ${esc(x.art)} <span class="sub">(${x.nr}) · aus dem Magazin, nicht auf der Kommission</span></td><td>–</td></tr>`:row((x.u?String(x.n).replace('.',',')+' m ':x.n+'× ')+esc((x.hst?x.hst+' ':'')+x.art)+' <span class="sub">('+x.nr+')</span>',chf(x.net*x.n)+' CHF')).join('')}${row('Total Sonepar','netto '+chf(M.net)+' / brutto '+chf(M.bru)+' CHF','sum')}</table>`:''}${M.man.length?`<table class="te">${M.man.map(x=>{const mtr=/\(Meter\)$/.test(x.t),inp=(k,v)=>`<input class="pct" style="width:80px" type="number" step="0.05" min="0" data-preis="${esc(x.t)}" data-pk="${k}" value="${v??''}"${dis}>`;return `<tr><td>${manQty(x)} ${esc(manTxt(x.t))} ${x.has?'<span class="sub">(Preis von Hand eingetragen)</span>':'<span style="color:#b42318;font-weight:700">ohne Artikelnummer · noch nicht eingefügt</span>'}<div class="row" style="gap:6px;margin-top:4px;flex-wrap:wrap;font-size:13px">Preis selbst eintragen: netto ${inp('net',x.pn)} brutto ${inp('bru',x.pb)} CHF ${mtr?'pro Meter':'pro Stück'}</div></td><td>${x.has?chf(x.net*x.n)+' CHF':'–'}</td></tr>`}).join('')}</table>`:''}${M.miss.length?`<div class="msg err">Achtung: ${M.miss.length===1?'1 Bauteil ist':M.miss.length+' Bauteile sind'} noch nicht in der App hinterlegt (${M.miss.map(([t])=>esc(t)).join(', ')}). Preis oben selbst eintragen oder Artikelnummer und Preis nachliefern.${/hager/i.test(M.hst)?'':' Preise gibt es bisher nur für Hager.'}</div>`:''}${pl.gehaeuse!=='alu'&&/hager/i.test(pl.hersteller||'')?`<label class="chk"><input type="checkbox" data-ex="litzeMag" ${pl.litzeMag?'checked':''}${dis}> Litze 1,5 / 2,5 mm² aus dem Magazin (nicht auf die Kommission rechnen)</label>`:''}<p class="sub">Preise von Sonepar. EM folgt für den Preisvergleich.</p>`})(),M.miss.length?'<span style="color:#b42318;font-weight:700"> · '+M.miss.length+' Bauteil'+(M.miss.length===1?'':'e')+' ohne Preis</span>':'')})()}
+  ${(()=>{const M=matList(s,'Sonepar');return det('mat','Material und Preise · Sonepar',(()=>{const M=matList(s,'Sonepar');if(!M.it.length&&!M.man.length)return '';return `${M.it.length?`<table class="te">${M.it.map(x=>x.mag?`<tr style="opacity:.45"><td>${String(x.n).replace('.',',')} m ${esc(x.art)} <span class="sub">(${x.nr}) · aus dem Magazin, nicht auf der Kommission</span></td><td>–</td></tr>`:row((x.u?String(x.n).replace('.',',')+' m ':x.n+'× ')+esc((x.hst?x.hst+' ':'')+x.art)+' <span class="sub">('+x.nr+')</span>'+(x.part?partUI(x.kind,dis):''),chf(x.net*x.n)+' CHF')).join('')}${row('Total Sonepar','netto '+chf(M.net)+' / brutto '+chf(M.bru)+' CHF','sum')}</table>`:''}${M.man.length?`<table class="te">${M.man.map(x=>{const mtr=/\(Meter\)$/.test(x.t),inp=(k,v)=>`<input class="pct" style="width:80px" type="number" step="0.05" min="0" data-preis="${esc(x.t)}" data-pk="${k}" value="${v??''}"${dis}>`;return `<tr><td>${manQty(x)} ${esc(manTxt(x.t))} ${x.has?'<span class="sub">(Preis von Hand eingetragen)</span>':'<span style="color:#b42318;font-weight:700">ohne Artikelnummer · noch nicht eingefügt</span>'}<div class="row" style="gap:6px;margin-top:4px;flex-wrap:wrap;font-size:13px">Preis selbst eintragen: netto ${inp('net',x.pn)} brutto ${inp('bru',x.pb)} CHF ${mtr?'pro Meter':'pro Stück'}</div>${partUI(x.t,dis,x.pn,x.pb)}</td><td>${x.has?chf(x.net*x.n)+' CHF':'–'}</td></tr>`}).join('')}</table>`:''}${M.miss.length?`<div class="msg err">Achtung: ${M.miss.length===1?'1 Bauteil ist':M.miss.length+' Bauteile sind'} noch nicht in der App hinterlegt (${M.miss.map(([t])=>esc(t)).join(', ')}). Preis oben selbst eintragen oder Artikelnummer und Preis nachliefern.${/hager/i.test(M.hst)?'':' Preise gibt es bisher nur für Hager.'}</div>`:''}${pl.gehaeuse!=='alu'&&/hager/i.test(pl.hersteller||'')?`<label class="chk"><input type="checkbox" data-ex="litzeMag" ${pl.litzeMag?'checked':''}${dis}> Litze 1,5 / 2,5 mm² aus dem Magazin (nicht auf die Kommission rechnen)</label>`:''}<p class="sub">Preise von Sonepar. EM folgt für den Preisvergleich.</p>`})(),M.miss.length?'<span style="color:#b42318;font-weight:700"> · '+M.miss.length+' Bauteil'+(M.miss.length===1?'':'e')+' ohne Preis</span>':'')})()}
   <p class="sub">Die Hutschienen werden zuerst ganz gefüllt (12 TE), der Rest kommt auf die letzte Schiene. Reicht der freie Platz nicht für die Reserve, kommt eine leere Hutschiene dazu. Überspannungsschutz und Hauptschalter sind noch nicht eingerechnet.</p>`;
 }
 function skInfo(s){const L=skLayout(s),n=L.list.length,m=L.pages.length,u=L.sum;return n?n+(n===1?' Stromkreis':' Stromkreise')+', '+(u.sichTE+u.relTE)+' TE, '+m+(m===1?' Schemablatt':' Schemablätter')+'. Den Platzbedarf siehst du im letzten Schritt. Mit Enter kommt eine neue Zeile.':'Noch keine Stromkreise. Mit Enter kommt nach einer Zeile direkt die nächste.'}
@@ -1836,7 +1859,7 @@ function vAdminCloud(){
     <div class="ulist">${ADMIN_LINKS.map(([t,u])=>`<div class="uitem"><div><div style="font-weight:600">${esc(t)}</div><span class="sub">${esc(u.replace('https://',''))}</span></div><a class="btn small" href="${u}" target="_blank" rel="noopener">Öffnen</a></div>`).join('')}</div>
     <p class="sub">Die Zugangsdaten für GitHub und Supabase stehen bewusst nicht hier, weil der Code öffentlich ist.</p><p class="sub">App-Version: <b>${APP_V}</b></p>
     <p class="sub">Die Verwaltung kann keine Baustellen ändern oder löschen. Das dürfen nur der Ersteller und die Planer, für die er sie freigegeben hat.</p>
-  </section></div>`;
+  </section>${partsAdmin()}</div>`;
 }
 async function loadPeople(){const ppl=await sbRaw('/rest/v1/people?select=id,name,admin,auth_uid&order=name',{},false);D.users=ppl.map(p=>({id:p.id,name:p.name,admin:!!p.admin,hash:p.auth_uid?'cloud':undefined}));if(S.user)S.user=D.users.find(u=>u.id===S.user.id)||S.user}
 function vAdmin(){if(SB.on)return vAdminCloud();
@@ -1862,7 +1885,7 @@ function vAdmin(){if(SB.on)return vAdminCloud();
       <button class="btn" type="submit">Ändern</button>
     </form>
     <p class="sub">Die Verwaltung kann keine Baustellen ändern oder löschen. Das dürfen nur der Ersteller und die Planer, für die er sie freigegeben hat.</p>
-  </section></div>`;
+  </section>${partsAdmin()}</div>`;
 }
 
 /* ---------- Ereignisse ---------- */
@@ -1902,6 +1925,8 @@ document.addEventListener('change',e=>{
     S.prevSel=null;render();return}
   if(t.dataset.rladd!=null&&t.value&&S.site&&canEdit(S.site)){const pl=planOf(S.site),r=pl.sk[+t.dataset.rladd];if(r){r.relais=r.relais||[];r.relais.push(t.value);touchPlan('Relais '+relInfo(t.value)[1]+' bei '+(r.name||'Stromkreis'));render()}return}
   if(t.dataset.klpos&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.klPos=pl.klPos||{};if(t.dataset.klpos==='-X0'&&((pl.klPos['-X0']==='u')!==(t.value==='u')))(pl.busSeen&&(pl.x0Moved=true));if(t.value==='u')pl.klPos[t.dataset.klpos]='u';else delete pl.klPos[t.dataset.klpos];touchPlan('Klemmen '+t.dataset.klpos+' '+(t.value==='u'?'unten':'oben'));render();return}
+  if(t.dataset.psel!=null&&S.site&&canEdit(S.site)){const pl=planOf(S.site),k=t.dataset.psel;pl.partSel=pl.partSel||{};if(t.value)pl.partSel[k]=t.value;else delete pl.partSel[k];touchPlan('Produkt gewählt: '+manTxt(k));render();return}
+  if(t.dataset.pedit&&S.user&&S.user.admin){const x=partsAll().find(q=>q.id===t.dataset.pedit);if(!x)return;const v=t.value.trim();x[t.dataset.pk]=v===''?null:Math.max(0,+v.replace(',','.')||0);partSave(x);return}
   if(t.dataset.preis&&S.site&&canEdit(S.site)){const pl=planOf(S.site),k=t.dataset.preis;pl.preise=pl.preise||{};const o=pl.preise[k]=pl.preise[k]||{},v=t.value.trim();if(v==='')delete o[t.dataset.pk];else o[t.dataset.pk]=Math.max(0,+v.replace(',','.')||0);if(o.net==null&&o.bru==null)delete pl.preise[k];touchPlan('Preis von Hand: '+manTxt(k));render();return}
   if(t.dataset.ex==='litzeMag'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.litzeMag=t.checked;touchPlan('Litze '+(t.checked?'aus dem Magazin':'auf Kommission'));render();return}
   if((t.dataset.ex==='res'||t.dataset.ex==='resPct'||t.dataset.ex==='relSame')&&S.site&&canEdit(S.site)){const pl=planOf(S.site),k=t.dataset.ex;
@@ -2074,9 +2099,16 @@ document.addEventListener('click',e=>{
   if(act==='rsDo'&&S.site&&canEdit(S.site)){const ks=[...(S.rsSel||[])],L=stepsOf(S.site).filter(x=>ks.includes(x[0])).map(x=>x[1]);rsDo(S.site,ks);S.rsOpen=false;S.rsSel=new Set();S.armed=null;touchPlan('Zurückgesetzt: '+L.join(', '));persistSite();render();return}
   if(act==='appUpdate'){if(SITE_SCR.includes(S.screen)&&S.site&&!S.isNew)persistSite();saveSession();location.reload();return}
   if(act==='adminLogin')return go('adminLogin');
-  if(act==='adminOpen'&&SB.on&&S.user&&S.user.admin){S.admin=true;return go('admin')}
+  if(act==='adminOpen'&&SB.on&&S.user&&S.user.admin){S.admin=true;cloudParts().then(()=>{if(S.screen==='admin')render()});return go('admin')}
   if(act==='adminBack'){S.admin=false;return go('liste')}
   if(act==='adminOut'){S.admin=false;return go('start')}
+  if(t.dataset.padd!=null&&S.site&&canEdit(S.site)){S.pForm=t.dataset.padd;render();setTimeout(()=>{const f=$('#pf-hst');if(f)f.focus()},0);return}
+  if(act==='pCancel'){S.pForm=null;render();return}
+  if(act==='pSave'&&S.site&&canEdit(S.site)){const k=t.dataset.t,g=id=>($('#pf-'+id)||{}).value||'',enr=g('enr').trim(),nm=v=>{v=String(v).trim();return v===''?null:Math.max(0,+v.replace(',','.')||0)};
+    if(!enr){$('#pf-msg').innerHTML='<div class="msg err" style="margin-top:8px">Bitte die E-Nummer eintragen. Ohne E-Nummer kann das Produkt nicht gespeichert werden.</div>';$('#pf-enr').focus();return}
+    const x={id:'pt-'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),kind:k,hst:g('hst').trim(),lf:g('lf'),typ:g('typ').trim(),enr,net:nm(g('net')),bru:nm(g('bru')),by:S.user.id,at:now()};
+    partsAll().push(x);const pl=planOf(S.site);pl.partSel=pl.partSel||{};pl.partSel[k]=x.id;S.pForm=null;touchPlan('Produkt hinterlegt: '+manTxt(k));partSave(x);render();return}
+  if(t.dataset.pdel&&S.user&&S.user.admin){const x=partsAll().find(q=>q.id===t.dataset.pdel);S.armed=null;if(x){x.del=1;partSave(x)}render();return}
   if(act==='home')return go('start');
   if(act==='export'){
     const data={app:'verteilerplanung',version:3,exported:now(),users:D.users.map(u=>({id:u.id,name:u.name})),sites:D.sites};
