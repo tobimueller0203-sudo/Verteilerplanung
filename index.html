@@ -210,7 +210,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-23.0850';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-23.0855';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -621,7 +621,11 @@ function touchPlan(grund){
 const bezTypes=s=>s.norm==='VDE'?[['SLS','SLS-Schalter, selektiv (3-polig)'],['NH','NH-Sicherung (3-polig)']]:[['DZ','Diazed (3-polig)'],['LSD','LS 4-polig, D-Charakteristik']];
 const BEZ_A={DZ:['16','20','25','35','50','63'],LSD:['16','20','25','32','40','50','63'],SLS:['35','40','50','63'],NH:['35','50','63','80','100']};
 const bezTxt=pl=>pl.bez?(pl.bez==='DZ'?(pl.bezA&&+pl.bezA<=25?'DII':pl.bezA?'DIII':'Diazed'):{LSD:'LS D',SLS:'SLS',NH:'NH'}[pl.bez])+(pl.bezA?' '+pl.bezA+' A':'')+(pl.bez==='LSD'?' 4-polig':pl.bez==='DZ'||pl.bez==='NH'?' + N-Trenner':' 3-polig'):'';
-const HS_A=['25','40','63','80','100','125'];
+const HS_A=['20','32','40','63','63C','80'];
+/* Hauptschalter = Lasttrennschalter Hager 4L (Sonepar, Tobi 23.11.); Klemmenabdeckung IMMER mitrechnen */
+const HS_PROD={'20':{nr:'550 405 101',t:'HAB402',art:'Lasttrennschalter Hager HAB402 4L 20A',net:29.70,bru:54.00},'32':{nr:'550 405 301',t:'HAB403',art:'Lasttrennschalter Hager HAB403 4L 32A',net:38.50,bru:70.00},'40':{nr:'550 405 401',t:'HAB404',art:'Lasttrennschalter Hager HAB404 4L 40A',net:48.24,bru:87.70},'63':{nr:'550 405 601',t:'HAB406',art:'Lasttrennschalter Hager HAB406 4L 63A',net:55.83,bru:101.50},'63C':{nr:'550 405 602',t:'HAC406',art:'Lasttrennschalter Hager HAC406 4L 63A',net:66.55,bru:121.00},'80':{nr:'550 405 702',t:'HAC408',art:'Lasttrennschalter Hager HAC408 4L 80A',net:69.30,bru:126.00}};
+const HS_KA={nr:'550 495 001',art:'Klemmenabdeckung Hager 4L für Lasttrennschalter 20…63A',net:10.64,bru:19.35};
+const hsAmp=a=>String(a||'').replace('C',''),hsLbl=a=>HS_PROD[a]?hsAmp(a)+' A · '+HS_PROD[a].t:a+' A';
 /* Zähler (nur HV): alle im Zählerschrank auf der Kupferschiene. Standard Diazed, LS auf Hutschiene mit Litze eingespiesen */
 /* Zähler HV: -P1 ist beim MFH immer der Allgemeinzähler (beim EFH der Hauptzähler), seine Stromkreise kommen auf eigene Seiten. Weitere Zähler: Messungen mit Abgang zur Wohnung und Sicherungen direkt beim Zähler (z. B. Keller) */
 const ZM_EXT_MAX=5;
@@ -770,7 +774,7 @@ function matList(s,lf){const pl=planOf(s),hst=pl.hersteller||'',L=skLayout(s),m=
   if(busPausch(s)){const Q=busPlan(s,L,true);if(Q.bru)put({lf,hst:'',k:'PAU',nr:'Pauschale',art:'Phasen-/Etagenschienen für den Verteilerbauer (unsere Bruttopreise)',net:Q.bru,bru:Q.bru},'')}
   if(kz&&!bon)L.rails.filter(rl=>rl.kind==='sk'&&!rl.nt&&!rl.rel&&rl.used>0&&rl.used<RAIL_TE).forEach(rl=>{for(let i=0;i<Math.ceil((RAIL_TE-rl.used)/kz.te);i++)put(kz,'')});
   /* Extras ohne hinterlegtes Produkt */
-  if(s.art!=='HV'&&pl.spd)put(null,'Überspannungsschutz');if(s.art!=='HV'&&pl.hs)put(null,'Hauptschalter'+(pl.hsA?' '+pl.hsA+' A':''));
+  if(s.art!=='HV'&&pl.spd)put(null,'Überspannungsschutz');if(s.art!=='HV'&&pl.hs){const H=HS_PROD[pl.hsA];if(H&&lf==='Sonepar'){put({lf,hst:'',k:'HS',nr:H.nr,art:H.art,net:H.net,bru:H.bru},'');if(/^HAB/.test(H.t))put({lf,hst:'',k:'HSKA',...HS_KA},'');else put(null,'Klemmenabdeckung für '+H.t+' (noch nicht hinterlegt)')}else put(null,'Hauptschalter'+(pl.hsA?' '+hsLbl(pl.hsA):''))}
   /* Litze pauschal 30 cm pro Pol jeder Sicherung (2-polig 60 cm, 4-polig 120 cm), 13 A -> 1,5 mm², 16 A -> 2,5 mm² */
   const lzm={};L.list.forEach(r=>{const n=r.cond.filter(c=>c!=='PE').length,q=+r.amp<=13?'1.5':+r.amp<=16?'2.5':'';if(q)lzm[q]=(lzm[q]||0)+n*0.3;else miss.set('Litze für '+r.char+r.amp+' (Querschnitt offen)',(miss.get('Litze für '+r.char+r.amp+' (Querschnitt offen)')||0)+1)});
   const mag=!!pl.litzeMag&&pl.gehaeuse!=='alu'&&/hager/i.test(pl.hersteller||'');Object.keys(lzm).forEach(q=>{const pr=LITZE[q];if(lf==='Sonepar'&&pr)m.set('LZ'+q,{...pr,lf,hst:'',k:'LZ',n:Math.round(lzm[q]*10)/10,u:'m',mag})});
@@ -1311,8 +1315,8 @@ function vPlan(){
     <label class="chk${hv?' off':''}"><input type="checkbox" data-ex="spd" ${pl.spd&&!hv?'checked':''}${hv?' disabled':dis}> Überspannungsschutz (SPD) direkt nach der Einspeisung</label>
     <label class="chk${hv?' off':''}"><input type="checkbox" data-ex="hs" ${pl.hs&&!hv?'checked':''}${hv?' disabled':dis}> Hauptschalter</label>
     ${pl.hs&&!hv?`<label class="f" style="max-width:260px">Bemessungsstrom Hauptschalter
-      <select data-ex="hsA"${dis}><option value="">wählen …</option>${opt(HS_A.map(a=>[a,a+' A']),pl.hsA||'')}</select></label>
-      ${pl.hsA?'':'<div class="msg err">Bitte den Bemessungsstrom des Hauptschalters angeben. Er wird später für die Preiskalkulation gebraucht.</div>'}`:''}
+      <select data-ex="hsA"${dis}><option value="">wählen …</option>${opt(HS_A.map(a=>[a,hsLbl(a)]),pl.hsA||'')}</select></label>
+      ${HS_PROD[pl.hsA]?'':'<div class="msg err">Bitte den Hauptschalter (Bemessungsstrom) wählen. Er wird für Material und Preis gebraucht.</div>'}`:''}
     ${hv?'<p class="sub">Bei Hauptverteilungen ist das komplizierter, Überspannungsschutz und Hauptschalter folgen später.</p>':pl.spd&&pl.hs?'<div class="msg info">Der Überspannungsschutz sitzt vor dem Hauptschalter.</div>':''}
     ${teBox(p,pl,dis)}`;
   }
@@ -1494,7 +1498,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     {const ks=klStrips(s).filter(k=>k.mm||k.offen),kt=ks.reduce((a,k)=>a+k.mm,0),kr=k=>k.offen&&!k.mm?'Klemmentyp folgt':mmTxt(k.mm)+(k.offen?' + Klemmen folgen':'');
       if(ks.length)box(lx,y+18,rx-lx-40,'Klemmenleisten, Position und Breite',ks.length<=5?[...ks.map(k=>[k.X+' · '+klPos(pl,k.X),kr(k)]),['Total',mmTxt(kt)+' = '+klTE(kt)+' TE']]:[[ks[0].X+' bis '+ks[ks.length-1].X,ks.length+' Leisten, Breiten und Position siehe Klemmenliste'],['Total',mmTxt(kt)+' = '+klTE(kt)+' TE']])}
     y=box(rx,iy0+40,rw,'Baustelle',[['Kommission',s.kom],['Bauherrschaft',s.bauherr],['Bereich',s.bereich],['Stockwerk',s.stock],['Strasse',s.adr],[s.land==='DE'?'PLZ / Stadt':'PLZ / Ort',[s.plz,s.ort].filter(Boolean).join(' ')],...(s.land==='CH'?[['Kanton',s.kanton?s.kanton+' · '+kantonName(s.kanton):'']]:[]),['Land',landName(s.land)]]);
-    box(rx,y+18,rw,'Verteilung',[['Art',hv?'Hauptverteilung (HV)':'Unterverteilung (UV)'],['Norm',s.norm==='VDE'?'DIN VDE 0100':'NIN SN 411000'],['Hersteller',pl.hersteller],['Gehäuse',pl.gehaeuse?(pl.gehaeuse==='alu'?'Alu-Verteiler':'Herstellerverteiler')+(pl.montage?' · '+(pl.montage==='AP'?'Aufputz':'Unterputz'):''):''],['Zuleitung',pl.qs?(five?'5×':'3×')+qsTxt(pl.qs)+' mm² Cu':''],...(hv?[['Gebäude',s.geb==='MFH'?'Mehrfamilienhaus':'Einfamilienhaus'],['Zähler',zlSum(s)],['Bezügersicherung',pl.zl.length===1?bezTxt(pl.zl[0]):'je Zähler, siehe Zählerschrank']]:[]),...(hv?[['Netzbetreiber',pl.nb]]:[]),['Stromkreise',sk.length?sk.length+' (Blätter '+all.filter(p=>p.kind==='sk').map(p=>p.no).join(', ')+')':''],...(sk.length?[['Platzbedarf',(()=>{const u=skLayout(s).sum;const ku=klUnten(s);return (u.sichTE+u.relTE)+' TE + '+u.resTE+' TE Reserve = '+(u.sichTE+u.relTE+u.resTE)+' TE → '+(u.rails+ku.rails)+' Hutschienen à 12 TE'+(ku.rails?' (inkl. '+ku.rails+' für Klemmen unten)':'')})()]]:[]),...(sk.some(r=>(r.relais||[]).length)?[['Relais',String(sk.reduce((a,r)=>a+(r.relais||[]).length,0))]]:[]),...((siemOn(pl)||(!hv&&(pl.spd||pl.hs)))?[['Extras',[siemOn(pl)?'FI/LS Siemens':'',!hv&&pl.spd?'Überspannungsschutz':'',!hv&&pl.hs?'Hauptschalter'+(pl.hsA?' '+pl.hsA+' A':''):''].filter(Boolean).join(', ')]]:[]),['Blätter',String(all.length)]]);
+    box(rx,y+18,rw,'Verteilung',[['Art',hv?'Hauptverteilung (HV)':'Unterverteilung (UV)'],['Norm',s.norm==='VDE'?'DIN VDE 0100':'NIN SN 411000'],['Hersteller',pl.hersteller],['Gehäuse',pl.gehaeuse?(pl.gehaeuse==='alu'?'Alu-Verteiler':'Herstellerverteiler')+(pl.montage?' · '+(pl.montage==='AP'?'Aufputz':'Unterputz'):''):''],['Zuleitung',pl.qs?(five?'5×':'3×')+qsTxt(pl.qs)+' mm² Cu':''],...(hv?[['Gebäude',s.geb==='MFH'?'Mehrfamilienhaus':'Einfamilienhaus'],['Zähler',zlSum(s)],['Bezügersicherung',pl.zl.length===1?bezTxt(pl.zl[0]):'je Zähler, siehe Zählerschrank']]:[]),...(hv?[['Netzbetreiber',pl.nb]]:[]),['Stromkreise',sk.length?sk.length+' (Blätter '+all.filter(p=>p.kind==='sk').map(p=>p.no).join(', ')+')':''],...(sk.length?[['Platzbedarf',(()=>{const u=skLayout(s).sum;const ku=klUnten(s);return (u.sichTE+u.relTE)+' TE + '+u.resTE+' TE Reserve = '+(u.sichTE+u.relTE+u.resTE)+' TE → '+(u.rails+ku.rails)+' Hutschienen à 12 TE'+(ku.rails?' (inkl. '+ku.rails+' für Klemmen unten)':'')})()]]:[]),...(sk.some(r=>(r.relais||[]).length)?[['Relais',String(sk.reduce((a,r)=>a+(r.relais||[]).length,0))]]:[]),...((siemOn(pl)||(!hv&&(pl.spd||pl.hs)))?[['Extras',[siemOn(pl)?'FI/LS Siemens':'',!hv&&pl.spd?'Überspannungsschutz':'',!hv&&pl.hs?'Hauptschalter'+(pl.hsA?' '+hsLbl(pl.hsA):''):''].filter(Boolean).join(', ')]]:[]),['Blätter',String(all.length)]]);
   }else if(pg.kind==='bus2d'){
     const R=bus2D(s,true),B=busPlan(s),aw=640,ah=iy1-iy0-80,sc=Math.min(aw/R.VW,ah/R.H,1.6);
     T(ix0+40,iy0+50,'Verteileransicht · Sammel- und Etagenschienen','tdeck2');
@@ -1729,7 +1733,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     if(hsOn){ /* Hauptschalter -Q1 in den Leitern zwischen Einspeisung und Sammelschiene */
       live.forEach((c,i)=>{const x=xs[i];o.push(`<rect x="${x-2.5}" y="346" width="5" height="38" fill="#fff"/>`);L(x,384,x-9,350,'w');L(x-3,346,x+3,346,'w')});
       if(live.length>1)L(xs[0]-4.5,367,xs[live.length-1]-4.5,367,'cp');
-      T(xs[0]-14,358,'-Q1','tb','end');T(xs[0]-14,371,'Hauptschalter','t','end');T(xs[0]-14,383,(pl.hsA?pl.hsA+' A · ':'Strom offen · ')+(live.length===4?'4-polig':'2-polig'),'tm','end');
+      T(xs[0]-14,358,'-Q1','tb','end');T(xs[0]-14,371,'Hauptschalter','t','end');T(xs[0]-14,383,(pl.hsA?hsLbl(pl.hsA)+' · ':'Strom offen · ')+(live.length===4?'4-polig':'2-polig'),'tm','end');
     }
     if(spdOn){ /* Überspannungsschutz -F0: direkt nach der Einspeisung, immer vor dem Hauptschalter */
       const bX=430,bY=258,bH=162,px=live.map((_,i)=>bX+22+i*24),bW=px[px.length-1]-bX+36,tapY=live.map((_,i)=>440+i*10),dot=(x,y)=>o.push(`<circle cx="${x}" cy="${y}" r="2.2" fill="#111"/>`);
@@ -1898,7 +1902,7 @@ document.addEventListener('change',e=>{
   if((t.dataset.ex==='res'||t.dataset.ex==='resPct'||t.dataset.ex==='relSame')&&S.site&&canEdit(S.site)){const pl=planOf(S.site),k=t.dataset.ex;
     if(k==='res')pl.resOff=!t.checked;if(k==='relSame')pl.relSame=t.checked;if(k==='resPct')pl.resPct=Math.max(10,Math.round(+t.value||10));
     touchPlan(k==='relSame'?'Relais '+(t.checked?'auf Sicherungsschienen':'auf eigene Schiene'):'Reserve '+(pl.resOff?'abgewählt':(pl.resPct||10)+' %'));render();return}
-  if(t.dataset.ex==='hsA'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.hsA=t.value;touchPlan('Hauptschalter '+(t.value?t.value+' A':''));render();return}
+  if(t.dataset.ex==='hsA'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.hsA=t.value;touchPlan('Hauptschalter '+(t.value?hsLbl(t.value):''));render();return}
   if((t.dataset.ex==='spd'||t.dataset.ex==='hs')&&S.site&&canEdit(S.site)&&S.site.art!=='HV'){const pl=planOf(S.site);pl[t.dataset.ex]=t.checked;S.prevSel={step:pl.step,idx:pagesOf(S.site).findIndex(q=>q.kind==='einspeisung')};touchPlan((t.dataset.ex==='spd'?'Überspannungsschutz':'Hauptschalter')+(t.checked?' ergänzt':' entfernt'));render();return}
   if(t.dataset.wpfile&&t.files&&t.files[0]&&S.site&&canEdit(S.site)){const st=$('#wpStat'),site=S.site;if(st)st.innerHTML='<div class="msg info">PDF wird eingelesen …</div>';
     wpUpload(t.files[0]).then(m=>{hzOf(planOf(site)).wpPdf=m;touchPlan('Wärmepumpen-Schema eingefügt');persistSite();render()}).catch(err=>{const st2=$('#wpStat');if(st2)st2.innerHTML='<div class="msg err">Das PDF konnte nicht gelesen werden ('+esc(err.message||String(err))+').</div>'});return}
