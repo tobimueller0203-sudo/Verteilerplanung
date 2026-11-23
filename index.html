@@ -227,7 +227,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-23.1726';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-23.1734';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -364,8 +364,9 @@ const loxDaliN=pl=>{const h=(pl&&pl.sh)||{};if(!loxMs(pl))return 0;return h.dali
 const loxRelN=pl=>loxRelais(pl).rel;
 /* Licht-Sicherungen (Tobi 23.11.): Nutzer ordnet jeden Raum einer Sicherung zu (h.rf[rid]=Nr.). Relais-Lampengruppen im Raum = je 1 Schaltdraht.
    Kabel: L braun, N blau, PE gn-ge + Schaltdrähte schwarz, grau (bis 2 Gruppen 5×1,5); mehr Gruppen: 7×1,5 nummeriert (Vorschlag, Tobi bestätigt noch) */
+const rfAd=k=>[4,5,7,10,12,16,21,27].find(a=>a>=k)||27;
 const rfRooms=pl=>{const h=(pl&&pl.sh)||{};return ((h.fl)||[]).filter(flDone).flatMap(f=>f.rooms.map(r=>({fid:f.id,rid:r.id,name:f.name+' · '+r.name,g:loxGroups(pl).filter(g=>g.rid===r.id&&g.ctl==='rel')})))};
-const rfList=pl=>{const h=(pl&&pl.sh)||{},M=h.rf||{},R=rfRooms(pl),N=[...new Set(R.map(r=>+M[r.rid]).filter(Boolean))].sort((a,b)=>a-b);return N.map(n=>{const rs=R.filter(r=>+M[r.rid]===n),G=rs.flatMap(r=>r.g),k=3+G.length;return {n,rooms:rs,G,cab:G.length<=2?k+'×1,5':G.length<=4?'7×1,5':Math.ceil(G.length/4)+'× 7×1,5 ('+k+' Adern nötig)',cores:['L braun','N blau','PE gn-ge'].concat(G.map((g,i)=>(G.length<=2?['schwarz','grau'][i]:'Ader '+(i+1))+' → '+g.room+(g.n?' ('+g.n+(g.k==='sp'?' Spots':' Lampen')+')':'')))}})};
+const rfList=pl=>{const h=(pl&&pl.sh)||{},M=h.rf||{},R=rfRooms(pl),N=[...new Set(R.map(r=>+M[r.rid]).filter(Boolean))].sort((a,b)=>a-b);return N.map(n=>{const rs=R.filter(r=>+M[r.rid]===n),G=rs.flatMap(r=>r.g),k=3+G.length;return {n,rooms:rs,G,ad:rfAd(k),cab:rfAd(k)+'×1,5',cores:['L braun','N blau','PE gn-ge'].concat(G.map((g,i)=>(G.length<=2?['schwarz','grau'][i]:'Ader '+(i+1))+' → '+g.room+(g.n?' ('+g.n+(g.k==='sp'?' Spots':' Lampen')+')':'')))}})};
 const loxDaliExt=pl=>{const N=loxDaliN(pl),big=Math.floor(N/64),r=N%64,L=[];for(let i=0;i<big;i++)L.push({id:'100200',n:64});if(r)L.push({id:r<=10?'100623':'100200',n:r});return L};
 /* Spots pro Raum (spFl[fid].rn {rid:n}), Schalter pro Raum (h.sw {rid:{typ,n}}); Tree-Geräte pro Tree laufend zählen (max. 50) */
 const SW_T=()=>LOX.filter(o=>o.grp==='Schalter');
@@ -1276,7 +1277,7 @@ const KL_SICH=6;
 function skLayout(s){
   const pl=planOf(s),five=(pl.adern||'5')==='5';
   const act=zlAct(s);
-  const list=(pl.sk||[]).map((r,i)=>({...r,i})).filter(r=>(r.name||'').trim()).concat(hzSk(s).map((r,k)=>({...r,i:10000+k}))).map(r=>{const z=act.find(z=>String(z.id)===String(r.zl))||act[0],zf=five&&(!z||(z.adern||'5')==='5');const ext=s.art==='HV'&&!!z&&z!==act[0];return {...r,zid:z?z.id:0,zi:z?act.indexOf(z):0,zf,ext,relais:ext?[]:r.relais,pol:!zf&&+r.pol>2?'2':r.pol}});
+  const list=(pl.sk||[]).map((r,i)=>({...r,i})).filter(r=>(r.name||'').trim()).concat(hzSk(s).map((r,k)=>({...r,i:10000+k}))).concat(liSk(s).map((r,k)=>({...r,i:20000+k}))).map(r=>{const z=act.find(z=>String(z.id)===String(r.zl))||act[0],zf=five&&(!z||(z.adern||'5')==='5');const ext=s.art==='HV'&&!!z&&z!==act[0];return {...r,zid:z?z.id:0,zi:z?act.indexOf(z):0,zf,ext,relais:ext?[]:r.relais,pol:!zf&&+r.pol>2?'2':r.pol}});
   const b4=pl.big4==='u'?-1:1;list.sort((a,b)=>a.zi-b.zi||b4*((+b.pol>=3)-(+a.pol>=3))||(+b.pol)-(+a.pol)||a.i-b.i);
   let ph=0,phz=null;
   const res=pl.resOff?0:Math.max(10,+pl.resPct||10)/100,cap=RAIL_TE;
@@ -1359,6 +1360,9 @@ const HZ_OPEN=['puf','boi'];
 const hzJa=(h,k)=>(h[k]||'ja')==='ja';
 const hkvN=h=>Math.max(1,Math.min(12,+h.hkvN||1)),hkvF=h=>{const n=hkvN(h),d=Math.ceil(n/2),f=+h.hkvF||d;return Math.max(1,Math.min(n,f))};
 /* Stromkreise aus dem Heizsystem, erscheinen automatisch im Schema */
+/* Licht-Sicherungen aus Smart Home -> Stromkreise (ausgegraut wie Heizsystem, Tobi 23.11.); Standard FI/LS 2-polig C13, Kabel aus Schaltdrähten */
+function liSk(s){const pl=planOf(s);if(!loxOn(pl))return [];return rfList(pl).map(x=>{const nm=x.rooms.map(r=>r.name.split(' · ').pop()).join(' + '),fl=[...new Set(x.rooms.map(r=>r.name.split(' · ')[0]))].join(' + ');
+  return {name:'Licht '+fl+' '+nm,pol:'2',char:'C',amp:'13',typ:'FILS',adern:String(x.ad),qs:'1.5',kabAuto:false,relais:[],hz:'li',note:x.G.length?'Adern: '+x.cores.join(' · '):'L braun · N blau · PE gn-ge'}})}
 function hzSk(s){const pl=planOf(s),h=pl.hz||{};if(!hzWP(pl))return [];const out=[];
   const fz=(pre,name,note)=>{const d=HZ_DEF[pre]||HZ_DEF.in,g=(x,i)=>(pre+x) in h?h[pre+x]:d[i],op=HZ_OPEN.includes(pre),pol=op?g('Pol',0):(h[pre+'Pol']||d[0]),r={name,pol:pol||'2',char:op?g('Char',1):(h[pre+'Char']||d[1]),amp:op?g('Amp',2):(h[pre+'Amp']||d[2]),typ:op?g('Typ',3):(h[pre+'Typ']||d[3]),note:note||'',kabAuto:true,relais:[],hz:pre};
     if(op){r.kabAuto=false;r.adern=h[pre+'Adern']||'';r.qs=h[pre+'Qs']||'';r.polMiss=!pol;
@@ -1452,9 +1456,9 @@ function shBody(p,pl,dis){const h=shOf(pl);h.q=h.q||{};loxSyncTe(pl);
         <label class="chk" style="margin:4px 0 0"><input type="checkbox" data-kxown="${k}" ${c.own?'checked':''}${dis}> Anderes Produkt</label>${c.own?`<label class="m"><span>Bezeichnung</span><input data-kxf="${k}:art" value="${esc(c.art||'')}" placeholder="Hersteller und Typ"${dis}></label><label class="m"><span>Händler</span><input data-kxf="${k}:lf" value="${esc(c.lf||'')}" placeholder="z. B. digitec.ch"${dis}></label><div class="row" style="gap:6px"><label class="m"><span>Preis CHF</span><input type="number" step="0.05" min="0" data-kxf="${k}:bru" value="${esc(c.bru??'')}"${dis}></label><label class="m"><span>TE</span><input type="number" min="1" max="12" data-kxf="${k}:te" value="${esc(c.te??'')}" placeholder="${KX_STD[k].te}"${dis}></label></div>`:''}</div>`}).join('')}</div>
       <p class="sub">Beide brauchen 230 V. Sie werden zusammen über einen LS C10 2-polig im Verteiler abgesichert.</p>`};
   const rfUI=()=>{const R=rfRooms(pl);if(!R.length)return '';h.rf=h.rf||{};const L2=rfList(pl),mx=Math.max(0,...L2.map(x=>x.n));
-    return `<div class="legend" style="margin-top:14px">Sicherungen für die Beleuchtung</div><p class="sub">Jeden Raum einer Sicherung zuweisen (z. B. OG Bad und OG Schlafzimmer zusammen). Ist im Raum eine Lampe über die Relay Extension geschaltet, plant die App den Schaltdraht automatisch ein. Standard LS C13.</p>
+    return `<div class="legend" style="margin-top:14px">Sicherungen für die Beleuchtung</div><p class="sub">Jeden Raum einer Sicherung zuweisen (z. B. OG Bad und OG Schlafzimmer zusammen). Ist im Raum eine Lampe über die Relay Extension geschaltet, plant die App den Schaltdraht automatisch ein. Standard FI/LS 2-polig C13. Im Schritt Stromkreise erscheinen sie ausgegraut.</p>
       <table class="te">${R.map(r=>`<tr><td>${esc(r.name)}${r.g.length?` <span class="sub">(${r.g.length} Relais-Gruppe${r.g.length>1?'n':''})</span>`:''}</td><td><select data-rfs="${r.rid}"${dis}><option value="">Sicherung …</option>${Array.from({length:mx+1},(_,i)=>`<option value="${i+1}"${+h.rf[r.rid]===i+1?' selected':''}>${i===mx?'neue Sicherung '+(i+1):'Sicherung '+(i+1)}</option>`).join('')}</select></td></tr>`).join('')}</table>
-      ${L2.map(x=>`<div class="pform" style="margin:6px 0"><b>Sicherung ${x.n}</b> · LS C13 · Kabel ${x.cab}<div class="sub">${esc(x.rooms.map(r=>r.name).join(', '))}</div><div class="sub">Adern: ${esc(x.cores.join(' · '))}</div>${x.G.length?'<div class="sub">Von der Sicherung per Zwillingshülse auf die Reihenklemme, L dort mit Steckbrücke durchgebrückt (Klemmentyp folgt).</div>':''}</div>`).join('')}
+      ${L2.map(x=>`<div class="pform" style="margin:6px 0"><b>Sicherung ${x.n}</b> · FI/LS 2-polig C13 · Kabel ${x.cab}<div class="sub">${esc(x.rooms.map(r=>r.name).join(', '))}</div><div class="sub">Adern: ${esc(x.cores.join(' · '))}</div>${x.G.length?'<div class="sub">Von der Sicherung per Zwillingshülse auf die Reihenklemme, L dort mit Steckbrücke durchgebrückt (Klemmentyp folgt).</div>':''}</div>`).join('')}
       ${R.some(r=>!h.rf[r.rid])?'<div class="msg err">Noch nicht alle Räume einer Sicherung zugewiesen.</div>':''}`};
   const swUI=()=>{const D=((h.fl)||[]).filter(flDone);if(!D.length)return '';const T=SW_T().filter(o=>o.id!=='100891'||h.wd==='ja');h.sw=h.sw||{};const wdA=Object.keys(h.sw).reduce((a,rid)=>a+swItems(pl,rid).reduce((b,it)=>b+(it.typ==='100891'?+it.n||0:0),0),0);
     return `<div class="legend" style="margin-top:14px">Schalter (Tree)</div><p class="sub">Pro Raum ein oder mehrere Geräte wählen (z. B. Taster und Tablet), je mit Anzahl. Tree-Geräte zählen wie die Spots zum Tree (max. 50 pro Tree).${T.length?'':' Die Schalter-Typen werden noch eingepflegt.'}</p>${h.wd==='ja'?`<div class="msg ${wdA===(+h.wdN||0)?'info':'err'}">Wall Display: ${wdA} von ${+h.wdN||0} einem Raum zugewiesen.</div>`:''}
@@ -1627,7 +1631,11 @@ function vPlan(){
     const sel=(key,list,r,label)=>`<label class="m"><span>${label}</span><select data-sk="${key}"${dis}>${opt(list,r[key]||'')}</select></label>`;
     body=`<h2>Stromkreise</h2>${zlA.length>1?`<label class="f" style="max-width:460px">Zähler<select data-zsel="1">${zlA.map(z=>`<option value="${z.id}"${z.id===zsel?' selected':''}>-P${pl.zl.indexOf(z)+1} ${esc(z.name||zlLbl(p,pl.zl.indexOf(z)))}${pl.zl.indexOf(z)===0?' ('+zlLbl(p,0)+')':''}</option>`).join('')}</select></label>
     <div class="msg info">${zMain?'Stromkreise hinter dem '+zlLbl(p,0)+', zum Beispiel Lift oder Technikraum. Sie kommen auf eigene Seiten im Plan.':'Sicherungen direkt beim Zähler -P'+(pl.zl.indexOf(zO)+1)+' '+esc(zO.name||'')+', zum Beispiel für den Keller. Jede bekommt einen eigenen Klemmenabgang neben dem Abgang zur Wohnung.'}</div>
-    ${!zMain&&nExt>ZM_EXT_MAX?`<div class="msg err">Pro Zähler passen höchstens ${ZM_EXT_MAX} Sicherungen auf das Zählerblatt.</div>`:''}`:''}${(()=>{if(!hzWP(pl))return '';const A=skLayout(p).list.filter(x=>x.hz),n6=stepIdx('heizung')+1,ro=(v,list,label)=>`<label class="m"><span>${label}</span><select disabled>${opt([['','?'],...list],v||'')}</select></label>`;
+    ${!zMain&&nExt>ZM_EXT_MAX?`<div class="msg err">Pro Zähler passen höchstens ${ZM_EXT_MAX} Sicherungen auf das Zählerblatt.</div>`:''}`:''}${(()=>{const A=skLayout(p).list.filter(x=>x.hz==='li');if(!A.length)return '';const ro=(v,list,label)=>`<label class="m"><span>${label}</span><select disabled>${opt([['','?'],...list],v||'')}</select></label>`;
+      return '<div class="msg info" style="margin-bottom:0"><b>Aus Schritt Smart Home: Beleuchtung</b> (ausgegraut, ändern nur im <button type="button" class="btn link" data-step="smarthome">Schritt Smart Home</button>). Diese Lampen hier nicht nochmals eintragen.</div><div class="skrows skro">'+A.map(x=>`<div class="sk">
+        <div class="sk1"><input value="${esc(x.name)}" disabled aria-label="${esc(x.name)}"><span class="tag">${x.f} · ${x.te} TE · Schiene ${x.rail}</span></div>
+        <div class="sk2">${ro(x.pol,POL,'Polzahl')}${ro(x.char,CHAR,'Char.')}${ro(x.amp,AMP,'Strom')}${ro(x.typ,TYP,'Typ')}${ro(x.adern,SK_ADERN,'Adern')}${ro(x.qs,SK_QS,'mm²')}</div>
+        ${x.note?`<input class="note" value="${esc(x.note)}" disabled>`:''}</div>`).join('')+'</div>'})()}${(()=>{if(!hzWP(pl))return '';const A=skLayout(p).list.filter(x=>x.hz&&x.hz!=='li'),n6=stepIdx('heizung')+1,ro=(v,list,label)=>`<label class="m"><span>${label}</span><select disabled>${opt([['','?'],...list],v||'')}</select></label>`;
       return '<div class="msg info" style="margin-bottom:0"><b>Aus Schritt '+n6+' Heizsystem</b> (ausgegraut, ändern nur im <button type="button" class="btn link" data-step="heizung">Schritt '+n6+' Heizsystem</button>). Wärmepumpe, Boiler und Puffer nicht hier eintragen.</div><div class="skrows skro">'+A.map(x=>`<div class="sk">
         <div class="sk1"><input value="${esc(x.name)}" disabled aria-label="${esc(x.name)}"><span class="tag">${x.f} · ${x.te} TE · Schiene ${x.rail}</span></div>
         <div class="sk2">${ro(x.polMiss?'':x.pol,POL,'Polzahl')}${ro(x.char,CHAR,'Char.')}${ro(x.amp,AMP,'Strom')}${ro(x.typ,TYP,'Typ')}${ro(x.adern,SK_ADERN,'Adern')}${ro(x.qs,SK_QS,'mm²')}</div>
