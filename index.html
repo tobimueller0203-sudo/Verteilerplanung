@@ -441,7 +441,7 @@ function adoptKom(){
 function vBaustelle(){
   const p=S.site, ed=canEdit(p), dis=ed?'':' disabled';
   if(!p.geb)p.geb='EFH';
-  const seg=(k,opts)=>`<div class="seg" role="group">${opts.map(([v,t,s])=>`<button type="button" data-seg="${k}" data-v="${v}" aria-pressed="${p[k]===v}"${dis}><b>${t}</b><span>${s}</span></button>`).join('')}</div>`;
+  const seg=(k,opts)=>`<div class="seg" role="group">${opts.map(([v,t,s,off])=>`<button type="button" data-seg="${k}" data-v="${v}" aria-pressed="${p[k]===v}"${off?' disabled':dis}><b>${t}</b><span>${s}</span></button>`).join('')}</div>`;
   const ch=p.land==='CH';
   const others=sortedUsers().filter(u=>u.id!==p.owner);
   return `<section class="card">
@@ -453,11 +453,11 @@ function vBaustelle(){
       <label class="f c3">Bereich<input id="b-bereich" data-b="bereich" value="${esc(p.bereich)}" list="dlBereich" autocomplete="off" placeholder="z. B. Allgemeinbereich"${dis}></label>
       <label class="f c3">Stockwerk<select id="b-stock" data-b="stock"${dis}><option value="">wählen …</option>${opt(STOCK.map(x=>[x,x]),p.stock||'')}</select></label>
       <label class="f c4">Strasse und Nummer<input id="b-adr" data-b="adr" value="${esc(p.adr)}" autocomplete="off"${dis}></label>
-      <label class="f c2">Land<select id="b-land" data-b="land"${dis}>${opt(LAENDER,p.land)}</select></label>
+      <label class="f c2">Land<select id="b-land" data-b="land"${dis}>${LAENDER.map(([k,l])=>`<option value="${k}"${k===p.land?' selected':''}${['CH','LI'].includes(k)||k===p.land?'':' disabled'}>${esc(l)}${['CH','LI'].includes(k)?'':' (folgt)'}</option>`).join('')}</select></label>
       <label class="f c2">PLZ<input id="b-plz" data-b="plz" value="${esc(p.plz)}" inputmode="numeric" list="dlPlz" autocomplete="off" placeholder="${p.land==='DE'||p.land==='FR'?'79539':'4051'}"${dis}></label>
       <label class="f ${ch?'c2':'c4'}">${p.land==='DE'?'Stadt':'Ort'}<input id="b-ort" data-b="ort" value="${esc(p.ort)}" list="dlOrt" autocomplete="off" placeholder="${p.land==='DE'?'Lörrach':'Basel'}"${dis}></label>
       ${ch?`<label class="f c2">Kanton<select id="b-kanton" data-b="kanton"${dis}><option value="">wählen …</option>${opt(KANTONE.map(([k,n])=>[k,k+' · '+n]),p.kanton)}</select></label>`:''}
-      <div class="c3"><div class="legend">Zu behandelnde Norm</div>${seg('norm',[['NIN','NIN','Schweiz, SN 411000 (Standard)'],['VDE','VDE','Deutschland, DIN VDE 0100']])}</div>
+      <div class="c3"><div class="legend">Zu behandelnde Norm</div>${seg('norm',[['NIN','NIN','Schweiz, SN 411000 (Standard)'],['VDE','VDE','folgt (DIN VDE 0100)',1]])}</div>
       <div class="c3"><div class="legend">Art der Verteilung</div>${seg('art',[['UV','UV','Unterverteilung'],['HV','HV','Hauptverteilung']])}</div>
       <div class="c3" id="gebBox"${p.art==='HV'?'':' hidden'}><div class="legend">Gebäude</div>${seg('geb',[['EFH','EFH','Einfamilienhaus, ein Zähler'],['MFH','MFH','Mehrfamilienhaus, mehrere Zähler']])}</div>
       ${p.owner===S.user.id&&others.length?`<div class="c6"><div class="legend">Bearbeitung freigeben für</div><div class="share">${others.map(u=>`<label class="chk"><input type="checkbox" data-share="${u.id}" ${(p.editors||[]).includes(u.id)?'checked':''}> ${esc(u.name)}</label>`).join('')}</div><p class="sub" style="margin-top:6px">Alle anderen können die Baustelle nur ansehen und drucken. Löschen kannst nur du.</p></div>`:''}
