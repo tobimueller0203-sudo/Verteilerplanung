@@ -7,6 +7,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Verteiler">
 <title>Verteilerplanung Schachenmann</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#ffed00">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Verteiler">
 <link rel="apple-touch-icon" href="logo.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap">
 <style>
@@ -221,6 +227,59 @@ delete D.branding;
 D.sites.forEach(s=>{if(!Array.isArray(s.editors))s.editors=[]});
 function save(){try{localStorage.setItem(KEY,JSON.stringify(D));return true}catch(e){return false}}
 save();
+/* ---------- Cloud (Supabase): gemeinsame Namen, Anmeldung und Baustellen. Lokaler Speicher bleibt als Zwischenspeicher (offline) ---------- */
+const SB={url:'https://wqsqlskvrdalaepqpfki.supabase.co',key:'sb_publishable_xaFHE7KvBSCr5DCz-YlesQ_i857fcXQ',dom:'schachenmann-vp.ch',on:false,err:'',sess:null,state:'',localUsers:null};
+try{SB.sess=JSON.parse(localStorage.getItem('vp.sb'))}catch(e){SB.sess=null}
+const sbSave=()=>{try{SB.sess?localStorage.setItem('vp.sb',JSON.stringify(SB.sess)):localStorage.removeItem('vp.sb')}catch(e){}};
+const sbMail=pid=>pid+'@'+SB.dom;
+async function sbRaw(path,o={},auth=true){
+  const h={apikey:SB.key,'Content-Type':'application/json',...(o.headers||{})};
+  if(auth&&SB.sess&&SB.sess.access_token)h.Authorization='Bearer '+SB.sess.access_token;
+  const r=await fetch(SB.url+path,{method:o.method||'GET',headers:h,body:o.body==null?undefined:(typeof o.body==='string'?o.body:JSON.stringify(o.body))});
+  const tx=await r.text();let js=null;try{js=tx?JSON.parse(tx):null}catch(e){js=tx}
+  if(!r.ok){const m=(js&&(js.msg||js.message||js.error_description||js.error))||('Fehler '+r.status);const er=new Error(m);er.status=r.status;er.body=js;throw er}
+  return js}
+function sbSetSess(js,pid){SB.sess={access_token:js.access_token,refresh_token:js.refresh_token,expires_at:js.expires_at||(Math.floor(Date.now()/1000)+(js.expires_in||3600)),pid:pid||(SB.sess&&SB.sess.pid)};sbSave()}
+async function sbFresh(){if(!SB.sess||!SB.sess.refresh_token)return;if(SB.sess.expires_at&&Date.now()/1000<SB.sess.expires_at-60)return;
+  try{const js=await sbRaw('/auth/v1/token?grant_type=refresh_token',{method:'POST',body:{refresh_token:SB.sess.refresh_token}},false);sbSetSess(js)}catch(e){if(e.status&&e.status<500){SB.sess=null;sbSave()}throw e}}
+async function sb(path,o={}){await sbFresh();try{return await sbRaw(path,o)}catch(e){if(e.status===401&&SB.sess){SB.sess.expires_at=0;await sbFresh();return sbRaw(path,o)}throw e}}
+/* Namen aus der Cloud; lokale Namen merken (für die Übernahme alter Baustellen) */
+async function cloudBoot(){
+  try{const ppl=await sbRaw('/rest/v1/people?select=id,name,admin,auth_uid&order=name',{},false);if(!Array.isArray(ppl))throw new Error('keine Namen');
+    SB.localUsers=D.users;D.users=ppl.map(p=>({id:p.id,name:p.name,admin:!!p.admin,hash:p.auth_uid?'cloud':undefined}));SB.on=true;SB.err=''}
+  catch(e){SB.on=false;SB.err=e.message||String(e)}
+  if(SB.on&&SB.sess)try{await cloudPull()}catch(e){}}
+/* alte Besitzer (lokale Namen) auf die Cloud-Namen abbilden */
+function cloudMapId(id){if(D.users.some(u=>u.id===id))return id;const lu=(SB.localUsers||[]).find(u=>u.id===id),cu=lu&&D.users.find(u=>u.name.toLowerCase()===lu.name.toLowerCase());return cu?cu.id:null}
+const siteRow=s=>{const d=JSON.parse(JSON.stringify(s));delete d.dirty;return {id:s.id,owner:s.owner,data:d,updated_at:s.updated||now()}};
+async function cloudPush(s){await sb('/rest/v1/sites?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:[siteRow(s)]})}
+const pushT={};
+function cloudQueue(s){if(!SB.on||!SB.sess)return;const id=s.id;clearTimeout(pushT[id]);pushT[id]=setTimeout(async()=>{const cur=D.sites.find(x=>x.id===id);if(!cur)return;
+  try{await cloudPush(cur);if(cur.dirty){delete cur.dirty;save()}cloudStat('ok')}catch(e){cur.dirty=1;save();cloudStat('err',e)}},1200)}
+function cloudStat(k,e){SB.state=k;const el=$('#cloudInfo');if(el)el.innerHTML=cloudTxt();if(k==='err'&&e)console.warn('Cloud',e)}
+const cloudTxt=()=>!SB.on?'<span class="tag">nur auf diesem Gerät</span>':SB.state==='err'?'<span class="tag" style="background:#fde8e6;color:#b42318">Cloud nicht erreichbar, lokal gespeichert</span>':'<span class="tag ok">Cloud verbunden</span>';
+/* Baustellen holen, lokale Änderungen (offline oder alte Geräte-Daten) hochladen */
+async function cloudPull(){
+  if(!SB.on||!SB.sess)return false;
+  const rows=await sb('/rest/v1/sites?select=id,owner,data,updated_at');const cloud=new Map((rows||[]).map(r=>[r.id,r]));
+  const first=!D.cloudDone,up=[];
+  D.sites.forEach(s=>{const c=cloud.get(s.id);if(c&&!s.dirty)return;if(c&&s.dirty&&(c.data.updated||'')>(s.updated||''))return;if(!c&&!s.dirty&&!first)return;
+    const o=cloudMapId(s.owner);if(!o)return;s.owner=o;s.editors=(s.editors||[]).map(cloudMapId).filter(Boolean);up.push(s)});
+  for(const s of up){try{await cloudPush(s);delete s.dirty;cloud.set(s.id,siteRow(s))}catch(e){s.dirty=1}}
+  const before=JSON.stringify(D.sites);
+  D.sites=[...cloud.values()].map(r=>{const d=r.data||{};d.id=r.id;d.owner=r.owner;if(!Array.isArray(d.editors))d.editors=[];return d}).concat(D.sites.filter(s=>s.dirty&&!cloud.has(s.id)));
+  D.cloudDone=true;save();cloudStat(up.some(s=>s.dirty)?'err':'ok');return before!==JSON.stringify(D.sites)}
+async function cloudDel(id){if(!SB.on||!SB.sess)return;try{await sb('/rest/v1/sites?id=eq.'+encodeURIComponent(id),{method:'DELETE'})}catch(e){cloudStat('err',e)}}
+async function cloudLogin(u,pw,isNew){
+  if(isNew){const js=await sbRaw('/auth/v1/signup',{method:'POST',body:{email:sbMail(u.id),password:pw}},false);
+    if(!js||!js.access_token)throw new Error('Die Cloud verlangt eine E-Mail-Bestätigung. Bitte in Supabase «Confirm email» ausschalten (siehe Anleitung).');
+    sbSetSess(js,u.id);await sb('/rest/v1/rpc/claim_person',{method:'POST',body:{p_id:u.id}});u.hash='cloud'}
+  else{const js=await sbRaw('/auth/v1/token?grant_type=password',{method:'POST',body:{email:sbMail(u.id),password:pw}},false);sbSetSess(js,u.id)}
+  await cloudPull()}
+async function cloudLogout(){if(SB.sess){try{await sbRaw('/auth/v1/logout',{method:'POST'})}catch(e){}}SB.sess=null;sbSave()}
+/* WP-Schema-Bilder in der Cloud (Speicher «wp») */
+async function cloudWpPut(key,arr){if(!SB.on||!SB.sess)return;try{await sb('/storage/v1/object/wp/'+encodeURIComponent(key)+'.json',{method:'POST',headers:{'x-upsert':'true'},body:JSON.stringify(arr)})}catch(e){cloudStat('err',e)}}
+async function cloudWpGet(key){if(!SB.on||!SB.sess)return null;try{const v=await sb('/storage/v1/object/authenticated/wp/'+encodeURIComponent(key)+'.json');return Array.isArray(v)?v:null}catch(e){return null}}
 
 let S={screen:'start',user:null,admin:false,msg:null,sel:'',site:null,isNew:false,savedAt:null,q:'',fNorm:'',fKanton:'',fOrt:'',onlyMine:false,armed:null};
 
@@ -277,6 +336,7 @@ function go(screen,msg){
   if(nx<cur&&S.pushDepth>0&&history.state&&history.state.prev===screen){S.pushDepth--;S.pendingMsg=msg||null;try{history.back();return}catch(e){}}
   const push=nx>cur,prev=S.screen;
   S.screen=screen;S.msg=msg||null;S.armed=null;render();
+  if(screen==='liste'&&SB.on&&SB.sess)cloudPull().then(ch=>{if(ch&&S.screen==='liste'){const sl=$('#siteList');if(sl)sl.innerHTML=siteListHTML()}}).catch(()=>cloudStat('err'));
   try{if(push){history.pushState({...navState(),prev},'','#'+screen);S.pushDepth=(S.pushDepth||0)+1}else history.replaceState({...navState(),prev:(history.state||{}).prev||null},'','#'+screen)}catch(e){}
   window.scrollTo(0,0)}
 const navState=()=>({screen:S.screen,siteId:SITE_SCR.includes(S.screen)&&S.site?S.site.id:null});
@@ -287,7 +347,9 @@ function saveSession(){try{
 function restoreSession(){try{
   const o=JSON.parse(localStorage.getItem(SKEY));if(!o)return 0;
   const u=o.u&&D.users.find(x=>x.id===o.u);
-  if(u&&u.hash)S.user=u;else if(o.admin&&D.admin)S.admin=true;else return 0;
+  if(SB.on){if(!(u&&SB.sess&&SB.sess.pid===u.id))return 0;S.user=u}
+  else if(u&&u.hash)S.user=u;else if(o.admin&&D.admin)S.admin=true;else return 0;
+  if(SB.on&&o.admin&&u.admin){S.admin=true;S.screen='admin';return o.y||0}
   S.q=o.q||'';S.fNorm=o.fNorm||'';S.fKanton=o.fKanton||'';S.fOrt=o.fOrt||'';S.onlyMine=!!o.onlyMine;
   if(S.admin){S.screen='admin';return o.y||0}
   S.screen=['liste',...SITE_SCR].includes(o.screen)?o.screen:'liste';
@@ -337,9 +399,9 @@ const TITLES={liste:'Baustellen',baustelle:'Baustelle',plan:'Planung',schema:'Sc
 const SITE_SCR=['baustelle','plan','schema'];
 function headTitle(){return SITE_SCR.includes(S.screen)&&S.site&&S.site.kom?(S.screen==='baustelle'?'':TITLES[S.screen]+' · ')+'Kommission '+S.site.kom:(TITLES[S.screen]||'')}
 function render(){
-  document.body.classList.toggle('start',!S.user&&!S.admin);
+  document.body.classList.toggle('start',!S.user&&!S.admin);if(S.screen==='admin'&&!S.admin)S.screen=S.user?'liste':'start';
   $('#topbar').innerHTML=S.user
-    ?`<span class="who">${esc(S.user.name)}</span>${S.screen!=='liste'?'<button class="btn small" data-act="back">← Zurück</button>':''}${SITE_SCR.includes(S.screen)&&S.site&&canEdit(S.site)?'<button class="btn small" data-act="saveNow">Speichern</button>':''}<button class="btn small" data-act="logout">Abmelden</button>`
+    ?`<span class="who">${esc(S.user.name)}</span>${SB.on&&S.user.admin&&S.screen==='liste'?'<button class="btn small" data-act="adminOpen">Verwaltung</button>':''}${S.screen!=='liste'&&S.screen!=='admin'?'<button class="btn small" data-act="back">← Zurück</button>':''}${SITE_SCR.includes(S.screen)&&S.site&&canEdit(S.site)?'<button class="btn small" data-act="saveNow">Speichern</button>':''}<button class="btn small" data-act="logout">Abmelden</button>`
     :(S.admin?`<span class="who">Verwaltung</span><button class="btn small" data-act="adminOut">Verlassen</button>`:'');
   const t=(S.user||S.admin)?headTitle():'';
   $('#pagehead').innerHTML=t?`<h1>${esc(t)}</h1>`:'';
@@ -370,7 +432,7 @@ function vStart(){
         <p class="sub">Passwort vergessen? Die Verwaltung kann es zurücksetzen.</p>`):msgHTML()}
     </form>
   </section>
-  <div class="foot"><button class="btn link" data-act="adminLogin">Verwaltung</button></div>`;
+  <div class="foot">${SB.on?'<span class="sub">Verwaltung: als Admin anmelden, dann oben «Verwaltung».</span>':'<button class="btn link" data-act="adminLogin">Verwaltung</button>'}${SB.on?'':`<div class="sub" style="margin-top:6px">Cloud nicht verbunden${SB.err?' ('+esc(SB.err)+')':''}. Daten bleiben auf diesem Gerät.</div>`}</div>`;
 }
 
 /* ---------- Übersicht ---------- */
@@ -422,8 +484,8 @@ function vListe(){
     <div id="siteList">${siteListHTML()}</div>
   </section>
   <section class="card">
-    <h2>Sicherung</h2>
-    <p class="sub">Alles wird automatisch in diesem Browser gespeichert und bleibt nach dem Schliessen erhalten. Werden die Browserdaten gelöscht, ist es weg. Lade darum ab und zu eine Sicherungsdatei herunter. Mit ihr bringst du die Baustellen auch auf ein anderes Gerät.</p>
+    <h2>Sicherung</h2><div id="cloudInfo" style="margin-bottom:8px">${cloudTxt()}</div>
+    <p class="sub">${SB.on?'Alle Baustellen liegen in der Cloud und sind auf allen Geräten gleich. Eine Sicherungsdatei ist trotzdem ab und zu sinnvoll.':''}Alles wird automatisch in diesem Browser gespeichert und bleibt nach dem Schliessen erhalten. Werden die Browserdaten gelöscht, ist es weg. Lade darum ab und zu eine Sicherungsdatei herunter. Mit ihr bringst du die Baustellen auch auf ein anderes Gerät.</p>
     <div class="row"><button class="btn" data-act="export">Sicherung herunterladen</button><button class="btn" data-act="import">Sicherung laden</button></div>
   </section>`;
 }
@@ -478,7 +540,7 @@ function persistSite(){
   if(i<0)D.sites.push(JSON.parse(JSON.stringify(p)));else D.sites[i]=JSON.parse(JSON.stringify(p));
   S.isNew=false;saveSession();
   const el=$('#savedInfo');
-  if(save()){S.savedAt=new Date();if(el)el.textContent='Gespeichert um '+fmtTime(S.savedAt);return true}
+  if(save()){S.savedAt=new Date();if(el)el.textContent='Gespeichert um '+fmtTime(S.savedAt);cloudQueue(p);return true}
   if(el)el.textContent='Speichern fehlgeschlagen, der Gerätespeicher ist voll oder gesperrt';return false;
 }
 let persistT=null;const persistSoon=()=>{clearTimeout(persistT);persistT=setTimeout(()=>{persistT=null;persistSite()},400)};
@@ -1075,12 +1137,12 @@ const wpDB=()=>new Promise((ok,ko)=>{const r=indexedDB.open('vp-wp',1);r.onupgra
 const wpGet=async k=>{try{const db=await wpDB();return await new Promise(ok=>{const q=db.transaction('img').objectStore('img').get(k);q.onsuccess=()=>ok(q.result||null);q.onerror=()=>ok(null)})}catch(e){return null}};
 const wpPut=async(k,v)=>{const db=await wpDB();await new Promise((ok,ko)=>{const t=db.transaction('img','readwrite');t.objectStore('img').put(v,k);t.oncomplete=ok;t.onerror=()=>ko(t.error)})};
 const WPIMG={};
-function wpImgs(s){const m=((planOf(s).hz)||{}).wpPdf;if(!m)return null;const k=m.key;if(WPIMG[k]===undefined){WPIMG[k]='load';wpGet(k).then(v=>{WPIMG[k]=v||[];render()})}return Array.isArray(WPIMG[k])?WPIMG[k]:null}
-async function wpLoad(s){const m=((planOf(s).hz)||{}).wpPdf;if(!m)return null;if(!Array.isArray(WPIMG[m.key]))WPIMG[m.key]=(await wpGet(m.key))||[];return WPIMG[m.key]}
+function wpImgs(s){const m=((planOf(s).hz)||{}).wpPdf;if(!m)return null;const k=m.key;if(WPIMG[k]===undefined){WPIMG[k]='load';wpGet(k).then(async v=>{if(!v){v=await cloudWpGet(k);if(v)wpPut(k,v).catch(()=>{})}WPIMG[k]=v||[];render()})}return Array.isArray(WPIMG[k])?WPIMG[k]:null}
+async function wpLoad(s){const m=((planOf(s).hz)||{}).wpPdf;if(!m)return null;if(!Array.isArray(WPIMG[m.key])||!WPIMG[m.key].length)WPIMG[m.key]=(await wpGet(m.key))||(await cloudWpGet(m.key))||[];return WPIMG[m.key]}
 async function wpUpload(file){await loadJS('lib/pdf.min.js');pdfjsLib.GlobalWorkerOptions.workerSrc='lib/pdf.worker.min.js';
   const doc=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise,out=[];
   for(let i=1;i<=Math.min(doc.numPages,10);i++){const pg=await doc.getPage(i),v0=pg.getViewport({scale:1}),sc=Math.min(4,2400/Math.max(v0.width,v0.height)),v=pg.getViewport({scale:sc}),c=document.createElement('canvas');c.width=Math.round(v.width);c.height=Math.round(v.height);const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);await pg.render({canvasContext:ctx,viewport:v}).promise;out.push({u:c.toDataURL('image/jpeg',0.85),w:c.width,h:c.height})}
-  const key='wp:'+S.site.id+':'+Date.now();await wpPut(key,out);WPIMG[key]=out;return {key,name:file.name,n:out.length,tot:doc.numPages}}
+  const key='wp-'+S.site.id+'-'+Date.now();await wpPut(key,out);WPIMG[key]=out;cloudWpPut(key,out);return {key,name:file.name,n:out.length,tot:doc.numPages}}
 function hzBody(p,pl,dis){const h=hzOf(pl);
   const tl=(key,val,label,sub,off)=>`<button type="button" class="tile" data-hz="${key}" data-v="${esc(val)}" aria-pressed="${h[key]===val}"${off?' disabled':dis}><b>${esc(label)}</b>${sub?`<span>${esc(sub)}</span>`:''}</button>`;
   const jn=(key,q,off)=>`<div class="legend">${q}</div><div class="tiles two-col">${tl(key,'ja','Ja','',off)}${tl(key,'nein','Nein','',off)}</div>`;
@@ -1106,7 +1168,7 @@ function hzBody(p,pl,dis){const h=hzOf(pl);
     <label class="f" style="max-width:360px">Anzahl Sicherungen für die Heizkreisverteiler<select data-hz="hkvF"${dis}>${opt([...Array(n)].map((_,k)=>[String(k+1),(k+1)+(k+1===d?' (Empfehlung)':'')]),String(f))}</select></label>`}
   b+=`<div class="legend">Laufen die Heizstäbe über einen Schütz? <span class="hint">folgt</span></div><div class="tiles two-col">${tl('sch','ja','Ja','',1)}${tl('sch','nein','Nein','',1)}</div><p class="sub">Tag/Nacht- bzw. Schützsteuerung wird noch nicht im Plan umgesetzt. Kommt später.</p>`;
   {const m=h.wpPdf;b+=`<div class="legend">Schema der Wärmepumpe (PDF)</div>${m?`<div class="msg info"><b>${esc(m.name)}</b> · ${m.n} ${m.n===1?'Seite':'Seiten'} in der Planmappe${m.tot>m.n?' (von '+m.tot+', höchstens 10)':''} ${canEdit(p)?'<button type="button" class="btn small danger" data-act="wpDel">Entfernen</button>':''}</div>`:''}
-    ${canEdit(p)?`<label class="f" style="max-width:460px">${m?'Anderes PDF wählen':'PDF auswählen'}<input type="file" accept="application/pdf,.pdf" data-wpfile="1"></label><div id="wpStat"></div>`:''}<p class="sub">Das Schema vom Wärmepumpen-Hersteller kommt als eigene Seite in die Planmappe und ins PDF. Die Datei bleibt auf diesem Gerät gespeichert.</p>`}
+    ${canEdit(p)?`<label class="f" style="max-width:460px">${m?'Anderes PDF wählen':'PDF auswählen'}<input type="file" accept="application/pdf,.pdf" data-wpfile="1"></label><div id="wpStat"></div>`:''}<p class="sub">Das Schema vom Wärmepumpen-Hersteller kommt als eigene Seite in die Planmappe und ins PDF.${SB.on?'':' Die Datei bleibt auf diesem Gerät gespeichert.'}</p>`}
   const L=hzSk(p);if(L.length)b+=`<div class="msg info"><b>Kommt automatisch ins Schema:</b><br>${L.map(r=>esc(r.name)+' · '+r.pol+'-polig '+(r.amp?r.char+r.amp:'Sicherung offen')+' '+(r.typ==='FILS'?'FI/LS':'LS')+(r.hzOpen?' · <b style="color:#b42318">noch nachtragen</b>':'')+(r.note&&!/^automatisch/.test(r.note)?' · '+esc(r.note):'')).join('<br>')}</div>`;
   return b}
 function stepper(pl){
@@ -1723,7 +1785,32 @@ function vAdminLogin(){
     </form>
   </section>`;
 }
-function vAdmin(){
+const ADMIN_LINKS=[['Live-App (GitHub Pages)','https://tobimueller0203-sudo.github.io/Verteilerplanung/'],['Code (GitHub)','https://github.com/tobimueller0203-sudo/Verteilerplanung'],['Supabase-Projekt (Cloud)','https://supabase.com/dashboard/project/wqsqlskvrdalaepqpfki'],['Supabase: Benutzer','https://supabase.com/dashboard/project/wqsqlskvrdalaepqpfki/auth/users'],['Supabase: Tabellen','https://supabase.com/dashboard/project/wqsqlskvrdalaepqpfki/editor']];
+function vAdminCloud(){
+  return `<div class="two">
+  <section class="card">
+    <div class="row between"><h2>Namen</h2><button class="btn small" data-act="adminBack">← Baustellen</button></div>
+    <form id="addUser" class="row" novalidate>
+      <input id="newName" placeholder="Vorname Nachname" style="flex:1 1 200px" autocomplete="off">
+      <button class="btn primary" type="submit">Name anlegen</button>
+    </form>
+    ${msgHTML()}
+    <div class="ulist">${sortedUsers().map(u=>`<div class="uitem">
+      <div><div style="font-weight:600">${esc(u.name)}${u.admin?' <span class="tag y">Admin</span>':''}</div>${u.hash?'<span class="tag ok">Passwort gesetzt</span>':'<span class="tag">wartet auf erstes Passwort</span>'}</div>
+      <div class="row">
+        ${u.hash&&u.id!==S.user.id?(S.armed==='r'+u.id?`<button class="btn small danger" data-reset="${u.id}">Sicher zurücksetzen?</button>`:`<button class="btn small" data-arm="r${u.id}">Passwort zurücksetzen</button>`):''}
+        ${u.id===S.user.id||u.admin?'':(S.armed==='d'+u.id?`<button class="btn small danger" data-del="${u.id}">Sicher entfernen?</button>`:`<button class="btn small danger" data-arm="d${u.id}">Entfernen</button>`)}
+      </div></div>`).join('')}</div>
+  </section>
+  <section class="card">
+    <h2>Links</h2>
+    <div class="ulist">${ADMIN_LINKS.map(([t,u])=>`<div class="uitem"><div><div style="font-weight:600">${esc(t)}</div><span class="sub">${esc(u.replace('https://',''))}</span></div><a class="btn small" href="${u}" target="_blank" rel="noopener">Öffnen</a></div>`).join('')}</div>
+    <p class="sub">Die Zugangsdaten für GitHub und Supabase stehen bewusst nicht hier, weil der Code öffentlich ist.</p>
+    <p class="sub">Die Verwaltung kann keine Baustellen ändern oder löschen. Das dürfen nur der Ersteller und die Planer, für die er sie freigegeben hat.</p>
+  </section></div>`;
+}
+async function loadPeople(){const ppl=await sbRaw('/rest/v1/people?select=id,name,admin,auth_uid&order=name',{},false);D.users=ppl.map(p=>({id:p.id,name:p.name,admin:!!p.admin,hash:p.auth_uid?'cloud':undefined}));if(S.user)S.user=D.users.find(u=>u.id===S.user.id)||S.user}
+function vAdmin(){if(SB.on)return vAdminCloud();
   return `<div class="two">
   <section class="card">
     <h2>Namen</h2>
@@ -1820,12 +1907,13 @@ document.addEventListener('change',e=>{
         let n=0,skip=0;
         o.sites.forEach(s=>{if(!s||!s.id)return;
           const nm=(o.users||[]).find(u=>u.id===s.owner);
-          if(!D.users.some(u=>u.id===s.owner)){const ex=nm&&D.users.find(u=>u.name===nm.name);if(ex)s.owner=ex.id;else if(nm){const nu={id:s.owner,name:nm.name};D.users.push(nu)}}
+          if(!D.users.some(u=>u.id===s.owner)){const ex=nm&&D.users.find(u=>u.name===nm.name);if(ex)s.owner=ex.id;else if(SB.on)s.owner=S.user?S.user.id:s.owner;else if(nm){const nu={id:s.owner,name:nm.name};D.users.push(nu)}}
+          if(SB.on){s.editors=(s.editors||[]).filter(x=>D.users.some(u=>u.id===x));s.dirty=1}
           s.editors=Array.isArray(s.editors)?s.editors:[];
           const i=D.sites.findIndex(x=>x.id===s.id);
           if(i<0){D.sites.push(s);n++}
           else if((s.updated||'')>(D.sites[i].updated||'')){if(canEdit(D.sites[i])){D.sites[i]=s;n++}else skip++}});
-        save();S.msg={t:'ok',m:n+' Baustellen übernommen.'+(skip?' '+skip+' fremde Baustellen wurden nicht überschrieben.':'')};
+        save();if(SB.on)cloudPull().then(()=>{if(S.screen==='liste')render()}).catch(()=>cloudStat('err'));S.msg={t:'ok',m:n+' Baustellen übernommen.'+(skip?' '+skip+' fremde Baustellen wurden nicht überschrieben.':'')};
       }catch(err){S.msg={t:'err',m:'Diese Datei ist keine Sicherung der Verteilerplanung.'}}
       t.value='';render()};
     r.readAsText(file);
@@ -1838,6 +1926,12 @@ document.addEventListener('submit',async e=>{
   if(id==='loginForm'){
     const u=D.users.find(x=>x.id===S.sel);
     if(!u){S.msg={t:'err',m:'Bitte zuerst einen Namen wählen.'};return render()}
+    if(SB.on){const isNew=!u.hash,a=isNew?$('#pw1').value:$('#pw').value;
+      if(isNew&&a.length<6){S.msg={t:'err',m:'Das Passwort braucht mindestens 6 Zeichen.'};return render()}
+      if(isNew&&a!==$('#pw2').value){S.msg={t:'err',m:'Die beiden Passwörter stimmen nicht überein.'};return render()}
+      const bt=e.target.querySelector('button[type=submit]');if(bt){bt.disabled=true;bt.textContent='Verbinde mit der Cloud …'}
+      try{await cloudLogin(u,a,isNew)}catch(err){S.msg={t:'err',m:/invalid/i.test(err.message||'')?'Das Passwort stimmt nicht. Bitte nochmals versuchen.':'Anmelden nicht möglich: '+err.message};return render()}
+      S.user=u;S.admin=false;return go('liste')}
     if(!u.hash){
       const a=$('#pw1').value,b=$('#pw2').value;
       if(a.length<6){S.msg={t:'err',m:'Das Passwort braucht mindestens 6 Zeichen.'};return render()}
@@ -1864,6 +1958,7 @@ document.addEventListener('submit',async e=>{
     const n=$('#newName').value.trim().replace(/\s+/g,' ');
     if(n.length<3){S.msg={t:'err',m:'Bitte Vor- und Nachnamen eingeben.'};return render()}
     if(D.users.some(u=>u.name.toLowerCase()===n.toLowerCase())){S.msg={t:'err',m:n+' gibt es schon.'};return render()}
+    if(SB.on){try{await sb('/rest/v1/people',{method:'POST',headers:{Prefer:'return=minimal'},body:{id:'p-'+nid(),name:n}});await loadPeople();S.msg={t:'ok',m:n+' angelegt. Beim ersten Anmelden legt die Person ihr Passwort selbst fest.'}}catch(err){S.msg={t:'err',m:'Anlegen nicht möglich: '+err.message}}return render()}
     D.users.push({id:nid(),name:n});save();S.msg={t:'ok',m:n+' angelegt. Beim ersten Anmelden legt die Person ihr Passwort selbst fest.'};return render();
   }
   if(id==='chAdmin'){
@@ -1933,15 +2028,17 @@ document.addEventListener('click',e=>{
     window.print();setTimeout(()=>{document.body.classList.remove('ps');st.remove()},500)}
   if(act==='new'){S.site={id:nid(),owner:S.user.id,editors:[],kom:'',bereich:'',stock:'',bauherr:'',adr:'',plz:'',ort:'',kanton:'',land:'CH',norm:'NIN',art:'UV',geb:'EFH',created:now(),updated:now()};S.isNew=true;S.savedAt=null;return go('baustelle')}
   if(t.dataset.open){
-    if(t.dataset.fromhint&&S.site){const cur=S.site;const onlyKom=!cur.bauherr&&!cur.adr&&!cur.plz&&!cur.ort;if(onlyKom&&cur.owner===S.user.id){clearTimeout(persistT);D.sites=D.sites.filter(s=>s.id!==cur.id);save()}}
+    if(t.dataset.fromhint&&S.site){const cur=S.site;const onlyKom=!cur.bauherr&&!cur.adr&&!cur.plz&&!cur.ort;if(onlyKom&&cur.owner===S.user.id){clearTimeout(persistT);D.sites=D.sites.filter(s=>s.id!==cur.id);save();cloudDel(cur.id)}}
     const s=D.sites.find(x=>x.id===t.dataset.open);if(!s)return;
     S.site=JSON.parse(JSON.stringify(s));S.isNew=false;S.savedAt=null;return go('baustelle')}
   if(t.dataset.arm){S.armed=t.dataset.arm;S.msg=null;if(S.screen==='liste'){$('#siteList').innerHTML=siteListHTML()}else render();return}
   if(act==='disarm'){S.armed=null;$('#siteList').innerHTML=siteListHTML();return}
-  if(t.dataset.delsite){const s=D.sites.find(x=>x.id===t.dataset.delsite);if(!s||!canDelete(s))return;D.sites=D.sites.filter(x=>x.id!==s.id);save();S.armed=null;return go('liste',{t:'ok',m:'Baustelle '+(s.kom||'')+' gelöscht.'})}
+  if(t.dataset.delsite){const s=D.sites.find(x=>x.id===t.dataset.delsite);if(!s||!canDelete(s))return;D.sites=D.sites.filter(x=>x.id!==s.id);save();cloudDel(s.id);S.armed=null;return go('liste',{t:'ok',m:'Baustelle '+(s.kom||'')+' gelöscht.'})}
   if(act==='liste'||act==='back'){if(SITE_SCR.includes(S.screen)&&S.site&&!S.isNew)persistSite();const up={schema:'plan',plan:'baustelle'};return go(act==='back'&&up[S.screen]?up[S.screen]:'liste')}
-  if(act==='logout'){if(S.screen==='baustelle'&&S.site&&!S.isNew)persistSite();S.user=null;S.sel='';S.site=null;return go('start')}
+  if(act==='logout'){if(S.screen==='baustelle'&&S.site&&!S.isNew)persistSite();cloudLogout();S.user=null;S.admin=false;S.sel='';S.site=null;return go('start')}
   if(act==='adminLogin')return go('adminLogin');
+  if(act==='adminOpen'&&SB.on&&S.user&&S.user.admin){S.admin=true;return go('admin')}
+  if(act==='adminBack'){S.admin=false;return go('liste')}
   if(act==='adminOut'){S.admin=false;return go('start')}
   if(act==='home')return go('start');
   if(act==='export'){
@@ -1950,6 +2047,8 @@ document.addEventListener('click',e=>{
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Verteilerplanung-Sicherung-'+new Date().toISOString().slice(0,10)+'.json';
     document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);return}
   if(act==='import'){$('#importFile').click();return}
+  if(t.dataset.reset&&SB.on){const u=D.users.find(x=>x.id===t.dataset.reset);S.armed=null;sb('/rest/v1/rpc/admin_reset',{method:'POST',body:{p_id:u.id}}).then(loadPeople).then(()=>{S.msg={t:'ok',m:'Passwort von '+u.name+' zurückgesetzt. Beim nächsten Anmelden wird ein neues festgelegt.'};render()}).catch(err=>{S.msg={t:'err',m:'Zurücksetzen nicht möglich: '+err.message};render()});return}
+  if(t.dataset.del&&SB.on){const u=D.users.find(x=>x.id===t.dataset.del);S.armed=null;sb('/rest/v1/people?id=eq.'+encodeURIComponent(u.id),{method:'DELETE'}).then(loadPeople).then(()=>{S.msg={t:'ok',m:u.name+' entfernt. Die Baustellen bleiben erhalten.'};render()}).catch(err=>{S.msg={t:'err',m:'Entfernen nicht möglich: '+err.message};render()});return}
   if(t.dataset.reset){const u=D.users.find(x=>x.id===t.dataset.reset);delete u.hash;delete u.salt;save();S.armed=null;S.msg={t:'ok',m:'Passwort von '+u.name+' zurückgesetzt. Beim nächsten Anmelden wird ein neues festgelegt.'};return render()}
   if(t.dataset.del){const u=D.users.find(x=>x.id===t.dataset.del);D.users=D.users.filter(x=>x.id!==u.id);save();S.armed=null;S.msg={t:'ok',m:u.name+' entfernt. Die Baustellen bleiben erhalten.'};return render()}
 });
@@ -1965,8 +2064,12 @@ function skSet(t){const pl=planOf(S.site),row=t.closest('.sk'),r=pl.sk[+row.data
 function skAddRow(){const pl=planOf(S.site);pl.sk.push(skNew(S.site));persistSite();render();const ins=document.querySelectorAll('#skRows input[data-sk="name"]');const l=ins[ins.length-1];if(l){l.focus();l.scrollIntoView({block:'nearest'})}}
 document.addEventListener('keydown',e=>{const t=e.target;if(e.key==='Enter'&&t.dataset&&t.dataset.sk&&S.site&&canEdit(S.site)){e.preventDefault();const pl=planOf(S.site),i=+t.closest('.sk').dataset.i,ins=[...document.querySelectorAll('#skRows input[data-sk="name"]')],pos=ins.findIndex(x=>+x.closest('.sk').dataset.i===i);if(pos===ins.length-1){if(!(pl.sk[i].name||'').trim())return;touchPlan('Stromkreis '+pl.sk[i].name);skAddRow()}else if(ins[pos+1])ins[pos+1].focus()}});
 drawPattern();
+$('#main').innerHTML='<section class="card narrow"><p class="sub">Verbinde mit der Cloud …</p></section>';
+cloudBoot().then(()=>{
 const y0=restoreSession();S.pushDepth=history.state&&history.state.screen===S.screen?(LV[S.screen]||0):0;render();try{history.replaceState({...navState(),prev:(history.state&&history.state.screen===S.screen&&history.state.prev)||null},'','#'+S.screen)}catch(e){}
 if(y0)setTimeout(()=>window.scrollTo(0,y0),50);
+});
+if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 })();
 </script>
 </body>
