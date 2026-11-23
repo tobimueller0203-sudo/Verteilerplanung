@@ -1301,7 +1301,7 @@ function shBody(p,pl,dis){const h=shOf(pl);h.q=h.q||{};
     if(h.lp==='ja')x+=grp('lp','Weitere Lampen','Lampen','Lampen');
     if(rb.need||h.sp||h.lp)x+=`<div class="msg ${rb.fehlt?'err':'info'}"><b>Relais:</b> ${esc(ms.art)} hat ${rb.have} Relaisausgänge, gebraucht ${rb.need}. ${rb.fehlt?'Es fehlen '+rb.fehlt+' Relais: Dafür braucht es Relay Extensions (folgen).':'Die Relais des Miniservers reichen.'}</div>`;
     return x};
-  let b=`<h2>Smart Home</h2><p class="sub">Soll ein Smart Home eingebaut werden?</p><div class="tiles two-col">${tl('on','nein','Nein','kein Smart Home')}${tl('on','ja','Ja','Smart Home einplanen')}</div>`;
+  let b=`<h2>Smart Home</h2><div class="msg info"><b>Hinweis: Smart Home ist noch in Überarbeitung (Testphase).</b> Angaben und Schema bitte noch prüfen.</div><p class="sub">Soll ein Smart Home eingebaut werden?</p><div class="tiles two-col">${tl('on','nein','Nein','kein Smart Home')}${tl('on','ja','Ja','Smart Home einplanen')}</div>`;
   if(h.on!=='ja')return b;
   b+=`<div class="legend">System</div><div class="tiles two-col">${tl('sys','knx','KNX','folgt',true)}${tl('sys','loxone','Loxone','')}</div>`;
   if(h.sys!=='loxone')return b;
