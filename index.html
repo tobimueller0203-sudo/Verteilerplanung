@@ -143,6 +143,12 @@ input:disabled,select:disabled{opacity:1;background:var(--bg);color:var(--ink);-
 .plangrid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:20px;align-items:start}
 @media (max-width:900px){.plangrid{grid-template-columns:minmax(0,1fr)}}
 .sk{display:flex;flex-direction:column;gap:6px;padding:10px 0;border-bottom:1px solid var(--line)}
+.vtg{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin:6px 0}
+.vtc{display:flex;flex-direction:column;gap:3px;text-align:left;border:2px solid var(--line);border-radius:6px;padding:8px;background:var(--surface);font:inherit;font-size:13px;cursor:pointer}
+.vtc[aria-pressed=true]{border-color:#111;background:var(--info-soft)}.vtc img{width:100%;height:120px;object-fit:contain;background:#f4f4f1;border-radius:4px}
+.vtc .vtn{height:120px;display:flex;align-items:center;justify-content:center;background:#f4f4f1;color:var(--muted);border-radius:4px}.vtc span{color:var(--muted)}
+.enr{font-family:"DejaVu Sans Mono",ui-monospace,monospace;font-size:16px;font-weight:700;letter-spacing:.5px;user-select:all}
+.te.ml th{text-align:left;font-size:12px;color:var(--muted);padding:4px}
 .pform{border:1px solid var(--line);border-radius:4px;padding:10px;margin-top:6px;background:var(--bg)}
 .skro .sk{opacity:.6;background:var(--bg);padding:10px 8px}.skro .sk input,.skro .sk select{cursor:not-allowed}
 .sk1{display:flex;gap:8px;align-items:center}.sk1 input{flex:1;padding:9px 10px}
@@ -187,6 +193,7 @@ body.ps .brandbar{display:none!important}
   #printSheet td{border-bottom:1px solid #ccc;padding:6pt 4pt;vertical-align:top}
   #printSheet td:first-child{width:38%;color:#555}
   #printSheet .pf{margin-top:18pt;font-size:9pt;color:#666}
+  body.pm #printSheet td:first-child{width:auto;color:#000}body.pm #printSheet .enr{font-size:13pt}body.pm #printSheet h3{font-size:14pt;margin:14pt 0 2pt}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -212,7 +219,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-23.0926';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-23.0938';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -689,7 +696,7 @@ function zlSum(s){const a=zlAll(s),r=a.filter(z=>z.res).length;return (a.length-
 const zlLbl=(s,k)=>k===0?(s.geb==='MFH'?'Allgemeinzähler':'Hauptzähler'):'Zähler';
 function zlSelId(s){const act=zlAct(s),z=act.find(z=>z.id===S.zlSel)||act[0];return z?z.id:''}
 const rowZid=(s,r)=>{const act=zlAct(s),z=act.find(z=>String(z.id)===String(r.zl))||act[0];return z?z.id:''};
-const stepsOf=s=>{const b=s&&s.art==='HV'?[...STEPS.slice(0,4),['zaehler','Zähler'],...STEPS.slice(4)]:[...STEPS.slice(0,4),['klemmen','Klemmen'],...STEPS.slice(4)];if(s&&busOn(s))b.splice(b.length-1,0,['schienen','Schienen']);return b};
+const stepsOf=s=>{const b=s&&s.art==='HV'?[...STEPS.slice(0,4),['zaehler','Zähler'],...STEPS.slice(4)]:[...STEPS.slice(0,4),['klemmen','Klemmen'],...STEPS.slice(4)];if(s&&busOn(s))b.splice(b.findIndex(x=>x[0]==='extras'),0,['schienen','Schienen']);return b};
 /* UV ohne Abgangsklemmen: Kabel direkt an der Sicherung, -X0 bleibt immer */
 const noKl=s=>!!s&&s.art!=='HV'&&planOf(s).klAbg==='nein';
 /* harte Sperre ohne Abgangsklemmen: höchstens 2 Kabel pro Sicherung, alle mit gleichem Querschnitt */
@@ -701,7 +708,7 @@ const blockHTML=s=>{const b=klBlock(s);return b.length?`<div class="msg err"><b>
 const zlSkip=s=>s.geb!=='MFH'&&planOf(s).zl.length<2;
 function stepNext(s,k){const ST=stepsOf(s),i=ST.findIndex(x=>x[0]===k);let n=ST[Math.min(i+1,ST.length-1)][0];if(n==='zaehler'&&zlSkip(s))n='stromkreise';return n}
 function stepPrev(s,k){const ST=stepsOf(s),i=ST.findIndex(x=>x[0]===k);if(i<=0)return null;let n=ST[i-1][0];if(n==='zaehler'&&zlSkip(s))n='zuleitung';return n}
-const STEPS=[['unterlagen','Unterlagen'],['hersteller','Hersteller'],['gehaeuse','Gehäuse'],['zuleitung','Zuleitung'],['heizung','Heizsystem'],['stromkreise','Stromkreise'],['extras','Extras']];
+const STEPS=[['unterlagen','Unterlagen'],['hersteller','Hersteller'],['gehaeuse','Gehäuse'],['zuleitung','Zuleitung'],['heizung','Heizsystem'],['stromkreise','Stromkreise'],['extras','Extras'],['matliste','Materialliste']];
 const HERSTELLER=['Hager','ABB','Schneider Electric','Siemens','Eaton','Legrand'];
 /* Stromkreise: Zeilen in Eingabereihenfolge, im Schema 4- und 3-polige zuerst, dann 2- und 1-polige */
 const POL=[['1','1-polig'],['2','2-polig'],['3','3-polig'],['4','4-polig']];
@@ -809,7 +816,7 @@ const PROD=[
   {lf:'Sonepar',hst:'Hager',k:'KZ',nr:'804 998 364',art:'Berührungsschutzkappe KZ 059, 5 Module',te:5,net:1.27,bru:2.30},
   {lf:'Sonepar',hst:'Hager',k:'REL',t:'SS',nr:'534 804 600',art:'Schrittschalter 1 TE 230 VAC 1 Schliesser',te:1,net:41.80,bru:76.00}];
 /* Material Sicherungen, N-Trenner und Relais aus den Stromkreisen zählen */
-function matList(s,lf){const pl=planOf(s),hst=pl.hersteller||'',L=skLayout(s),m=new Map(),miss=new Map();
+function matList(s,lf,opt2){const pl=planOf(s),hst=pl.hersteller||'',L=skLayout(s),m=new Map(),miss=new Map();
   const put=(pr,txt)=>{if(pr){const e=m.get(pr)||{...pr,n:0};e.n++;m.set(pr,e)}else miss.set(txt,(miss.get(txt)||0)+1)};
   const P=PROD.filter(x=>x.lf===lf&&x.hst.toLowerCase()===hst.toLowerCase());
   L.list.forEach(r=>{const p=r.typ==='FILS'?(+r.pol<=2?2:4):+r.pol;
@@ -824,6 +831,7 @@ function matList(s,lf){const pl=planOf(s),hst=pl.hersteller||'',L=skLayout(s),m=
   if(false&&vtOn(s)){const C=vtChoice(s);if(C.sel)put(C.sel.prod||(C.sel.prod={lf,hst:'Hager',k:'VT',nr:C.sel.nr,art:C.sel.art.replace(/^AP-/,'AP-'),net:C.sel.net,bru:C.sel.bru}),'');else if(C.N.rails)miss.set('Hager AP-Verteiler (kein passender hinterlegt, von Hand suchen)',1)}
   if(busPausch(s)){const Q=busPlan(s,L,true);if(Q.bru)put({lf,hst:'',k:'PAU',nr:'Pauschale',art:'Phasen-/Etagenschienen für den Verteilerbauer (unsere Bruttopreise)',net:Q.bru,bru:Q.bru},'')}
   if(kz&&!bon)L.rails.filter(rl=>rl.kind==='sk'&&!rl.nt&&!rl.rel&&rl.used>0&&rl.used<RAIL_TE).forEach(rl=>{for(let i=0;i<Math.ceil((RAIL_TE-rl.used)/kz.te);i++)put(kz,'')});
+  if(opt2&&opt2.vt&&vtSelf(s))put(null,'Verteiler');
   /* Extras ohne hinterlegtes Produkt */
   if(s.art!=='HV'&&pl.spd)put(null,'Überspannungsschutz');if(s.art!=='HV'&&pl.hs){const H=hsProd(pl);if(H&&lf==='Sonepar'){put({lf,hst:'',k:'HS',nr:H.nr,art:H.art,net:H.net,bru:H.bru},'');if(/^HAB/.test(H.t))put({lf,hst:'',k:'HSKA',...HS_KA},'');else put(null,'Klemmenabdeckung für '+H.t+' (noch nicht hinterlegt)')}else put(null,'Hauptschalter'+(hsA2(pl)?' '+hsA2(pl)+' A':''))}
   /* Litze pauschal 30 cm pro Pol jeder Sicherung (2-polig 60 cm, 4-polig 120 cm), 13 A -> 1,5 mm², 16 A -> 2,5 mm² */
@@ -831,7 +839,7 @@ function matList(s,lf){const pl=planOf(s),hst=pl.hersteller||'',L=skLayout(s),m=
   const mag=!!pl.litzeMag&&pl.gehaeuse!=='alu'&&/hager/i.test(pl.hersteller||'');Object.keys(lzm).forEach(q=>{const pr=LITZE[q];if(lf==='Sonepar'&&pr)m.set('LZ'+q,{...pr,lf,hst:'',k:'LZ',n:Math.round(lzm[q]*10)/10,u:'m',mag})});
   /* Bauteile ohne hinterlegten Preis: der Planer kann den Preis selbst eintragen */
   const psel=pl.partSel||{};[...miss.keys()].forEach(t=>{const q=partsAll().find(x=>x.id===psel[t]&&!x.del);if(!q)return;const n=miss.get(t);miss.delete(t);
-    m.set('PT'+t,{lf:q.lf,hst:q.hst||'',k:'PT',nr:'E-Nr. '+q.enr+(q.lf?' · '+q.lf:''),art:manTxt(t)+(q.typ?' '+q.typ:''),net:+q.net||0,bru:+q.bru||0,n,kind:t,part:q.id,...(/\(Meter\)$/.test(t)?{u:'m'}:{})})});
+    m.set('PT'+t,{enr:q.enr,lf:q.lf,hst:q.hst||'',k:'PT',nr:'E-Nr. '+q.enr+(q.lf?' · '+q.lf:''),art:manTxt(t)+(q.typ?' '+q.typ:''),net:+q.net||0,bru:+q.bru||0,n,kind:t,part:q.id,...(/\(Meter\)$/.test(t)?{u:'m'}:{})})});
   const pr=pl.preise||{},man=[...miss].map(([t,n])=>{const q=pr[t]||{},has=q.net!=null||q.bru!=null;return {t,n,has,pn:q.net,pb:q.bru,net:has?(q.net??q.bru):0,bru:has?(q.bru??q.net):0}});
   const it=[...m.values()],cnt=it.filter(x=>!x.mag);return {it,man,miss:man.filter(x=>!x.has).map(x=>[x.t,x.n]),net:cnt.reduce((a,x)=>a+x.net*x.n,0)+man.reduce((a,x)=>a+x.net*x.n,0),bru:cnt.reduce((a,x)=>a+x.bru*x.n,0)+man.reduce((a,x)=>a+x.bru*x.n,0),hst}}
 const manQty=x=>/\(Meter\)$/.test(x.t)?String(x.n).replace('.',',')+' m':x.n+'×',manTxt=t=>t.replace(/ \(Meter\)$/,'');
@@ -1166,7 +1174,7 @@ function skLayout(s){
 const skSorted=s=>skLayout(s).list;
 const stepIdx=k=>stepsOf(S.site).findIndex(x=>x[0]===k);
 /* Zurücksetzen einzelner Planungsschritte (Baustellendaten bleiben) */
-const RS_KEYS={unterlagen:['docs'],hersteller:['hersteller','herstellerFrei'],gehaeuse:['gehaeuse','montage','vtSer'],zuleitung:['qs','adern','nb','nbAuto','bez','bezA','x0Side'],zaehler:['zl'],klemmen:['klAbg','klPos'],heizung:['hz','hzAck'],stromkreise:['sk','relSame','resPct','resOff'],schienen:['bus','etag','big4','x0Moved','busSeen'],extras:['spd','hs','hsA','hsE','siem','siemOk','preise','litzeMag','material']};
+const RS_KEYS={unterlagen:['docs'],hersteller:['hersteller','herstellerFrei'],gehaeuse:['gehaeuse','montage','vtSer'],zuleitung:['qs','adern','nb','nbAuto','bez','bezA','x0Side'],zaehler:['zl'],klemmen:['klAbg','klPos'],heizung:['hz','hzAck'],stromkreise:['sk','relSame','resPct','resOff'],schienen:['bus','etag','big4','x0Moved','busSeen'],matliste:[],extras:['spd','hs','hsA','hsE','siem','siemOk','preise','litzeMag','material']};
 function rsPanel(p){const ST=stepsOf(p),sel=S.rsSel||new Set(),ci=ST.findIndex(x=>x[0]===planOf(p).step),cur=ST[ci],all=sel.size===ST.length,only=cur&&sel.size===1&&sel.has(cur[0]);
   const q=only?'Nur Schritt '+(ci+1)+' «'+esc(cur[1])+'» zurücksetzen?':all?'Alles zurücksetzen (alle Schritte der Planung)?':'Diese Schritte zurücksetzen?';
   return `<div class="msg err" style="margin-top:14px"><b>${q}</b><p style="margin:6px 0">Sie können weitere Schritte ankreuzen oder alles zurücksetzen. Die Baustellendaten bleiben immer unverändert (die gehen nur beim Löschen der ganzen Baustelle weg).</p>
@@ -1175,9 +1183,9 @@ function rsPanel(p){const ST=stepsOf(p),sel=S.rsSel||new Set(),ci=ST.findIndex(x
   <div class="row" style="margin-top:10px">${sel.size?(S.armed==='rs'?'<button type="button" class="btn danger" data-act="rsDo">Sicher? Ja, '+(all?'alles':sel.size===1?'diesen Schritt':'diese '+sel.size+' Schritte')+' zurücksetzen (nicht rückgängig)</button><button type="button" class="btn small" data-act="disarm">Abbrechen</button>':'<button type="button" class="btn danger" data-arm="rs">'+(all?'Alles':sel.size+(sel.size===1?' Schritt':' Schritte'))+' zurücksetzen</button>'):'<span class="sub">Bitte Schritte ankreuzen.</span>'}</div></div>`}
 function rsDo(s,keys){const pl=planOf(s),ST=stepsOf(s);keys.forEach(k=>{(RS_KEYS[k]||[]).forEach(x=>delete pl[x]);
     if(k==='zuleitung'){pl.adern='5';pl.nb='';pl.nbAuto=false;if(pl.zl&&pl.zl[0])Object.assign(pl.zl[0],{bez:s.norm==='VDE'?'NH':'DZ',bezA:'',qs:'',adern:'5'})}
-    if(k==='extras')pl.material=false});
+    if(k==='extras')pl.material=false;if(k==='matliste'&&pl.partSel)delete pl.partSel.Verteiler});
   planOf(s);const first=ST.find(x=>keys.includes(x[0]));if(first&&stepIdx(first[0])<stepIdx(pl.step))pl.step=first[0]}
-function stepOk(pl,k){return {heizung:true,verteiler:true,schienen:true,klemmen:true,unterlagen:true,hersteller:!!pl.hersteller,gehaeuse:!!pl.gehaeuse&&!!pl.montage,zuleitung:!!pl.qs&&qsNum(pl.qs)<=QS_MAX,stromkreise:(pl.sk||[]).some(r=>(r.name||'').trim())||(pl.zl||[]).length>1,zaehler:(pl.zl||[]).some(z=>!z.res),extras:true}[k]}
+function stepOk(pl,k){return {matliste:true,heizung:true,verteiler:true,schienen:true,klemmen:true,unterlagen:true,hersteller:!!pl.hersteller,gehaeuse:!!pl.gehaeuse&&!!pl.montage,zuleitung:!!pl.qs&&qsNum(pl.qs)<=QS_MAX,stromkreise:(pl.sk||[]).some(r=>(r.name||'').trim())||(pl.zl||[]).length>1,zaehler:(pl.zl||[]).some(z=>!z.res),extras:true}[k]}
 /* Heizsystem (Tobi 23.11.): Fragen; Sicherungen der Wärmepumpe kommen automatisch ins Schema (Schütz-Steuerung folgt) */
 const HZ_ART=[['wp-fbh','Wärmepumpe','über Fussbodenheizung'],['wp-hk','Wärmepumpe','über Heizkörper'],['gas','Gasheizung',''],['andere','Anderes','']];
 const hzOf=pl=>pl.hz||(pl.hz={});
@@ -1309,7 +1317,7 @@ function vPlan(){
       ${hv?`<label class="f c6">Netzbetreiber <span class="hint">${pl.nbAuto&&g?'automatisch: '+esc(g.src):'wird für diese PLZ gemerkt'}</span>
         <input id="p-nb" data-pl="nb" list="dlNB" value="${esc(pl.nb)}" placeholder="z. B. IWB Industrielle Werke Basel" autocomplete="off"${dis}></label>`:''}
     </div>
-    ${p.land==='CH'?`<label class="chk"><input type="checkbox" data-pl="material" ${pl.material?'checked':''}${dis}> Materialliste mit Eldas-Nummer, Herstellernummer und Nettopreis erstellen</label>`:`<p class="sub">Eine Materialliste gibt es nur für Schweizer Baustellen.</p>`}`;
+    `;
   }else if(k==='zaehler'){
     const pgs=pagesOf(p),L=skLayout(p),act=pl.zl.filter(z=>!z.res).length,mfh=p.geb==='MFH';
     body=`<div class="row between"><h2>Zähler</h2><span class="tag y">${mfh?'Mehrfamilienhaus':'Einfamilienhaus'} · ${zlSum(p)}</span></div>
@@ -1361,6 +1369,8 @@ function vPlan(){
     body=vtBody(p,pl,dis);
   }else if(k==='schienen'){
     body=busBody(p,pl,dis);
+  }else if(k==='matliste'){
+    body=matBody(p,pl,dis);
   }else{
     const n1=(pl.sk||[]).filter(r=>(r.name||'').trim()&&+r.pol<=2&&r.typ==='FILS').length,hs=pl.hersteller||'dem gewählten Hersteller';
     body=`<h2>Extras</h2><p class="sub">Zusätzliche Optionen am Ende der Planung.</p>${(()=>{const O=hzOpenL(p);if(!O.length)return '';const ok=pl.hzAck===hzSig(p);return `<div class="msg ${ok?'info':'err'}"><b>Heizsystem: Sicherung oder Kabel noch offen</b> bei ${O.map(r=>r.f+' '+esc(r.name)).join(', ')}. Ohne Quittung kann das Schema nicht gedruckt werden.<label class="chk" style="margin-top:8px"><input type="checkbox" data-hzack="1" ${ok?'checked':''}${dis}> Quittiert: Ich drucke trotzdem, Sicherung und Querschnitt sind noch nicht angegeben.</label></div>`})()}
@@ -1402,14 +1412,47 @@ function zlFields(p,z,j,dis){const five=(planOf(p).adern||'5')==='5';
       <select data-zl="qs" data-zi="${j}"${dis}><option value="">wählen …</option>${opt(QS.filter(q=>qsNum(q)<=QS_MAX).map(q=>[q,qsTxt(q)+' mm²']),z.qs||'')}</select></label>
     <label class="f c3">${j===0?'Adern nach Zähler':'Abgang Adern'}
       <select data-zl="adern" data-zi="${j}"${dis}>${opt(five?[['5','5-adrig · L1 L2 L3 N PE'],['3','3-adrig · L N PE']]:[['3','3-adrig · L N PE']],five?(z.adern||'5'):'3')}</select></label>`}
-function partUI(t,dis,pn,pb){const L=partsOf(t),cur=(planOf(S.site).partSel||{})[t]||'';let h='';
-  if(L.length)h+=`<label class="m" style="margin-top:6px;max-width:460px"><span>Hinterlegtes Produkt</span><select data-psel="${esc(t)}"${dis}><option value="">anderes (Preis selbst eintragen)</option>${L.map(x=>`<option value="${x.id}"${x.id===cur?' selected':''}>${esc([x.hst,x.typ,x.lf,'E-Nr. '+x.enr].filter(Boolean).join(' · '))}</option>`).join('')}</select></label>`;
-  if(dis||cur)return h;
-  if(S.pForm!==t)return h+`<div style="margin-top:6px"><button type="button" class="btn small" data-padd="${esc(t)}">Produkt hinterlegen (freiwillig)</button></div>`;
+/* Materialliste (Tobi 23.11.): letzter Schritt. Pro Bauteil der günstigste Grosshändler (Netto), Liste nach Grosshändler, E-Nummer zum Kopieren.
+   Selbstbau (Herstellerverteiler, UV): zuerst Verteiler wählen oder hinterlegen (mit Bild, Cloud) */
+const vtSelf=s=>s.art!=='HV'&&!!planOf(s).gehaeuse&&planOf(s).gehaeuse!=='alu';
+const PIMG={};
+function partImg(id){if(PIMG[id]===undefined){PIMG[id]='load';wpGet('part-'+id).then(async v=>{if(!v){v=await cloudWpGet('part-'+id);if(v)wpPut('part-'+id,v).catch(()=>{})}PIMG[id]=v&&v[0]||null;if(PIMG[id])render()})}return typeof PIMG[id]==='string'&&PIMG[id]!=='load'?PIMG[id]:null}
+const imgSmall=file=>new Promise((ok,ko)=>{const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{const sc=Math.min(1,900/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*sc);c.height=Math.round(im.height*sc);c.getContext('2d').drawImage(im,0,0,c.width,c.height);ok(c.toDataURL('image/jpeg',0.8))};im.onerror=ko;im.src=fr.result};fr.onerror=ko;fr.readAsDataURL(file)});
+function matPick(s){const M=matList(s,'Sonepar',{vt:true}),out=[];let sonTot=0;
+  M.it.forEach(x=>{if(x.mag)return;const q=x.n;
+    if(x.k==='PAU'){out.push({g:'Pauschale',enr:'',art:x.art,n:q,net:x.net,bru:x.bru});return}
+    if(x.part){out.push({g:x.lf||'Ohne Grosshändler',enr:x.enr,art:(x.hst?x.hst+' ':'')+x.art,n:q,u:x.u,net:x.net,bru:x.bru});sonTot+=x.net*q;return}
+    const r=catByNr(x.nr);let best={lf:'Sonepar',net:x.net,bru:x.bru};
+    if(r)LF_LIST.forEach(lf=>{const pr=lfPrice(r,lf);if(pr.net!=null&&pr.net<best.net)best={lf,net:pr.net,bru:pr.bru}});
+    sonTot+=x.net*q;out.push({g:best.lf,enr:x.nr,art:(x.hst?x.hst+' ':'')+x.art,n:q,u:x.u,net:best.net,bru:best.bru,son:x.net})});
+  M.man.forEach(x=>out.push({g:x.has?'Preis von Hand':'Noch ohne Preis',enr:'',art:manTxt(x.t),n:x.n,u:/\(Meter\)$/.test(x.t)?'m':'',net:x.has?x.net:null,bru:x.has?x.bru:null}));
+  const G=[...LF_LIST,'Pauschale','Preis von Hand','Noch ohne Preis','Ohne Grosshändler'].map(g=>({g,L:out.filter(x=>x.g===g)})).filter(x=>x.L.length);
+  const tot=k=>out.reduce((a,x)=>a+(x[k]||0)*x.n,0);return {G,net:tot('net'),bru:tot('bru'),save:out.filter(x=>x.son!=null).reduce((a,x)=>a+(x.son-x.net)*x.n,0),mag:M.it.some(x=>x.mag)}}
+const qtyTxt=x=>x.u?String(Math.round(x.n*10)/10).replace('.',',')+' m':x.n+'×';
+function matTables(P,print){return P.G.map(({g,L})=>{const net=L.reduce((a,x)=>a+(x.net||0)*x.n,0),bru=L.reduce((a,x)=>a+(x.bru||0)*x.n,0),cp=L.filter(x=>x.enr).map(x=>x.enr.replace(/\s/g,'')+'\t'+(x.u?Math.round(x.n*10)/10:x.n)).join('\n');
+  return `<div class="mlg"><div class="row between"><h3 style="margin:14px 0 6px">${esc(g)} <span class="sub">(${L.length} ${L.length===1?'Position':'Positionen'})</span></h3>${!print&&cp?`<button type="button" class="btn small" data-copy="${esc(cp)}">Alle E-Nummern mit Menge kopieren</button>`:''}</div>
+  <table class="te ml"><tr><th>Menge</th><th>E-Nummer</th><th>Bezeichnung</th><th style="text-align:right">Netto</th></tr>${L.map(x=>`<tr><td>${qtyTxt(x)}</td><td>${x.enr?`<span class="enr">${esc(x.enr)}</span>${print?'':` <button type="button" class="btn small" data-copy="${esc(x.enr.replace(/\s/g,''))}">Kopieren</button>`}`:'<span class="sub">–</span>'}</td><td>${esc(x.art)}${x.son!=null&&x.son>x.net?` <span class="sub">(Sonepar ${chf(x.son)})</span>`:''}</td><td style="text-align:right;white-space:nowrap">${x.net==null?'<span style="color:#b42318">kein Preis</span>':chf(x.net*x.n)}</td></tr>`).join('')}
+  <tr class="sum"><td colspan="3">Total ${esc(g)}</td><td style="text-align:right;white-space:nowrap">netto ${chf(net)}<br><span class="sub">brutto ${chf(bru)}</span></td></tr></table></div>`}).join('')}
+function matBody(p,pl,dis){const self=vtSelf(p),V=partsOf('Verteiler'),cur=(pl.partSel||{}).Verteiler||'',ok=!self||partsAll().some(x=>x.id===cur&&!x.del);
+  let h=`<h2>Materialliste</h2><p class="sub">Die App nimmt für jedes Bauteil den günstigsten Grosshändler (Netto) und listet die Bauteile nach Grosshändler. Die E-Nummer kannst du direkt kopieren.</p>`;
+  if(self)h+=`<div class="legend">Verteiler (Selbstbau)</div>${V.length?`<div class="vtg">${V.map(x=>{const im=partImg(x.id);return `<button type="button" class="vtc" data-vtsel="${x.id}" aria-pressed="${x.id===cur}"${dis}>${im?`<img src="${im}" alt="">`:'<span class="vtn">kein Bild</span>'}<b>${esc([x.hst,x.typ].filter(Boolean).join(' ')||'Verteiler')}</b><span>${esc(x.lf||'')} · E-Nr. ${esc(x.enr)}</span><span>${x.net!=null?'netto '+chf(x.net):''}${x.bru!=null?' / brutto '+chf(x.bru):''} CHF</span></button>`}).join('')}</div>`:'<p class="sub">Noch kein Verteiler hinterlegt.</p>'}
+    ${partUI('Verteiler',dis,'','',{noSel:true,img:true,btn:'Neuen Verteiler hinterlegen'})}${ok?'':'<div class="msg err" style="margin-top:8px">Bitte zuerst den Verteiler wählen oder hinterlegen. Danach erscheint die Materialliste.</div>'}`;
+  if(!ok)return h;
+  const P=matPick(p);
+  h+=`<div class="legend">Bestellung nach Grosshändler</div>${matTables(P)}
+    <table class="te"><tr class="sum"><td>Total alle Grosshändler</td><td style="text-align:right">netto ${chf(P.net)} / brutto ${chf(P.bru)} CHF</td></tr>${P.save>0.004?`<tr><td>Ersparnis gegenüber nur Sonepar</td><td style="text-align:right">${chf(P.save)} CHF netto</td></tr>`:''}</table>
+    ${P.mag?'<p class="sub">Litze aus dem Magazin ist nicht in der Liste.</p>':''}<div class="row" style="margin-top:10px"><button type="button" class="btn" data-act="matPrint">Materialliste drucken / PDF</button></div>`;
+  return h}
+function matPrintHTML(s){const P=matPick(s),pl=planOf(s),v=partsAll().find(x=>x.id===(pl.partSel||{}).Verteiler);
+  return `<h1>Materialliste${s.kom?' · Kommission '+esc(s.kom):''}</h1><p>${esc([s.adr,[s.plz,s.ort].filter(Boolean).join(' ')].filter(Boolean).join(', '))}${v?' · Verteiler: '+esc([v.hst,v.typ].filter(Boolean).join(' ')):''}</p>${matTables(P,true)}<p><b>Total netto ${chf(P.net)} / brutto ${chf(P.bru)} CHF</b>${P.save>0.004?' · Ersparnis gegenüber nur Sonepar '+chf(P.save)+' CHF':''}</p><div class="pf">Gedruckt am ${fmtDate(now())} von ${esc(S.user?S.user.name:'')}</div>`}
+function partUI(t,dis,pn,pb,o2){o2=o2||{};const L=partsOf(t),cur=(planOf(S.site).partSel||{})[t]||'';let h='';
+  if(L.length&&!o2.noSel)h+=`<label class="m" style="margin-top:6px;max-width:460px"><span>Hinterlegtes Produkt</span><select data-psel="${esc(t)}"${dis}><option value="">anderes (Preis selbst eintragen)</option>${L.map(x=>`<option value="${x.id}"${x.id===cur?' selected':''}>${esc([x.hst,x.typ,x.lf,'E-Nr. '+x.enr].filter(Boolean).join(' · '))}</option>`).join('')}</select></label>`;
+  if(dis||(cur&&!o2.noSel))return h;
+  if(S.pForm!==t)return h+`<div style="margin-top:6px"><button type="button" class="btn small" data-padd="${esc(t)}">${o2.btn||'Produkt hinterlegen (freiwillig)'}</button></div>`;
   const f=(id,l,v,ty)=>`<label class="m"><span>${l}</span><input id="pf-${id}" ${ty||''} value="${v??''}" autocomplete="off"></label>`;
   return h+`<div class="pform"><b>Produkt hinterlegen: ${esc(manTxt(t))}</b><p class="sub" style="margin:2px 0 6px">Danach können alle Planer es hier auswählen. Die E-Nummer ist Pflicht.</p>
     <div class="row" style="gap:8px;flex-wrap:wrap">${f('hst','Hersteller','')}<label class="m"><span>Grosshändler</span><select id="pf-lf">${opt(LF_LIST.map(x=>[x,x]),'Sonepar')}</select></label>${f('typ','Typ','')}${f('enr','E-Nummer *','','inputmode="numeric"')}${f('net','Netto CHF',pn,'type="number" step="0.05" min="0" style="width:100px"')}${f('bru','Brutto CHF',pb,'type="number" step="0.05" min="0" style="width:100px"')}</div>
-    <div id="pf-msg"></div><div class="row" style="margin-top:8px"><button type="button" class="btn primary small" data-act="pSave" data-t="${esc(t)}">Produkt speichern</button><button type="button" class="btn small" data-act="pCancel">Abbrechen</button></div></div>`}
+    ${o2.img?'<label class="m" style="margin-top:8px"><span>Bild (freiwillig, z. B. Foto vom Verteiler)</span><input id="pf-img" type="file" accept="image/*"></label>':''}<div id="pf-msg"></div><div class="row" style="margin-top:8px"><button type="button" class="btn primary small" data-act="pSave" data-t="${esc(t)}">Produkt speichern</button><button type="button" class="btn small" data-act="pCancel">Abbrechen</button></div></div>`}
 function partsAdmin(){const L=partsAll().filter(x=>!x.del).sort((a,b)=>a.kind.localeCompare(b.kind)),num=(x,k)=>`<input class="pct" style="width:100px" type="number" step="0.05" min="0" data-pedit="${x.id}" data-pk="${k}" value="${x[k]??''}">`;
   return `<section class="card" style="grid-column:1/-1"><h2>Hinterlegte Bauteile</h2><p class="sub">Von den Planern freiwillig erfasst. Nur die Verwaltung sieht, wer ein Bauteil hinzugefügt hat.</p>${L.length?`<table class="te">${L.map(x=>`<tr><td><b>${esc(manTxt(x.kind))}</b><br><span class="sub">${esc([x.hst,x.typ,x.lf].filter(Boolean).join(' · '))} · E-Nr. ${esc(x.enr)}</span><br><span class="sub">hinzugefügt von <b>${esc(userName(x.by))}</b>${x.at?' am '+fmtDate(x.at):''}</span></td><td style="white-space:nowrap;text-align:right">netto ${num(x,'net')} brutto ${num(x,'bru')} CHF<div style="margin-top:6px">${S.armed==='p'+x.id?`<button type="button" class="btn small danger" data-pdel="${x.id}">Sicher löschen?</button>`:`<button type="button" class="btn small danger" data-arm="p${x.id}">Löschen</button>`}</div></td></tr>`).join('')}</table>`:'<p class="sub">Noch keine Bauteile hinterlegt.</p>'}</section>`}
 function det(id,title,html,badge){if(!html)return '';const o=S.det&&S.det.has(id);return `<details class="exd" data-det="${id}"${o?' open':''}><summary>${title}${badge||''}</summary><div class="exd-b">${html}</div></details>`}
@@ -2150,7 +2193,13 @@ document.addEventListener('click',e=>{
   if(act==='pSave'&&S.site&&canEdit(S.site)){const k=t.dataset.t,g=id=>($('#pf-'+id)||{}).value||'',enr=g('enr').trim(),nm=v=>{v=String(v).trim();return v===''?null:Math.max(0,+v.replace(',','.')||0)};
     if(!enr){$('#pf-msg').innerHTML='<div class="msg err" style="margin-top:8px">Bitte die E-Nummer eintragen. Ohne E-Nummer kann das Produkt nicht gespeichert werden.</div>';$('#pf-enr').focus();return}
     const x={id:'pt-'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),kind:k,hst:g('hst').trim(),lf:g('lf'),typ:g('typ').trim(),enr,net:nm(g('net')),bru:nm(g('bru')),by:S.user.id,at:now()};
-    partsAll().push(x);const pl=planOf(S.site);pl.partSel=pl.partSel||{};pl.partSel[k]=x.id;S.pForm=null;touchPlan('Produkt hinterlegt: '+manTxt(k));partSave(x);render();return}
+    const fi=$('#pf-img'),file=fi&&fi.files&&fi.files[0];
+    partsAll().push(x);const pl=planOf(S.site);pl.partSel=pl.partSel||{};pl.partSel[k]=x.id;S.pForm=null;touchPlan('Produkt hinterlegt: '+manTxt(k));partSave(x);
+    if(file)imgSmall(file).then(u=>{PIMG[x.id]=u;wpPut('part-'+x.id,[u]).catch(()=>{});cloudWpPut('part-'+x.id,[u]);render()}).catch(()=>{});render();return}
+  if(t.dataset.vtsel!=null&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.partSel=pl.partSel||{};if(t.dataset.vtsel)pl.partSel.Verteiler=t.dataset.vtsel;else delete pl.partSel.Verteiler;touchPlan('Verteiler gewählt');render();return}
+  if(t.dataset.copy!=null){const v=t.dataset.copy,done=()=>{const o=t.textContent;t.textContent='Kopiert ✓';setTimeout(()=>{t.textContent=o},1200)};
+    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(v).then(done,()=>{prompt('Kopieren:',v)});else{const ta=document.createElement('textarea');ta.value=v;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done()}catch(e){}ta.remove()}return}
+  if(act==='matPrint'&&S.site){$('#printSheet').innerHTML=matPrintHTML(S.site);document.body.classList.add('pm');setTimeout(()=>{window.print();setTimeout(()=>document.body.classList.remove('pm'),500)},50);return}
   if(t.dataset.cstd&&S.user&&S.user.admin){const r=catReg().find(q=>q.key===t.dataset.cstd);if(r)catSet(r,null,null);return}
   if(t.dataset.pdel&&S.user&&S.user.admin){const x=partsAll().find(q=>q.id===t.dataset.pdel);S.armed=null;if(x){x.del=1;partSave(x)}render();return}
   if(act==='home')return go('start');
