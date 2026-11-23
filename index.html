@@ -1050,14 +1050,14 @@ const HZ_ART=[['wp-fbh','Wärmepumpe','über Fussbodenheizung'],['wp-hk','Wärme
 const hzOf=pl=>pl.hz||(pl.hz={});
 const hzWP=pl=>{const h=pl.hz||{};return h.vorh==='ja'&&/^wp/.test(h.art||'')};
 const HZ_RX=/w(ä|ae)rme ?pumpe|\bwp\b|boiler|puffer|innen ?(einheit|station|ger(ä|ae)t|teil)|au(ss|ß)en ?(einheit|ger(ä|ae)t|teil)|heizstab|warmwasserspeicher|heizkreis|hkv/i;
-const HZ_DEF={au:['3','C','16','LS'],in:['2','C','13','FILS'],puf:['3','C','13','LS'],boi:['2','C','13','FILS']};
+const HZ_DEF={au:['4','C','16','FILS'],in:['2','C','13','FILS'],puf:['4','C','13','FILS'],boi:['2','C','13','FILS']};
 const hzJa=(h,k)=>(h[k]||'ja')==='ja';
 const hkvN=h=>Math.max(1,Math.min(12,+h.hkvN||1)),hkvF=h=>{const n=hkvN(h),d=Math.ceil(n/2),f=+h.hkvF||d;return Math.max(1,Math.min(n,f))};
 /* Stromkreise aus dem Heizsystem, erscheinen automatisch im Schema */
 function hzSk(s){const pl=planOf(s),h=pl.hz||{};if(!hzWP(pl))return [];const out=[];
   const fz=(pre,name,note)=>{const d=HZ_DEF[pre]||HZ_DEF.in,r={name,pol:h[pre+'Pol']||d[0],char:h[pre+'Char']||d[1],amp:h[pre+'Amp']||d[2],typ:h[pre+'Typ']||d[3],note:note||'',kabAuto:true,relais:[],hz:pre};autoKab(r);return r};
   const kw=h.kw?String(h.kw).replace('.',',')+' kW':'';
-  if(hzJa(h,'au'))out.push(fz('au','Wärmepumpe Ausseneinheit',kw));
+  if(hzJa(h,'au'))out.push(fz('au','Wärmepumpe Ausseneinheit',[kw,'Achtung: geht auf Anlagenschalter'].filter(Boolean).join(' · ')));
   if(hzJa(h,'in'))out.push(fz('in','Wärmepumpe Inneneinheit',hzJa(h,'au')?'':kw));
   if(h.puf==='ja'&&h.pufHs==='ja')out.push(fz('puf','Heizstab Pufferspeicher',h.pufKw?String(h.pufKw).replace('.',',')+' kW':''));
   if(h.boiHs==='ja')out.push(fz('boi','Heizstab Boiler',h.boiKw?String(h.boiKw).replace('.',',')+' kW':''));
@@ -1080,7 +1080,7 @@ function hzBody(p,pl,dis){const h=hzOf(pl);
   if(!hzWP(pl))return b;
   if(h.au==null)h.au='ja';if(h.in==null)h.in='ja';
   b+=`<div class="legend">Wärmepumpe</div>${inp('kw','Leistung Wärmepumpe (kW)','z. B. 8')}<p class="sub" style="margin-top:4px">Freiwillig. Steht im Schema neben der Sicherung. Leer lassen, wenn noch nicht bekannt.</p>`;
-  b+=jn('au','Eigene Sicherung für die Ausseneinheit?');if(hzJa(h,'au'))b+=fuse('au');
+  b+=jn('au','Eigene Sicherung für die Ausseneinheit?');if(hzJa(h,'au'))b+=fuse('au')+'<div class="msg err">Achtung: Ausseneinheit geht auf Anlagenschalter. Steht automatisch im Schema.</div>';
   b+=jn('in','Eigene Sicherung für die Inneneinheit?');if(hzJa(h,'in'))b+=fuse('in');
   b+=jn('puf','Gibt es einen Pufferspeicher?');
   if(h.puf==='ja'){b+=jn('pufHs','Hat der Pufferspeicher einen Heizstab?');if(h.pufHs==='ja')b+=inp('pufKw','Leistung Heizstab Puffer (kW)','z. B. 6')+fuse('puf')}
