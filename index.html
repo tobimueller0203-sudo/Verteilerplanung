@@ -143,6 +143,7 @@ input:disabled,select:disabled{opacity:1;background:var(--bg);color:var(--ink);-
 .plangrid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:20px;align-items:start}
 @media (max-width:900px){.plangrid{grid-template-columns:minmax(0,1fr)}}
 .sk{display:flex;flex-direction:column;gap:6px;padding:10px 0;border-bottom:1px solid var(--line)}
+.skro .sk{opacity:.6;background:var(--bg);padding:10px 8px}.skro .sk input,.skro .sk select{cursor:not-allowed}
 .sk1{display:flex;gap:8px;align-items:center}.sk1 input{flex:1;padding:9px 10px}
 .sk2{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
 .sk .m{display:flex;flex-direction:column;gap:2px;font-size:11px;font-weight:600;color:var(--muted);min-width:0}
@@ -210,7 +211,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-23.0857';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-23.0901';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -1280,7 +1281,11 @@ function vPlan(){
     const sel=(key,list,r,label)=>`<label class="m"><span>${label}</span><select data-sk="${key}"${dis}>${opt(list,r[key]||'')}</select></label>`;
     body=`<h2>Stromkreise</h2>${zlA.length>1?`<label class="f" style="max-width:460px">Zähler<select data-zsel="1">${zlA.map(z=>`<option value="${z.id}"${z.id===zsel?' selected':''}>-P${pl.zl.indexOf(z)+1} ${esc(z.name||zlLbl(p,pl.zl.indexOf(z)))}${pl.zl.indexOf(z)===0?' ('+zlLbl(p,0)+')':''}</option>`).join('')}</select></label>
     <div class="msg info">${zMain?'Stromkreise hinter dem '+zlLbl(p,0)+', zum Beispiel Lift oder Technikraum. Sie kommen auf eigene Seiten im Plan.':'Sicherungen direkt beim Zähler -P'+(pl.zl.indexOf(zO)+1)+' '+esc(zO.name||'')+', zum Beispiel für den Keller. Jede bekommt einen eigenen Klemmenabgang neben dem Abgang zur Wohnung.'}</div>
-    ${!zMain&&nExt>ZM_EXT_MAX?`<div class="msg err">Pro Zähler passen höchstens ${ZM_EXT_MAX} Sicherungen auf das Zählerblatt.</div>`:''}`:''}${(()=>{if(!hzWP(pl))return '';const A=skLayout(p).list.filter(x=>x.hz);return '<div class="msg info"><b>Aus Schritt '+(stepIdx('heizung')+1)+' Heizsystem, automatisch im Schema:</b><br>'+A.map(x=>x.f+' '+esc(x.name)+' · '+(x.char||'?')+(x.amp||'?')+' '+(x.typ==='FILS'?'FI/LS':x.typ==='LS'?'LS':'?')+(x.hzOpen?' <b style="color:#b42318">'+esc(x.hzTxt)+'</b>':'')).join('<br>')+'<br><span class="sub">Ändern im Schritt Heizsystem. Wärmepumpe, Boiler und Puffer nicht hier eintragen.</span></div>'})()}<p class="sub">Zeile für Zeile eintragen, zum Beispiel «Backofen». Die Reihenfolge ist egal: Im Schema stehen 4- und 3-polige Sicherungen immer zuerst, danach 2- und 1-polige. Pro Hutschiene gibt es 12 TE.</p>
+    ${!zMain&&nExt>ZM_EXT_MAX?`<div class="msg err">Pro Zähler passen höchstens ${ZM_EXT_MAX} Sicherungen auf das Zählerblatt.</div>`:''}`:''}${(()=>{if(!hzWP(pl))return '';const A=skLayout(p).list.filter(x=>x.hz),n6=stepIdx('heizung')+1,ro=(v,list,label)=>`<label class="m"><span>${label}</span><select disabled>${opt([['','?'],...list],v||'')}</select></label>`;
+      return '<div class="msg info" style="margin-bottom:0"><b>Aus Schritt '+n6+' Heizsystem</b> (ausgegraut, ändern nur im <button type="button" class="btn link" data-step="heizung">Schritt '+n6+' Heizsystem</button>). Wärmepumpe, Boiler und Puffer nicht hier eintragen.</div><div class="skrows skro">'+A.map(x=>`<div class="sk">
+        <div class="sk1"><input value="${esc(x.name)}" disabled aria-label="${esc(x.name)}"><span class="tag">${x.f} · ${x.te} TE · Schiene ${x.rail}</span></div>
+        <div class="sk2">${ro(x.polMiss?'':x.pol,POL,'Polzahl')}${ro(x.char,CHAR,'Char.')}${ro(x.amp,AMP,'Strom')}${ro(x.typ,TYP,'Typ')}${ro(x.adern,SK_ADERN,'Adern')}${ro(x.qs,SK_QS,'mm²')}</div>
+        ${x.note?`<input class="note" value="${esc(x.note)}" disabled>`:''}${x.hzOpen?`<div class="skn"><span class="warn">${esc(x.hzTxt)} (im Schritt ${n6})</span></div>`:''}</div>`).join('')+'</div>'})()}<p class="sub">Zeile für Zeile eintragen, zum Beispiel «Backofen». Die Reihenfolge ist egal: Im Schema stehen 4- und 3-polige Sicherungen immer zuerst, danach 2- und 1-polige. Pro Hutschiene gibt es 12 TE.</p>
     <div class="skrows" id="skRows">${pl.sk.map((r,j)=>!vis(r)?'':`<div class="sk" data-i="${j}">
       <div class="sk1"><input data-sk="name" value="${esc(r.name)}" placeholder="z. B. Backofen" aria-label="Bezeichnung Stromkreis ${j+1}" autocomplete="off"${dis}>
         <span class="tag skt" id="skt-${j}"></span>
