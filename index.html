@@ -227,7 +227,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-23.1421';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-23.1431';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -336,6 +336,12 @@ const loxTeN=pl=>{if(!loxMs(pl))return 0;const own=flTrees(pl).filter(t=>!t.src)
 /* KNX Extension (Tobi 23.11.): wenn bei DALI «KNX Extension + KNX-DALI-Aktor» gewählt (Spots extern oder weitere Lampen) */
 const loxKnxN=pl=>{const h=(pl&&pl.sh)||{};if(!loxMs(pl))return 0;return (h.sp==='ext'&&h.spDali==='ja'&&h.spDaliArt==='knx')||(h.lp==='ja'&&h.lpDali==='ja'&&h.lpDaliArt==='knx')?1:0};
 const loxSyncTe=pl=>{const h=pl&&pl.sh;if(!h||!loxOn(pl))return;h.q=h.q||{};[['100218',loxTeN(pl)],['100322',loxKnxN(pl)]].forEach(([id,n])=>{if(n)h.q[id]=n;else delete h.q[id]})};
+/* KNX-Spannungsversorgung und KNX-DALI-Gateway: Standard laut Tobi 23.11., Preis und Händler 1:1 (inkl. MwSt.), von Hand änderbar (h.kx) */
+const KX_STD={ps:{hst:'MDT',nr:'STV-0320.02',art:'EIB/KNX Busspannungsversorgung 320/640 mA, REG',te:2,lf:'digitec.ch',bru:138.00},
+  da:{hst:'MDT',nr:'SCN-DA641.04',art:'KNX DALI Control 64 Gateway, REG',te:4,lf:'eibabo.ch',bru:254.84,ean:'4251916130718'}};
+const KX_TXT={ps:'KNX-Spannungsversorgung',da:'KNX-DALI-Aktor (Gateway)'};
+const kxProd=(pl,k)=>{const c=((pl.sh||{}).kx||{})[k];if(!c||!c.own)return {...KX_STD[k],std:1};return {hst:'',nr:'',art:(c.art||'').trim()||'Eigenes Produkt',te:+c.te||KX_STD[k].te,lf:(c.lf||'').trim(),bru:c.bru===''||c.bru==null||isNaN(+c.bru)?null:+c.bru}};
+const loxFk=(s,pl)=>{const fmax=Math.max(0,...skLayout(s).list.map(r=>+String(r.f||'').replace(/\D/g,'')||0));return '-F'+(fmax+((pl.sh||{}).nb==='ja'?3:2))};
 /* Link-Kette ab Miniserver: Tree Extensions, dann KNX Extension */
 const loxLink=pl=>loxDev(pl).filter(v=>v.t==='te'||v.t==='knx').map(v=>v.name);
 const loxTreeMap=pl=>{const own=flTrees(pl).filter(t=>!t.src),nA=loxAs(pl),M=[{dev:'-A1',port:'Tree',t:own[0]}];for(let i=0;i<loxTeN(pl);i++){M.push({dev:'-A'+(2+nA+i),port:'links',te:i,t:own[1+2*i]});M.push({dev:'-A'+(2+nA+i),port:'rechts',te:i,t:own[2+2*i]})}return M};
@@ -916,7 +922,7 @@ function matList(s,lf,opt2){const pl=planOf(s),hst=pl.hersteller||'',L=skLayout(
   if(busPausch(s)){const Q=busPlan(s,L,true);if(Q.bru)put({lf,hst:'',k:'PAU',nr:'Pauschale',art:'Phasen-/Etagenschienen für den Verteilerbauer (unsere Bruttopreise)',net:Q.bru,bru:Q.bru},'')}
   if(kz&&!bon)L.rails.filter(rl=>rl.kind==='sk'&&!rl.nt&&!rl.rel&&rl.used>0&&rl.used<RAIL_TE).forEach(rl=>{for(let i=0;i<Math.ceil((RAIL_TE-rl.used)/kz.te);i++)put(kz,'')});
   if(opt2&&opt2.vt&&vtSelf(s))put(null,vtKind(s));
-  if(loxOn(pl)){loxSyncTe(pl);const q=pl.sh.q||{};LOX.forEach(o=>{for(let i=0;i<(q[o.id]||0);i++)put({lf:'Loxone',hst:'Loxone',k:'LOX',nr:o.nr,art:o.art,net:loxNet(o)??o.bru,bru:o.bru},'')});const ps=loxPs(pl);if(ps)put(P.find(x=>x.k==='LS'&&x.p===2&&x.c+x.a===ps.vs),'LS '+ps.vs+' 2P')}
+  if(loxOn(pl)){loxSyncTe(pl);const q=pl.sh.q||{};LOX.forEach(o=>{for(let i=0;i<(q[o.id]||0);i++)put({lf:'Loxone',hst:'Loxone',k:'LOX',nr:o.nr,art:o.art,net:loxNet(o)??o.bru,bru:o.bru},'')});const ps=loxPs(pl);if(ps)put(P.find(x=>x.k==='LS'&&x.p===2&&x.c+x.a===ps.vs),'LS '+ps.vs+' 2P');if(loxKnxN(pl)){['ps','da'].forEach(k=>{const x=kxProd(pl,k);if(x.bru!=null)put({lf:x.lf||'Ohne Grosshändler',hst:x.hst,k:'KXP',nr:x.nr,art:x.art+' (Preis inkl. MwSt.)',net:x.bru,bru:x.bru},'');else put(null,KX_TXT[k]+': '+x.art)});put(P.find(x=>x.k==='LS'&&x.p===1&&x.c==='C'&&x.a===10),'LS C10 1P')}}
   /* Extras ohne hinterlegtes Produkt */
   if(s.art!=='HV'&&pl.spd)put(null,'Überspannungsschutz');if(s.art!=='HV'&&pl.hs){const H=hsProd(pl);if(H&&lf==='Sonepar'){put({lf,hst:'',k:'HS',nr:H.nr,art:H.art,net:H.net,bru:H.bru},'');if(/^HAB/.test(H.t))put({lf,hst:'',k:'HSKA',...HS_KA},'');else put(null,'Klemmenabdeckung für '+H.t+' (noch nicht hinterlegt)')}else put(null,'Hauptschalter'+(hsA2(pl)?' '+hsA2(pl)+' A':''))}
   /* Litze pauschal 30 cm pro Pol jeder Sicherung (2-polig 60 cm, 4-polig 120 cm), 13 A -> 1,5 mm², 16 A -> 2,5 mm² */
@@ -1359,7 +1365,10 @@ function shBody(p,pl,dis){const h=shOf(pl);h.q=h.q||{};loxSyncTe(pl);
       <p class="sub">Wird automatisch aus den Trees mit eigenem Anschluss berechnet: Der Miniserver hat 1 Tree, jede Tree Extension 2 weitere. Sie hängt am Loxone Link (blau/weiss) und bekommt 24 V vom Netzteil.</p>${M.length?`<table class="te">${M.map(m=>`<tr><td>${esc(m.dev)} Tree ${m.port}</td><td style="text-align:right">${m.t?esc(m.t.name):'<span class="sub">Reserve</span>'}</td></tr>`).join('')}</table>`:''}`};
   const knxUI=()=>{const n=loxKnxN(pl),o=LOX.find(x=>x.id==='100322');if(!n||!o)return '';const im=loxImg(o.id);
     return `<div class="legend">KNX Extension (automatisch)</div><div class="lxg"><div class="lxc on">${im?`<img src="${im}" alt="">`:'<span class="vtn">Bild folgt</span>'}<b>${esc(o.art)}</b><span>${esc(o.nr)} · ${o.te} TE</span><span>${cur2(o.bru)}</span>${loxDs(o.id).length?`<button type="button" class="btn link" style="font-size:13px;text-align:left" data-dsview="${esc(o.id)}">Datenblatt ansehen</button>`:''}<div style="margin-top:4px"><b>Anzahl: ${n}</b></div></div></div>
-      <p class="sub">Kommt automatisch dazu, weil bei DALI «KNX Extension + KNX-DALI-Aktor» gewählt ist. Sie hängt am Loxone Link (blau/weiss), bekommt 24 V vom Netzteil und führt den KNX-Bus (rot/schwarz) zum KNX-DALI-Aktor. Der KNX-Bus braucht zusätzlich eine eigene KNX-Spannungsversorgung (folgt). KNX-DALI-Aktor folgt.</p>`};
+      <p class="sub">Kommt automatisch dazu, weil bei DALI «KNX Extension + KNX-DALI-Aktor» gewählt ist. Sie hängt am Loxone Link (blau/weiss), bekommt 24 V vom Netzteil und führt den KNX-Bus (rot/schwarz) zum KNX-DALI-Aktor.</p>
+      <div class="legend">Dazu automatisch (Standard, änderbar)</div><div class="lxg">${['ps','da'].map(k=>{const x=kxProd(pl,k),c=(h.kx||{})[k]||{};return `<div class="lxc on"><b>${KX_TXT[k]}</b><span>${esc((x.hst?x.hst+' ':'')+(x.nr?x.nr+' · ':''))}${x.te} TE</span><span>${esc(x.art)}</span><span>${esc(x.lf||'Händler offen')} · ${x.bru!=null?'CHF '+chf(x.bru)+' inkl. MwSt.':'<span style="color:#b42318">Preis offen</span>'}</span>
+        <label class="chk" style="margin:4px 0 0"><input type="checkbox" data-kxown="${k}" ${c.own?'checked':''}${dis}> Anderes Produkt</label>${c.own?`<label class="m"><span>Bezeichnung</span><input data-kxf="${k}:art" value="${esc(c.art||'')}" placeholder="Hersteller und Typ"${dis}></label><label class="m"><span>Händler</span><input data-kxf="${k}:lf" value="${esc(c.lf||'')}" placeholder="z. B. digitec.ch"${dis}></label><div class="row" style="gap:6px"><label class="m"><span>Preis CHF</span><input type="number" step="0.05" min="0" data-kxf="${k}:bru" value="${esc(c.bru??'')}"${dis}></label><label class="m"><span>TE</span><input type="number" min="1" max="12" data-kxf="${k}:te" value="${esc(c.te??'')}" placeholder="${KX_STD[k].te}"${dis}></label></div>`:''}</div>`}).join('')}</div>
+      <p class="sub">Beide brauchen 230 V. Sie werden zusammen über einen LS C10 1-polig im Verteiler abgesichert.</p>`};
   const liUI=()=>{const ms=loxMs(pl);if(!ms)return '';const rb=loxRelais(pl);
     const nSel=(key,lbl)=>`<label class="m" style="margin-top:8px;max-width:420px"><span>${lbl}</span><select data-shsel="${key}"${dis}>${opt(Array.from({length:41},(_,n)=>[String(n),n?String(n):'wählen …']),String(h[key]||0))}</select></label>`;
     const grp=(pre,title,a,b2)=>{const D=pre+'Dali',A=pre+'DaliArt',N=pre+'N';let x=`<div class="legend">${title}: DALI?</div><div class="tiles two-col">${tl(D,'nein','Nicht DALI','über Relais geschaltet')}${tl(D,'ja','DALI','')}</div>`;
@@ -1381,7 +1390,7 @@ function shBody(p,pl,dis){const h=shOf(pl);h.q=h.q||{};loxSyncTe(pl);
   if(h.on!=='ja')return b;
   b+=`<div class="legend">System</div><div class="tiles two-col">${tl('sys','knx','KNX','folgt',true)}${tl('sys','loxone','Loxone','')}</div>`;
   if(h.sys!=='loxone')return b;
-  const L=LOX,rb=loxR(),sel=L.filter(o=>(h.q[o.id]||0)>0),te=sel.reduce((a,o)=>a+(+o.te||0)*h.q[o.id],0),bru=sel.reduce((a,o)=>a+(o.bru||0)*h.q[o.id],0),net=sel.reduce((a,o)=>a+(loxNet(o)||0)*h.q[o.id],0);
+  const L=LOX,rb=loxR(),sel=L.filter(o=>(h.q[o.id]||0)>0),te=sel.reduce((a,o)=>a+(+o.te||0)*h.q[o.id],0)+(loxKnxN(pl)?kxProd(pl,'ps').te+kxProd(pl,'da').te:0),bru=sel.reduce((a,o)=>a+(o.bru||0)*h.q[o.id],0),net=sel.reduce((a,o)=>a+(loxNet(o)||0)*h.q[o.id],0);
   b+=`<label class="chk" style="margin-top:12px"><input type="checkbox" data-shds="1" ${h.ds?'checked':''}${dis}> Datenblätter der gewählten Loxone-Bauteile in die Planmappe aufnehmen</label>`;
   b+=`${L.length?`${['Spannungsversorgung','Audioserver','Miniserver'].concat(L.map(o=>o.grp)).filter((g,i,A)=>A.indexOf(g)===i&&L.some(o=>o.grp===g)&&!L.some(o=>o.grp===g&&o.auto)&&(g!=='Audioserver'||(h.au==='ja'&&h.as==='ja'))).map(g=>`<div class="legend">${esc(g)}</div><div class="lxg">${L.filter(o=>o.grp===g).map(o=>{const n=h.q[o.id]||0,im=loxImg(o.id);return `<div class="lxc${n?' on':''}${!n&&loxBlk(pl,o).startsWith('SOFT:')?' soft':''}">${im?`<img src="${im}" alt="">`:'<span class="vtn">Bild folgt</span>'}<b>${esc(o.art)}</b><span>${esc(o.nr||'')}${o.te?' · '+o.te+' TE':''}</span><span>${rb?'netto '+cur2(loxNet(o)||0)+' · Liste ':''}${cur2(o.bru||0)}</span>${loxDs(o.id).length?`<button type="button" class="btn link" style="font-size:13px;text-align:left" data-dsview="${esc(o.id)}">Datenblatt ansehen</button>`:''}
     ${LOX_ONE.includes(o.grp)?(()=>{const b0=loxBlk(pl,o),soft=b0.startsWith('SOFT:'),bk=soft?b0.slice(5):b0;return `${bk?`<span style="color:#b42318">${esc(bk)}</span>`:''}<button type="button" class="btn small${n?' primary':''}" style="margin-top:4px" data-loxone="${esc(o.id)}"${bk&&!n&&!soft?' disabled':dis}>${n?'Gewählt ✓':soft?'Trotzdem wählen':'Auswählen'}</button>`})():(()=>{const bk=loxBlk(pl,o);return `${bk?`<span style="color:#b42318">${esc(bk)}</span>`:''}<div class="row" style="gap:6px;margin-top:4px"><button type="button" class="btn small" data-loxq="${esc(o.id)}" data-d="-1"${n?dis:' disabled'}>−</button><b style="min-width:24px;text-align:center">${n}</b><button type="button" class="btn small" data-loxq="${esc(o.id)}" data-d="1"${bk?' disabled':dis}>+</button></div>`})()}</div>`}).join('')}</div>${g==='Spannungsversorgung'?nbUI()+auUI():''}${g==='Miniserver'?flUI()+teUI()+(flReady(pl)?liUI():`<div class="msg err" style="margin-top:10px"><b>Beleuchtung noch gesperrt:</b> Zuerst mindestens ein Stockwerk mit Räumen und Trees fertig erfassen und bestätigen. Weitere Stockwerke fertig erfassen oder mit «Wird nachgereicht» überspringen.</div><fieldset disabled style="opacity:.45;border:0;padding:0;margin:0">${liUI()}</fieldset>`)+knxUI()+outUI():''}`).join('')}
@@ -1586,13 +1595,14 @@ const imgSmall=file=>new Promise((ok,ko)=>{const fr=new FileReader();fr.onload=(
 function matPick(s){const M=matList(s,'Sonepar',{vt:true}),out=[];let sonTot=0;
   M.it.forEach(x=>{if(x.mag)return;const q=x.n;
     if(x.k==='LOX'){out.push({g:'Loxone',enr:'Art. '+x.nr,art:'Loxone '+x.art,n:q,net:x.net,bru:x.bru});return}
+    if(x.k==='KXP'){out.push({g:x.lf,enr:x.nr,art:(x.hst?x.hst+' ':'')+x.art,n:q,net:x.net,bru:x.bru});return}
     if(x.k==='PAU'){out.push({g:'Pauschale',enr:'',art:x.art,n:q,net:x.net,bru:x.bru});return}
     if(x.part){out.push({g:x.lf||'Ohne Grosshändler',enr:x.enr,art:(x.hst?x.hst+' ':'')+x.art,n:q,u:x.u,net:x.net,bru:x.bru});sonTot+=x.net*q;return}
     const r=catByNr(x.nr);let best={lf:'Sonepar',net:x.net,bru:x.bru};
     if(r)LF_LIST.forEach(lf=>{const pr=lfPrice(r,lf);if(pr.net!=null&&pr.net<best.net)best={lf,net:pr.net,bru:pr.bru}});
     sonTot+=x.net*q;out.push({g:best.lf,enr:x.nr,art:(x.hst?x.hst+' ':'')+x.art,n:q,u:x.u,net:best.net,bru:best.bru,son:x.net})});
   M.man.forEach(x=>out.push({g:x.has?'Preis von Hand':'Noch ohne Preis',enr:'',art:manTxt(x.t),n:x.n,u:/\(Meter\)$/.test(x.t)?'m':'',net:x.has?x.net:null,bru:x.has?x.bru:null}));
-  const G=[...LF_LIST,'Loxone','Pauschale','Preis von Hand','Noch ohne Preis','Ohne Grosshändler'].map(g=>({g,L:out.filter(x=>x.g===g)})).filter(x=>x.L.length);
+  const G0=[...LF_LIST,'Loxone'],G0b=['Pauschale','Preis von Hand','Noch ohne Preis','Ohne Grosshändler'],G=[...G0,...[...new Set(out.map(x=>x.g))].filter(g=>!G0.includes(g)&&!G0b.includes(g)),...G0b].map(g=>({g,L:out.filter(x=>x.g===g)})).filter(x=>x.L.length);
   const tot=k=>out.reduce((a,x)=>a+(x[k]||0)*x.n,0);return {G,net:tot('net'),bru:tot('bru'),save:out.filter(x=>x.son!=null).reduce((a,x)=>a+(x.son-x.net)*x.n,0),mag:M.it.some(x=>x.mag)}}
 const qtyTxt=x=>x.u?String(Math.round(x.n*10)/10).replace('.',',')+' m':x.n+'×';
 function matTables(P,print){return P.G.map(({g,L})=>{const net=L.reduce((a,x)=>a+(x.net||0)*x.n,0),bru=L.reduce((a,x)=>a+(x.bru||0)*x.n,0),cp=L.filter(x=>x.enr).map(x=>x.enr.replace(/\s/g,'')+'\t'+(x.u?Math.round(x.n*10)/10:x.n)).join('\n');
@@ -1679,7 +1689,7 @@ function pagesOf(s){
     a.filter(q=>q.kind==='zm').forEach(q=>{const f=q.bl[0].k+1,l=q.bl[q.bl.length-1].k+1;q.sub=(f===l?'Zähler -P'+f+' '+(pl.zl[f-1].name||''):'Zähler -P'+f+' bis -P'+l).trim()});
     a.push({kind:'za',title:s.geb==='MFH'?'Messung Allgemein':'Messung',sub:'-P1 '+(pl.zl[0].name||zlLbl(s,0))})}
   L.pages.forEach(q=>{const fs=q.items.filter(it=>!it.sk).map(it=>it.f),zk=hv?pl.zl.findIndex(z=>z.id===q.zid):-1,zt=zk>=0?'-P'+(zk+1)+(pl.zl[zk].name?' '+pl.zl[zk].name:'')+' · ':'';a.push({kind:'sk',title:'Stromkreise',sub:zt+(fs.length?fs[0]+(fs.length>1?' bis '+fs[fs.length-1]:''):'Relais'),dp:q,zid:q.zid})});
-  {loxSyncTe(pl);const ps=loxPs(pl);if(ps)a.push({kind:'loxps',title:'Smart Home Loxone',sub:'-G1 '+ps.o.art});const ms=loxMs(pl);if(ms)a.push({kind:'loxms',title:'Smart Home Loxone',sub:'-A1 '+ms.art});for(let k=0;k<loxAs(pl);k++)a.push({kind:'loxas',k,title:'Smart Home Loxone',sub:'-A'+(k+2)+' Audioserver'});for(let k=0;k<loxTeN(pl);k++)a.push({kind:'loxte',k,title:'Smart Home Loxone',sub:'-A'+(k+2+loxAs(pl))+' Tree Extension'});if(loxKnxN(pl))a.push({kind:'loxknx',title:'Smart Home Loxone',sub:'-A'+(2+loxAs(pl)+loxTeN(pl))+' KNX Extension'})}
+  {loxSyncTe(pl);const ps=loxPs(pl);if(ps)a.push({kind:'loxps',title:'Smart Home Loxone',sub:'-G1 '+ps.o.art});const ms=loxMs(pl);if(ms)a.push({kind:'loxms',title:'Smart Home Loxone',sub:'-A1 '+ms.art});for(let k=0;k<loxAs(pl);k++)a.push({kind:'loxas',k,title:'Smart Home Loxone',sub:'-A'+(k+2)+' Audioserver'});for(let k=0;k<loxTeN(pl);k++)a.push({kind:'loxte',k,title:'Smart Home Loxone',sub:'-A'+(k+2+loxAs(pl))+' Tree Extension'});if(loxKnxN(pl))a.push({kind:'loxknx',title:'Smart Home Loxone',sub:'-A'+(2+loxAs(pl)+loxTeN(pl))+' KNX Extension · KNX-DALI'})}
   if(busOn(s)&&L.list.length)a.push({kind:'bus2d',title:'Verteileransicht',sub:'Sammel- und Etagenschienen'});
   {const m=hzWP(pl)&&pl.hz.wpPdf;if(m)for(let k=0;k<m.n;k++)a.push({kind:'wpdoc',key:m.key,k,title:'Wärmepumpe',sub:'Schema Hersteller'+(m.n>1?', Seite '+(k+1):'')})}
   if(d.klemmen){const n=(five?5:3)+(hv?pl.zl.length-1+Object.values(L.ext).reduce((a,x)=>a+x.length,0):0)+L.pages.reduce((a,q)=>a+q.items.filter(it=>it.sk?it.k===0:!it.rel.length).reduce((b,it)=>b+(it.sk?it.sk.abgN||1:it.abgN||1),0),0),c=Math.max(1,Math.ceil(n/KL_PER_PAGE));for(let i=0;i<c;i++)a.push({kind:'klemmen',title:'Klemmenliste',sub:sk.length&&!noKl(s)?'-X0 Einspeisung, '+(L.nX>1?'-X1 bis -X'+L.nX:'-X1')+' Abgänge':'Klemmblock -X0',part:i})}
@@ -1834,23 +1844,42 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     T(gx,560,'Hinweis: Einbau auf der Hutschiene, Wärmeabgabe beachten.','tnote');
   }else if(pg.kind==='loxknx'){
     T(ix1-12,iy1-6,'Aderfarben: Link blau/weiss · 24 V orange/weiss · Tree grün/weiss · Tree Turbo dunkelgrün/weiss · KNX rot/schwarz (weiss = gestrichelt)','tk5','end');
-    const ps=loxPs(pl),big=ps&&ps.big,LK=loxLink(pl),nm=LK.find(n=>/KNX/.test(n))||'-A? KNX Extension',A=nm.split(' ')[0],li=LK.indexOf(nm),fo=loxSlotNo(pl,'knx0'),term=(x,y,r)=>o.push(`<circle class="term" cx="${x}" cy="${y}" r="${r||4}"/>`),arr=(x,y)=>o.push(`<path d="M${x-5} ${y-8} l5 8 l5 -8" fill="none" stroke="#111" stroke-width="1"/>`),arrU=(x,y)=>o.push(`<path d="M${x-5} ${y+8} l5 -8 l5 8" fill="none" stroke="#111" stroke-width="1"/>`);
-    const gx=330,gy=300,gw=360,gh=140,yb=gy+gh;
+    const ps=loxPs(pl),big=ps&&ps.big,LK=loxLink(pl),nm=LK.find(n=>/KNX/.test(n))||'-A? KNX Extension',A=nm.split(' ')[0],li=LK.indexOf(nm),fo=loxSlotNo(pl,'knx0'),term=(x,y,r)=>o.push(`<circle class="term" cx="${x}" cy="${y}" r="${r||4}"/>`),dot=(x,y)=>o.push(`<circle cx="${x}" cy="${y}" r="2.3" fill="#111"/>`),arr=(x,y)=>o.push(`<path d="M${x-5} ${y-8} l5 8 l5 -8" fill="none" stroke="#111" stroke-width="1"/>`),arrU=(x,y)=>o.push(`<path d="M${x-5} ${y+8} l5 -8 l5 8" fill="none" stroke="#111" stroke-width="1"/>`);
+    const XP=kxProd(pl,'ps'),XD=kxProd(pl,'da'),AD='-A'+(+A.slice(2)+1),FK=loxFk(s,pl);
+    /* KNX Extension */
+    const gx=200,gy=330,gw=300,gh=120,yb=gy+gh;
     Rc(gx,gy,gw,gh,'bxw');Rc(gx+4,gy+4,gw-8,gh-8,'bxd');
     T(gx-8,gy+16,A,'tbig','end');T(gx-8,gy+32,'Loxone','t','end');T(gx-8,gy+44,'KNX Extension','t','end');T(gx-8,gy+58,'100322 · 2 TE','tm','end');T(gx-8,gy+70,'Hutschiene','tm','end');
-    T(gx+20,gy+50,'Versorgung 10–28 VDC · typ. 0,08 W','tm');T(gx+20,gy+64,'bis 500 KNX-Gruppenadressen','tm');T(gx+20,gy+78,'KNX-Bus max. 1000 m · bis KNX-Netzteil max. 350 m · bis 1. Gerät max. 700 m','tk5');
-    /* oben: KNX+ / KNX- auf -X6 */
-    const xk=gx+60,yx=150;T(xk-20,yx+4,'-X6','tb','end');
-    [[xk,'KNX+','knr',1,'rt'],[xk+18,'KNX−','knk',2,'sw']].forEach(([x,l,cl,n,f])=>{term(x,gy,3);T(x,gy+16,l,'tk5','middle');L(x,gy-4,x,yx,cl);term(x,yx);T(x,yx-8,String(n),'tk','middle');T(x+(n===1?-4:4),gy-30,f,'tk5',n===1?'end':'start')});
-    T(xk-6,yx-40,'KNX-Bus (KNX-Kabel rot/schwarz)','tnm2');T(xk-6,yx-28,'→ KNX-DALI-Aktor (folgt) · eigene KNX-Spannungsversorgung nötig (folgt)','tred');
-    /* unten: Versorgung, Link */
-    const X={p:gx+40,g:gx+58,lb:gx+110,lw:gx+128};[['p','24V'],['g','GND'],['lb','BU'],['lw','WH']].forEach(([q,l])=>{term(X[q],yb);T(X[q],yb-8,l,'tk5','middle')});T((X.lb+X.lw)/2,yb-22,'Link','tk5','middle');
-    const yv=yb+80;L(X.p,yb+4,X.p,yv,'pwo');L(X.g,yb+4,X.g,yv,'pww');arr(X.p,yb+12);arr(X.g,yb+12);T(X.p-4,yb+30,'or','tk5','end');T(X.g+4,yb+30,'ws','tk5');
+    T(gx+20,gy+48,'Versorgung 10–28 VDC · typ. 0,08 W','tm');T(gx+20,gy+62,'bis 500 KNX-Gruppenadressen','tm');T(gx+20,gy+76,'KNX-Bus max. 1000 m, bis KNX-Netzteil max. 350 m','tk5');
+    /* 230 V: LS fuer KNX-Netzteil und DALI-Gateway */
+    const xs=600,ys=gy,xL=xs+20,xN=xs+40,xE=xs+60,xd=800,dL=xd+20,dN=xd+40,dE=xd+60,xl=560,yL=250,yN=264,yE=278;
+    T(xl-8,86,'von Sammelschiene','tk2','end');T(xl,96,'L1','tk5','middle');L(xl,100,xl,140);LSsym(xl,140,172);L(xl,172,xl,yL);T(xl-14,146,FK,'tb','end');T(xl-14,160,'LS C10','t','end');T(xl-14,173,'1-polig','tm','end');T(xl-14,186,'230 V KNX','tm','end');
+    L(xl,yL,dL,yL);dot(xL,yL);L(xL,yL,xL,ys);L(dL,yL,dL,ys);L(xl+12,100,xl+12,yN,'wn');L(xl+12,yN,dN,yN,'wn');dot(xN,yN);L(xN,yN,xN,ys,'wn');L(dN,yN,dN,ys,'wn');L(xl+24,100,xl+24,yE,'wpe');L(xl+24,yE,dE,yE,'wpe');dot(xE,yE);L(xE,yE,xE,ys,'wpe');L(dE,yE,dE,ys,'wpe');
+    T(xl+12,96,'N','tk5','middle');T(xl+24,96,'PE','tk5','middle');
+    /* KNX-Netzteil */
+    Rc(xs,ys,120,gh,'bxw');[[xL,'L'],[xN,'N'],[xE,'PE']].forEach(([x,l])=>{term(x,ys);T(x,ys+16,l,'tk5','middle')});
+    T(xs+60,ys+34,'-G2','tb','middle');T(xs+60,ys+48,'KNX-Netzteil','tk2','middle');(XP.std?['MDT STV-0320.02','320/640 mA · 2 TE']:[XP.art.slice(0,24),XP.te+' TE']).forEach((t,i)=>T(xs+60,ys+62+i*11,t,'tk5','middle'));T(xs+60,ys+86,'mit Drossel, 30 VDC Bus','tk5','middle');
+    /* DALI-Gateway */
+    Rc(xd,ys,200,gh,'bxw');[[dL,'L'],[dN,'N'],[dE,'PE']].forEach(([x,l])=>{term(x,ys);T(x,ys+16,l,'tk5','middle')});
+    T(xd+100,ys+34,AD,'tb','middle');T(xd+100,ys+48,'KNX-DALI-Aktor (Gateway)','tk2','middle');(XD.std?['MDT SCN-DA641.04','DALI Control 64 · 4 TE']:[XD.art.slice(0,30),XD.te+' TE']).forEach((t,i)=>T(xd+100,ys+62+i*11,t,'tk5','middle'));T(xd+100,ys+86,'1 DALI-Linie, max. 64 Teilnehmer','tk5','middle');
+    /* KNX-Bus: Extension oben, Netzteil und Gateway unten */
+    const kx=gx+60,yR=520,yB=530,pP=xs+50,pM=xs+68,qP=xd+150,qM=xd+168;
+    term(kx,gy,3);term(kx+18,gy,3);T(kx,gy+16,'KNX+','tk5','middle');T(kx+18,gy+16,'KNX−','tk5','middle');
+    L(kx,gy-4,kx,290,'knr');L(kx,290,550,290,'knr');L(550,290,550,yR,'knr');L(kx+18,gy-4,kx+18,304,'knk');L(kx+18,304,540,304,'knk');L(540,304,540,yB,'knk');
+    L(550,yR,qP,yR,'knr');L(540,yB,qM,yB,'knk');
+    [[pP,pM,ys+gh],[qP,qM,ys+gh]].forEach(([a1,a2,y])=>{term(a1,y,3);term(a2,y,3);T(a1,y-8,'+','tk5','middle');T(a2,y-8,'−','tk5','middle');L(a1,y+4,a1,yR,'knr');L(a2,y+4,a2,yB,'knk');dot(a2,yB);if(a1!==qP)dot(a1,yR)});
+    T(qP+9,ys+gh-22,'KNX','tk5','middle');T(pP+9,ys+gh-22,'KNX','tk5','middle');T(700,yB+14,'KNX-Bus (KNX-Kabel rot/schwarz), nur im Verteiler','tk2','middle');
+    /* DALI-Ausgang */
+    const d1=xd+40,d2=xd+58,yk=620;[[d1,'D1+'],[d2,'D1−']].forEach(([x,l],i)=>{term(x,ys+gh,3);T(x,ys+gh-8,l,'tk5','middle');L(x,ys+gh+4,x,yk,i?'wn':'w');term(x,yk);T(x,yk+16,String(i+1),'tk','middle')});
+    T(d1-20,yk+4,'-X7','tb','end');T(d1-6,yk+40,'DALI → Leuchten','tnm2');T(d1-6,yk+51,'max. 64 DALI-Geräte, DALI-Leitung max. 300 m','tk5');
+    /* 24 V und Link der Extension */
+    const X={p:gx+40,g:gx+58,lb:gx+110,lw:gx+128};[['p','24V'],['g','GND'],['lb','BU'],['lw','WH']].forEach(([q,l])=>{term(X[q],yb);T(X[q],yb-8,l,'tk5','middle')});
+    const yv=yb+70;L(X.p,yb+4,X.p,yv,'pwo');L(X.g,yb+4,X.g,yv,'pww');arr(X.p,yb+12);arr(X.g,yb+12);T(X.p-4,yb+30,'or','tk5','end');T(X.g+4,yb+30,'ws','tk5');
     T(X.p-6,yv+12,'von -G1 '+(big&&fo?'Abgang '+fo+' (+'+fo+' / GND)':'+24V / GND'),'tk2','end');T(X.p-6,yv+22,'Spannungsversorgung','tk5','end');
-    const yl=yb+120;L(X.lb,yb+4,X.lb,yl,'lkb');L(X.lw,yb+4,X.lw,yl,'lkw');arrU(X.lb,yb+4);arrU(X.lw,yb+4);T(X.lb-4,yb+30,'bl','tk5','end');T(X.lw+4,yb+30,'ws','tk5');
-    T(X.lb,yl+14,'Loxone Link von '+(li>0?LK[li-1]:'-A1 Miniserver'),'tnm2');T(X.lb,yl+25,'blau / weiss','tk5');
-    if(li>=0&&li<LK.length-1)T(X.lb,yl+37,'weiter zu '+LK[li+1]+' (Link durchschlaufen)','tk5');else T(X.lb,yl+37,'letztes Gerät am Link: Abschlusswiderstand 120 Ω (liegt dem Miniserver bei)','tred');
-    T(gx,650,'Hinweis: Leiter 0,25–0,8 mm². KNX-Bus und Loxone Tree nie verbinden.','tnote');
+    const yl=yb+130;L(X.lb,yb+4,X.lb,yl,'lkb');L(X.lw,yb+4,X.lw,yl,'lkw');arrU(X.lb,yb+4);arrU(X.lw,yb+4);T(X.lb-4,yb+30,'bl','tk5','end');T(X.lw+4,yb+30,'ws','tk5');
+    T(X.lb-60,yl+14,'Loxone Link von '+(li>0?LK[li-1]:'-A1 Miniserver'),'tnm2');T(X.lb-60,yl+25,'blau / weiss','tk5');
+    if(li>=0&&li<LK.length-1)T(X.lb-60,yl+37,'weiter zu '+LK[li+1]+' (Link durchschlaufen)','tk5');else T(X.lb-60,yl+37,'letztes Gerät am Link: Abschlusswiderstand 120 Ω (liegt dem Miniserver bei)','tred');
+    T(780,180,'Hinweis: KNX-Bus, Loxone Tree und Link nie verbinden.','tnote');T(780,192,'Leiter Extension 0,25–0,8 mm².','tnote');
   }else if(pg.kind==='loxte'){
     T(ix1-12,iy1-6,'Aderfarben: Link blau/weiss · 24 V orange/weiss · Tree grün/weiss · Tree Turbo dunkelgrün/weiss · KNX rot/schwarz (weiss = gestrichelt)','tk5','end');
     const ps=loxPs(pl),big=ps&&ps.big,msA=loxMs(pl),nA=loxAs(pl),nT=loxTeN(pl),k=pg.k||0,A='-A'+(k+2+nA),fo=loxSlotNo(pl,'te'+k),term=(x,y,r)=>o.push(`<circle class="term" cx="${x}" cy="${y}" r="${r||4}"/>`),arr=(x,y)=>o.push(`<path d="M${x-5} ${y-8} l5 8 l5 -8" fill="none" stroke="#111" stroke-width="1"/>`),arrU=(x,y)=>o.push(`<path d="M${x-5} ${y+8} l5 -8 l5 8" fill="none" stroke="#111" stroke-width="1"/>`);
@@ -2322,6 +2351,10 @@ document.addEventListener('change',e=>{
     if(t.dataset.rmtree){const [a,b]=t.dataset.rmtree.split(':'),f=ff(a);if(f){f.rt=f.rt||{};f.rt[b]=+t.value}}
     if(t.dataset.trsrc){const [a,b]=t.dataset.trsrc.split(':'),f=ff(a);if(f){f.tf=f.tf||{};f.tf[b]=t.value}}
     touchPlan('Räume / Trees angepasst');persistSite();if(t.dataset.rmtree||t.dataset.trsrc)render();return}
+  if((t.dataset.kxown||t.dataset.kxf)&&S.site&&canEdit(S.site)){const h=shOf(planOf(S.site));h.kx=h.kx||{};
+    if(t.dataset.kxown){const c=h.kx[t.dataset.kxown]=h.kx[t.dataset.kxown]||{};c.own=t.checked}
+    if(t.dataset.kxf){const [k,f]=t.dataset.kxf.split(':');const c=h.kx[k]=h.kx[k]||{own:true};c[f]=t.value}
+    touchPlan('KNX-Bauteile angepasst');persistSite();render();return}
   if((t.dataset.spfl||t.dataset.sprm)&&S.site&&canEdit(S.site)){const h=shOf(planOf(S.site));h.spFl=h.spFl||{};
     if(t.dataset.spfl){const f=(h.fl||[]).find(f=>f.id===t.dataset.spfl);const c=h.spFl[t.dataset.spfl]=h.spFl[t.dataset.spfl]||{rooms:{}};c.on=t.checked;if(t.checked&&f&&!Object.keys(c.rooms||{}).length){c.rooms={};f.rooms.forEach(r=>c.rooms[r.id]=true)}}
     if(t.dataset.sprm){const [a,b]=t.dataset.sprm.split(':');const c=h.spFl[a]=h.spFl[a]||{on:true,rooms:{}};c.rooms=c.rooms||{};c.rooms[b]=t.checked}
