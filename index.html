@@ -149,6 +149,9 @@ input:disabled,select:disabled{opacity:1;background:var(--bg);color:var(--ink);-
 .vtc .vtn{height:120px;display:flex;align-items:center;justify-content:center;background:#f4f4f1;color:var(--muted);border-radius:4px}.vtc span{color:var(--muted)}
 .enr{font-family:"DejaVu Sans Mono",ui-monospace,monospace;font-size:16px;font-weight:700;letter-spacing:.5px;user-select:all}
 .te.ml th{text-align:left;font-size:12px;color:var(--muted);padding:4px}
+.lxg{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin:6px 0 12px}
+.lxc{display:flex;flex-direction:column;gap:3px;border:2px solid var(--line);border-radius:6px;padding:8px;background:var(--surface);font-size:13px}.lxc.on{border-color:#111;background:var(--info-soft)}
+.lxc img{width:100%;height:120px;object-fit:contain;background:#fff;border-radius:4px}.lxc .vtn{height:120px;display:flex;align-items:center;justify-content:center;background:#f4f4f1;color:var(--muted);border-radius:4px}.lxc span{color:var(--muted)}
 .pform{border:1px solid var(--line);border-radius:4px;padding:10px;margin-top:6px;background:var(--bg)}
 .skro .sk{opacity:.6;background:var(--bg);padding:10px 8px}.skro .sk input,.skro .sk select{cursor:not-allowed}
 .sk1{display:flex;gap:8px;align-items:center}.sk1 input{flex:1;padding:9px 10px}
@@ -301,13 +304,19 @@ async function cloudParts(){if(!SB.on||!SB.sess)return;
   catch(e){console.warn('Bauteile',e)}}
 /* Produktkatalog in der Cloud (Tobi 23.11.): Tabelle catalog spiegelt alle eingebauten Produkte (src 'code').
    Von der Verwaltung geänderte Preise (src 'admin') gelten für alle. Eingebaute Werte sind nur Rückfall ohne Cloud. */
+/* Smart Home Loxone (Tobi 23.11., noch nicht live): Bauteile mit Listenpreis brutto (loxone.com), Netto = Brutto minus Sammelrabatt aus der Verwaltung */
+const LOX=[]; /* {id,art,nr,te,bru,net:null,grp} – Bauteile folgen von Tobi */
+const loxR=()=>{const c=(D.cat||[]).find(x=>x.key==='CFG:loxRabatt');return c&&c.net!=null?+c.net:0};
+const loxNet=o=>o.bru==null?null:Math.round(o.bru*(1-loxR()/100)*100)/100;
+const LOXIMG={};
+function loxImg(id){if(LOXIMG[id]===undefined){LOXIMG[id]='load';wpGet('lox-'+id).then(async v=>{if(!v){v=await cloudWpGet('lox-'+id);if(v)wpPut('lox-'+id,v).catch(()=>{})}LOXIMG[id]=v&&v[0]||null;if(LOXIMG[id])render()})}return typeof LOXIMG[id]==='string'&&LOXIMG[id]!=='load'?LOXIMG[id]:null}
 let CATR=null;
 function catReg(){if(CATR)return CATR;const R=[],add=(g,id,o,grp)=>{o._b=o._b||{net:o.net,bru:o.bru};R.push({key:g+':'+id,grp,o})};
   PROD.forEach(o=>add('PROD',o.nr,o,o.k==='FILS'||o.k==='LS'||o.k==='NT'?'Sicherungen und N-Trenner':o.k==='REL'?'Relais':'Zubehör'));
   Object.entries(HS_PROD).forEach(([k,o])=>add('HS',k,o,'Hauptschalter'));add('HSKA','1',HS_KA,'Hauptschalter');
   Object.entries(KL).forEach(([k,o])=>add('KL',k,o,'Klemmen Phoenix'));add('KLUT','UT22B',KL_UT,'Klemmen Phoenix');
   Object.entries(BUS_P).forEach(([k,o])=>add('BUS',k,o,'Sammel- und Etagenschienen'));
-  Object.entries(LITZE).forEach(([k,o])=>add('LITZE',k,o,'Litze'));return CATR=R}
+  Object.entries(LITZE).forEach(([k,o])=>add('LITZE',k,o,'Litze'));LOX.forEach(o=>add('LOX',o.id,o,'Loxone'));return CATR=R}
 const catRow=(r,src)=>({key:r.key,grp:r.grp,nr:r.o.nr||'',art:r.o.art||'',lf:r.o.lf||'Sonepar',net:src==='admin'?r.o.net??null:r.o._b.net??null,bru:src==='admin'?r.o.bru??null:r.o._b.bru??null,src,updated_at:now()});
 function catApply(){const R=catReg(),rows=D.cat||[];R.forEach(r=>{const c=rows.find(x=>x.key===r.key&&x.src==='admin');r.o.net=c&&c.net!=null?+c.net:r.o._b.net;r.o.bru=c&&c.bru!=null?+c.bru:r.o._b.bru;r.c=c||null})}
 async function cloudCat(){if(!SB.on||!SB.sess)return;
@@ -330,11 +339,18 @@ async function catSetLf(r,lf,net,bru){if(lf==='Sonepar')return catSet(r,net,bru)
 const chf2=v=>v==null?'–':chf(v);
 function lfTable(r,edit){return `<table class="te" style="margin:4px 0 8px">${LF_LIST.map(lf=>{const pr=lfPrice(r,lf),c=lf==='Sonepar'?r.c:lfRow(r,lf),num=k=>`<input class="pct" style="width:100px" type="number" step="0.05" min="0" data-cedit="${esc(r.key)}" data-lf="${lf}" data-pk="${k}" value="${pr[k]??''}">`;
   return `<tr><td><b>${lf}</b>${edit&&c&&c.updated_by?'<br><span class="sub">geändert von '+esc(userName(c.updated_by))+(c.updated_at?' am '+fmtDate(c.updated_at):'')+'</span>':''}${edit&&lf==='Sonepar'&&!r.c?'<br><span class="sub">wie ursprünglich hinterlegt</span>':''}</td><td style="white-space:nowrap;text-align:right">${edit?'netto '+num('net')+' brutto '+num('bru')+' CHF'+(lf==='Sonepar'&&r.c?`<div style="margin-top:4px"><button type="button" class="btn small" data-cstd="${esc(r.key)}">Zurück auf ursprünglichen Preis</button></div>`:''):pr.net==null&&pr.bru==null?'<span class="sub">noch kein Preis</span>':'netto '+chf2(pr.net)+' / brutto '+chf2(pr.bru)+' CHF'}</td></tr>`}).join('')}</table>`}
-function catAdmin(){const R=catReg(),G=[...new Set(R.map(r=>r.grp))];
+function catAdmin(){const R=catReg().filter(r=>r.grp!=='Loxone'),G=[...new Set(R.map(r=>r.grp))];
   return `<section class="card" style="grid-column:1/-1"><h2>Produktkatalog (Cloud)</h2><p class="sub">Alle Produkte mit Preisen je Grosshändler (Sonepar, EM, Standard AG). Produkt antippen, dann erscheinen alle Grosshändler. Änderst du einen Preis, gilt er sofort für alle Planer.</p>
   ${SB.catErr?`<div class="msg err">Katalog in der Cloud nicht erreichbar (${esc(SB.catErr)}). Wurde das SQL-Skript für den Katalog schon ausgeführt?</div>`:(D.cat||[]).length?`<p class="sub">${R.length} Produkte in der Cloud.</p>`:''}
   ${G.map(g=>det('cat-'+g,g+' ('+R.filter(r=>r.grp===g).length+')',R.filter(r=>r.grp===g).map(r=>{const n=LF_LIST.filter(lf=>{const q=lfPrice(r,lf);return q.net!=null||q.bru!=null}).length;
     return `<details class="exd" data-det="${esc('p-'+r.key)}"${S.det&&S.det.has('p-'+r.key)?' open':''}><summary style="font-weight:400"><b>${esc(r.o.art)}</b> <span class="sub">${esc(r.o.nr||'')} · Sonepar netto ${chf2(r.o.net)} / brutto ${chf2(r.o.bru)} · Preise von ${n} ${n===1?'Grosshändler':'Grosshändlern'}</span></summary><div class="exd-b">${lfTable(r,true)}</div></details>`}).join(''))).join('')}</section>`}
+async function cfgSet(key,val){const ex=(D.cat||[]).find(x=>x.key===key),row={key,grp:'Einstellung',nr:'',art:key,lf:'',net:val,bru:null,src:'admin',updated_by:S.user.id,updated_at:now()};
+  D.cat=(D.cat||[]).filter(x=>x.key!==key).concat([row]);save();
+  try{if(ex)await sb('/rest/v1/catalog?key=eq.'+encodeURIComponent(key),{method:'PATCH',headers:{Prefer:'return=minimal'},body:row});else await sb('/rest/v1/catalog',{method:'POST',headers:{Prefer:'return=minimal'},body:[row]});SB.catErr=''}catch(e){SB.catErr=e.message||String(e)}render()}
+function loxAdmin(){const R=catReg().filter(r=>r.grp==='Loxone'),rb=loxR(),c=(D.cat||[]).find(x=>x.key==='CFG:loxRabatt');
+  return `<section class="card" style="grid-column:1/-1"><h2>Loxone-Material</h2><p class="sub">Preise wie auf loxone.com (brutto). Mit dem Sammelrabatt rechnet die App für alle Loxone-Bauteile den Nettopreis.</p>
+  <label class="chk">Sammelrabatt <input class="pct" style="width:90px" type="number" min="0" max="100" step="0.5" data-loxr="1" value="${rb||''}" placeholder="0"> %</label>${c&&c.updated_by?`<p class="sub">Zuletzt geändert von ${esc(userName(c.updated_by))} am ${fmtDate(c.updated_at)}</p>`:''}
+  ${R.length?`<table class="te">${R.map(r=>{const im=loxImg(r.o.id);return `<tr><td style="width:70px">${im?`<img src="${im}" alt="" style="width:60px;height:60px;object-fit:contain">`:'<span class="sub">kein Bild</span>'}</td><td><b>${esc(r.o.art)}</b><br><span class="sub">${esc(r.o.nr||'')} · ${r.o.te?r.o.te+' TE':'nicht auf Hutschiene'}</span><br><label class="sub">Bild ändern <input type="file" accept="image/*" data-loximg="${esc(r.o.id)}"></label></td><td style="white-space:nowrap;text-align:right">brutto <input class="pct" style="width:100px" type="number" step="0.05" min="0" data-cedit="${esc(r.key)}" data-lf="Sonepar" data-pk="bru" value="${r.o.bru??''}"> CHF<br><span class="sub">netto ${chf(loxNet(r.o)??0)} CHF (−${rb} %)</span></td></tr>`}).join('')}</table>`:'<p class="sub">Noch keine Loxone-Bauteile eingepflegt.</p>'}</section>`}
 function partSave(x){x.dirty=1;save();cloudParts().then(()=>{if(!document.querySelector('#pf-enr'))render()})}
 async function cloudWpGet(key){if(!SB.on||!SB.sess)return null;try{const v=await sb('/storage/v1/object/authenticated/wp/'+encodeURIComponent(key)+'.json');return Array.isArray(v)?v:null}catch(e){return null}}
 
@@ -655,7 +671,7 @@ const QS_MAX=16;
 const NB_LIST=['IWB Industrielle Werke Basel','Primeo Energie','EBL Genossenschaft Elektra Baselland','AEW Energie AG','BKW Energie AG','CKW AG','EKZ Elektrizitätswerke des Kantons Zürich','Netze BW GmbH','ED Netze GmbH','bnNETZE GmbH'];
 const qsNum=q=>parseFloat(String(q).replace(',','.'))||0;
 const qsTxt=q=>String(q).replace('.',',');
-function planOf(s){if(s.plan&&!s.plan.klAbg)s.plan.klAbg='ja';if(!s.plan)s.plan={step:'unterlagen',qs:'',adern:'5',nb:'',nbAuto:false,material:false,revs:[]};const pl=s.plan;if(!pl.revs)pl.revs=[];if(!pl.docs)pl.docs={deck:false,toc:false,klemmen:false};if(!Array.isArray(pl.sk))pl.sk=[];if(pl.step==='produkte')pl.step='stromkreise';if(!Array.isArray(pl.zl)||!pl.zl.length)pl.zl=[{id:1,name:'',res:false,bez:pl.bez||(s.norm==='VDE'?'NH':'DZ'),bezA:pl.bezA||'',qs:'',adern:pl.adern||'5',ziel:''}];pl.zl[0].res=false;if(s.geb==='MFH'&&!pl.zl[0].name)pl.zl[0].name='Allgemein';if(s.art==='HV'){pl.gehaeuse='alu';pl.montage='AP'}else if(pl.montage==='UP'){pl.gehaeuse='hersteller'}return pl}
+function planOf(s){if(s.plan&&!s.plan.klAbg)s.plan.klAbg='ja';if(!s.plan)s.plan={step:'smarthome',qs:'',adern:'5',nb:'',nbAuto:false,material:false,revs:[]};const pl=s.plan;if(!pl.revs)pl.revs=[];if(!pl.docs)pl.docs={deck:false,toc:false,klemmen:false};if(!Array.isArray(pl.sk))pl.sk=[];if(pl.step==='produkte')pl.step='stromkreise';if(!Array.isArray(pl.zl)||!pl.zl.length)pl.zl=[{id:1,name:'',res:false,bez:pl.bez||(s.norm==='VDE'?'NH':'DZ'),bezA:pl.bezA||'',qs:'',adern:pl.adern||'5',ziel:''}];pl.zl[0].res=false;if(s.geb==='MFH'&&!pl.zl[0].name)pl.zl[0].name='Allgemein';if(s.art==='HV'){pl.gehaeuse='alu';pl.montage='AP'}else if(pl.montage==='UP'){pl.gehaeuse='hersteller'}return pl}
 const initials=n=>String(n||'').split(/\s+/).filter(Boolean).map(w=>w[0].toUpperCase()).join('').slice(0,3);
 /* Netzbetreiber: zuerst was auf diesem Gerät für die PLZ gemerkt wurde, sonst sichere Regel (Basel-Stadt = IWB) */
 function guessNB(s){
@@ -696,7 +712,7 @@ function zlSum(s){const a=zlAll(s),r=a.filter(z=>z.res).length;return (a.length-
 const zlLbl=(s,k)=>k===0?(s.geb==='MFH'?'Allgemeinzähler':'Hauptzähler'):'Zähler';
 function zlSelId(s){const act=zlAct(s),z=act.find(z=>z.id===S.zlSel)||act[0];return z?z.id:''}
 const rowZid=(s,r)=>{const act=zlAct(s),z=act.find(z=>String(z.id)===String(r.zl))||act[0];return z?z.id:''};
-const stepsOf=s=>{const b=s&&s.art==='HV'?[...STEPS.slice(0,4),['zaehler','Zähler'],...STEPS.slice(4)]:[...STEPS.slice(0,4),['klemmen','Klemmen'],...STEPS.slice(4)];if(s&&busOn(s))b.splice(b.findIndex(x=>x[0]==='extras'),0,['schienen','Schienen']);return b};
+const stepsOf=s=>{const b=s&&s.art==='HV'?[...STEPS.slice(0,5),['zaehler','Zähler'],...STEPS.slice(5)]:[...STEPS.slice(0,5),['klemmen','Klemmen'],...STEPS.slice(5)];if(s&&busOn(s))b.splice(b.findIndex(x=>x[0]==='extras'),0,['schienen','Schienen']);return b};
 /* UV ohne Abgangsklemmen: Kabel direkt an der Sicherung, -X0 bleibt immer */
 const noKl=s=>!!s&&s.art!=='HV'&&planOf(s).klAbg==='nein';
 /* harte Sperre ohne Abgangsklemmen: höchstens 2 Kabel pro Sicherung, alle mit gleichem Querschnitt */
@@ -708,7 +724,7 @@ const blockHTML=s=>{const b=klBlock(s);return b.length?`<div class="msg err"><b>
 const zlSkip=s=>s.geb!=='MFH'&&planOf(s).zl.length<2;
 function stepNext(s,k){const ST=stepsOf(s),i=ST.findIndex(x=>x[0]===k);let n=ST[Math.min(i+1,ST.length-1)][0];if(n==='zaehler'&&zlSkip(s))n='stromkreise';return n}
 function stepPrev(s,k){const ST=stepsOf(s),i=ST.findIndex(x=>x[0]===k);if(i<=0)return null;let n=ST[i-1][0];if(n==='zaehler'&&zlSkip(s))n='zuleitung';return n}
-const STEPS=[['unterlagen','Unterlagen'],['hersteller','Hersteller'],['gehaeuse','Gehäuse'],['zuleitung','Zuleitung'],['heizung','Heizsystem'],['stromkreise','Stromkreise'],['extras','Extras'],['matliste','Materialliste']];
+const STEPS=[['smarthome','Smart Home'],['unterlagen','Unterlagen'],['hersteller','Hersteller'],['gehaeuse','Gehäuse'],['zuleitung','Zuleitung'],['heizung','Heizsystem'],['stromkreise','Stromkreise'],['extras','Extras'],['matliste','Materialliste']];
 const HERSTELLER=['Hager','ABB','Schneider Electric','Siemens','Eaton','Legrand'];
 /* Stromkreise: Zeilen in Eingabereihenfolge, im Schema 4- und 3-polige zuerst, dann 2- und 1-polige */
 const POL=[['1','1-polig'],['2','2-polig'],['3','3-polig'],['4','4-polig']];
@@ -1174,7 +1190,7 @@ function skLayout(s){
 const skSorted=s=>skLayout(s).list;
 const stepIdx=k=>stepsOf(S.site).findIndex(x=>x[0]===k);
 /* Zurücksetzen einzelner Planungsschritte (Baustellendaten bleiben) */
-const RS_KEYS={unterlagen:['docs'],hersteller:['hersteller','herstellerFrei'],gehaeuse:['gehaeuse','montage','vtSer'],zuleitung:['qs','adern','nb','nbAuto','bez','bezA','x0Side'],zaehler:['zl'],klemmen:['klAbg','klPos'],heizung:['hz','hzAck'],stromkreise:['sk','relSame','resPct','resOff'],schienen:['bus','etag','big4','x0Moved','busSeen'],matliste:[],extras:['spd','hs','hsA','hsE','siem','siemOk','preise','litzeMag','material']};
+const RS_KEYS={smarthome:['sh'],unterlagen:['docs'],hersteller:['hersteller','herstellerFrei'],gehaeuse:['gehaeuse','montage','vtSer'],zuleitung:['qs','adern','nb','nbAuto','bez','bezA','x0Side'],zaehler:['zl'],klemmen:['klAbg','klPos'],heizung:['hz','hzAck'],stromkreise:['sk','relSame','resPct','resOff'],schienen:['bus','etag','big4','x0Moved','busSeen'],matliste:[],extras:['spd','hs','hsA','hsE','siem','siemOk','preise','litzeMag','material']};
 function rsPanel(p){const ST=stepsOf(p),sel=S.rsSel||new Set(),ci=ST.findIndex(x=>x[0]===planOf(p).step),cur=ST[ci],all=sel.size===ST.length,only=cur&&sel.size===1&&sel.has(cur[0]);
   const q=only?'Nur Schritt '+(ci+1)+' «'+esc(cur[1])+'» zurücksetzen?':all?'Alles zurücksetzen (alle Schritte der Planung)?':'Diese Schritte zurücksetzen?';
   return `<div class="msg err" style="margin-top:14px"><b>${q}</b><p style="margin:6px 0">Sie können weitere Schritte ankreuzen oder alles zurücksetzen. Die Baustellendaten bleiben immer unverändert (die gehen nur beim Löschen der ganzen Baustelle weg).</p>
@@ -1185,7 +1201,7 @@ function rsDo(s,keys){const pl=planOf(s),ST=stepsOf(s);keys.forEach(k=>{(RS_KEYS
     if(k==='zuleitung'){pl.adern='5';pl.nb='';pl.nbAuto=false;if(pl.zl&&pl.zl[0])Object.assign(pl.zl[0],{bez:s.norm==='VDE'?'NH':'DZ',bezA:'',qs:'',adern:'5'})}
     if(k==='extras')pl.material=false;if(k==='matliste'&&pl.partSel)['Verteiler','Verteiler AP','Verteiler UP'].forEach(q=>delete pl.partSel[q])});
   planOf(s);const first=ST.find(x=>keys.includes(x[0]));if(first&&stepIdx(first[0])<stepIdx(pl.step))pl.step=first[0]}
-function stepOk(pl,k){return {matliste:true,heizung:true,verteiler:true,schienen:true,klemmen:true,unterlagen:true,hersteller:!!pl.hersteller,gehaeuse:!!pl.gehaeuse&&!!pl.montage,zuleitung:!!pl.qs&&qsNum(pl.qs)<=QS_MAX,stromkreise:(pl.sk||[]).some(r=>(r.name||'').trim())||(pl.zl||[]).length>1,zaehler:(pl.zl||[]).some(z=>!z.res),extras:true}[k]}
+function stepOk(pl,k){return {smarthome:!!(pl.sh&&(pl.sh.on==='nein'||(pl.sh.on==='ja'&&pl.sh.sys))),matliste:true,heizung:true,verteiler:true,schienen:true,klemmen:true,unterlagen:true,hersteller:!!pl.hersteller,gehaeuse:!!pl.gehaeuse&&!!pl.montage,zuleitung:!!pl.qs&&qsNum(pl.qs)<=QS_MAX,stromkreise:(pl.sk||[]).some(r=>(r.name||'').trim())||(pl.zl||[]).length>1,zaehler:(pl.zl||[]).some(z=>!z.res),extras:true}[k]}
 /* Heizsystem (Tobi 23.11.): Fragen; Sicherungen der Wärmepumpe kommen automatisch ins Schema (Schütz-Steuerung folgt) */
 const HZ_ART=[['wp-fbh','Wärmepumpe','über Fussbodenheizung'],['wp-hk','Wärmepumpe','über Heizkörper'],['gas','Gasheizung',''],['andere','Anderes','']];
 const hzOf=pl=>pl.hz||(pl.hz={});
@@ -1225,6 +1241,18 @@ async function wpUpload(file){await loadJS('lib/pdf.min.js');pdfjsLib.GlobalWork
   const doc=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise,out=[];
   for(let i=1;i<=Math.min(doc.numPages,10);i++){const pg=await doc.getPage(i),v0=pg.getViewport({scale:1}),sc=Math.min(4,2400/Math.max(v0.width,v0.height)),v=pg.getViewport({scale:sc}),c=document.createElement('canvas');c.width=Math.round(v.width);c.height=Math.round(v.height);const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);await pg.render({canvasContext:ctx,viewport:v}).promise;out.push({u:c.toDataURL('image/jpeg',0.85),w:c.width,h:c.height})}
   const key='wp-'+S.site.id+'-'+Date.now();await wpPut(key,out);WPIMG[key]=out;cloudWpPut(key,out);return {key,name:file.name,n:out.length,tot:doc.numPages}}
+function shOf(pl){return pl.sh||(pl.sh={q:{}})}
+function shBody(p,pl,dis){const h=shOf(pl);h.q=h.q||{};
+  const tl=(key,val,label,sub,off)=>`<button type="button" class="tile" data-sh="${key}" data-v="${esc(val)}" aria-pressed="${h[key]===val}"${off?' disabled':dis}><b>${esc(label)}</b>${sub?`<span>${esc(sub)}</span>`:''}</button>`;
+  let b=`<h2>Smart Home</h2><p class="sub">Soll ein Smart Home eingebaut werden?</p><div class="tiles two-col">${tl('on','nein','Nein','kein Smart Home')}${tl('on','ja','Ja','Smart Home einplanen')}</div>`;
+  if(h.on!=='ja')return b;
+  b+=`<div class="legend">System</div><div class="tiles two-col">${tl('sys','knx','KNX','folgt',true)}${tl('sys','loxone','Loxone','')}</div>`;
+  if(h.sys!=='loxone')return b;
+  const L=LOX,rb=loxR(),sel=L.filter(o=>(h.q[o.id]||0)>0),te=sel.reduce((a,o)=>a+(+o.te||0)*h.q[o.id],0),bru=sel.reduce((a,o)=>a+(o.bru||0)*h.q[o.id],0),net=sel.reduce((a,o)=>a+(loxNet(o)||0)*h.q[o.id],0);
+  b+=`<div class="legend">Loxone-Bauteile</div>${L.length?`<div class="lxg">${L.map(o=>{const n=h.q[o.id]||0,im=loxImg(o.id);return `<div class="lxc${n?' on':''}">${im?`<img src="${im}" alt="">`:'<span class="vtn">Bild folgt</span>'}<b>${esc(o.art)}</b><span>${esc(o.nr||'')}${o.te?' · '+o.te+' TE':''}</span><span>brutto ${chf(o.bru||0)}${rb?' · netto '+chf(loxNet(o)||0):''} CHF</span>
+    <div class="row" style="gap:6px;margin-top:4px"><button type="button" class="btn small" data-loxq="${esc(o.id)}" data-d="-1"${n?dis:' disabled'}>−</button><b style="min-width:24px;text-align:center">${n}</b><button type="button" class="btn small" data-loxq="${esc(o.id)}" data-d="1"${dis}>+</button></div></div>`}).join('')}</div>
+    <table class="te"><tr><td>Gewählt</td><td style="text-align:right">${sel.reduce((a,o)=>a+h.q[o.id],0)} Bauteile · ${te} TE auf der Hutschiene</td></tr><tr class="sum"><td>Total Loxone</td><td style="text-align:right">${rb?'netto '+chf(net)+' / ':''}brutto ${chf(bru)} CHF</td></tr></table>`:'<p class="sub">Die Loxone-Bauteile werden gerade eingepflegt.</p>'}`;
+  return b}
 function hzBody(p,pl,dis){const h=hzOf(pl);
   const tl=(key,val,label,sub,off)=>`<button type="button" class="tile" data-hz="${key}" data-v="${esc(val)}" aria-pressed="${h[key]===val}"${off?' disabled':dis}><b>${esc(label)}</b>${sub?`<span>${esc(sub)}</span>`:''}</button>`;
   const jn=(key,q,off)=>`<div class="legend">${q}</div><div class="tiles two-col">${tl(key,'ja','Ja','',off)}${tl(key,'nein','Nein','',off)}</div>`;
@@ -1332,6 +1360,8 @@ function vPlan(){
         ${main||z.res?'':`<label class="f c6">Abgang geht zu<input data-zl="ziel" value="${esc(z.ziel||'')}" placeholder="z. B. UV 0 | B" autocomplete="off"${dis}></label>`}</div>
       <p class="sub" style="margin:0">${info}</p></div>`}).join('')}
     ${ed?'<div class="row"><button type="button" class="btn" data-act="zlAdd">+ Zähler</button><button type="button" class="btn" data-act="zlRes">+ Reservezählerplatz</button></div>':''}`;
+  }else if(k==='smarthome'){
+    body=shBody(p,pl,dis);
   }else if(k==='heizung'){
     body=hzBody(p,pl,dis);
   }else if(k==='stromkreise'){
@@ -1943,7 +1973,7 @@ function vAdminCloud(){
     <div class="ulist">${ADMIN_LINKS.map(([t,u])=>`<div class="uitem"><div><div style="font-weight:600">${esc(t)}</div><span class="sub">${esc(u.replace('https://',''))}</span></div><a class="btn small" href="${u}" target="_blank" rel="noopener">Öffnen</a></div>`).join('')}</div>
     <p class="sub">Die Zugangsdaten für GitHub und Supabase stehen bewusst nicht hier, weil der Code öffentlich ist.</p><p class="sub">App-Version: <b>${APP_V}</b></p>
     <p class="sub">Die Verwaltung kann keine Baustellen ändern oder löschen. Das dürfen nur der Ersteller und die Planer, für die er sie freigegeben hat.</p>
-  </section>${partsAdmin()}${SB.on?catAdmin():''}</div>`;
+  </section>${partsAdmin()}${SB.on?loxAdmin()+catAdmin():''}</div>`;
 }
 async function loadPeople(){const ppl=await sbRaw('/rest/v1/people?select=id,name,admin,auth_uid&order=name',{},false);D.users=ppl.map(p=>({id:p.id,name:p.name,admin:!!p.admin,hash:p.auth_uid?'cloud':undefined}));if(S.user)S.user=D.users.find(u=>u.id===S.user.id)||S.user}
 function vAdmin(){if(SB.on)return vAdminCloud();
@@ -1969,7 +1999,7 @@ function vAdmin(){if(SB.on)return vAdminCloud();
       <button class="btn" type="submit">Ändern</button>
     </form>
     <p class="sub">Die Verwaltung kann keine Baustellen ändern oder löschen. Das dürfen nur der Ersteller und die Planer, für die er sie freigegeben hat.</p>
-  </section>${partsAdmin()}${SB.on?catAdmin():''}</div>`;
+  </section>${partsAdmin()}${SB.on?loxAdmin()+catAdmin():''}</div>`;
 }
 
 /* ---------- Ereignisse ---------- */
@@ -2012,6 +2042,8 @@ document.addEventListener('change',e=>{
   if(t.dataset.psel!=null&&S.site&&canEdit(S.site)){const pl=planOf(S.site),k=t.dataset.psel;pl.partSel=pl.partSel||{};if(t.value)pl.partSel[k]=t.value;else delete pl.partSel[k];touchPlan('Produkt gewählt: '+manTxt(k));render();return}
   if(t.dataset.cedit&&S.user&&S.user.admin&&SB.on){const r=catReg().find(q=>q.key===t.dataset.cedit);if(!r)return;const v=t.value.trim(),k=t.dataset.pk,val=v===''?null:Math.max(0,+v.replace(',','.')||0),lf=t.dataset.lf||'Sonepar';
     const o=lfPrice(r,lf);o[k]=val;catSetLf(r,lf,o.net,o.bru);return}
+  if(t.dataset.loxr&&S.user&&S.user.admin&&SB.on){const v=t.value.trim();cfgSet('CFG:loxRabatt',v===''?0:Math.min(100,Math.max(0,+v.replace(',','.')||0)));return}
+  if(t.dataset.loximg&&S.user&&S.user.admin){const id=t.dataset.loximg,f=t.files&&t.files[0];if(f)imgSmall(f).then(u=>{LOXIMG[id]=u;wpPut('lox-'+id,[u]).catch(()=>{});cloudWpPut('lox-'+id,[u]);render()});return}
   if(t.dataset.pedit&&S.user&&S.user.admin){const x=partsAll().find(q=>q.id===t.dataset.pedit);if(!x)return;const v=t.value.trim();x[t.dataset.pk]=v===''?null:Math.max(0,+v.replace(',','.')||0);partSave(x);return}
   if(t.dataset.preis&&S.site&&canEdit(S.site)){const pl=planOf(S.site),k=t.dataset.preis;pl.preise=pl.preise||{};const o=pl.preise[k]=pl.preise[k]||{},v=t.value.trim();if(v==='')delete o[t.dataset.pk];else o[t.dataset.pk]=Math.max(0,+v.replace(',','.')||0);if(o.net==null&&o.bru==null)delete pl.preise[k];touchPlan('Preis von Hand: '+manTxt(k));render();return}
   if(t.dataset.ex==='litzeMag'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.litzeMag=t.checked;touchPlan('Litze '+(t.checked?'aus dem Magazin':'auf Kommission'));render();return}
@@ -2189,6 +2221,8 @@ document.addEventListener('click',e=>{
   if(act==='adminBack'){S.admin=false;return go('liste')}
   if(act==='adminOut'){S.admin=false;return go('start')}
   if(t.dataset.padd!=null&&S.site&&canEdit(S.site)){S.pForm=t.dataset.padd;render();setTimeout(()=>{const f=$('#pf-hst');if(f)f.focus()},0);return}
+  if(t.dataset.sh&&t.dataset.v!=null&&S.site&&canEdit(S.site)){const h=shOf(planOf(S.site));h[t.dataset.sh]=t.dataset.v;if(t.dataset.sh==='on'&&t.dataset.v==='nein')delete h.sys;touchPlan('Smart Home angepasst');persistSite();render();return}
+  if(t.dataset.loxq&&S.site&&canEdit(S.site)){const h=shOf(planOf(S.site));h.q=h.q||{};const id=t.dataset.loxq,n=Math.max(0,(h.q[id]||0)+(+t.dataset.d));if(n)h.q[id]=n;else delete h.q[id];touchPlan('Loxone-Bauteile angepasst');render();return}
   if(t.dataset.lfo!=null){S.lfOpen=S.lfOpen===t.dataset.lfo?null:t.dataset.lfo;render();return}
   if(act==='pCancel'){S.pForm=null;render();return}
   if(act==='pSave'&&S.site&&canEdit(S.site)){const k=t.dataset.t,g=id=>($('#pf-'+id)||{}).value||'',enr=g('enr').trim(),nm=v=>{v=String(v).trim();return v===''?null:Math.max(0,+v.replace(',','.')||0)};
