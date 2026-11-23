@@ -226,7 +226,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-23.1235';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-23.1236';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -329,6 +329,10 @@ const loxMs=pl=>{if(!loxOn(pl))return null;const q=pl.sh.q||{},o=LOX.find(x=>x.g
 /* Miniserver erst nach Netzteil und Audio-Frage; ohne Audioserver nur Miniserver mit Tree Turbo (Compact) */
 const loxAs=pl=>{if(!loxOn(pl)||pl.sh.as!=='ja'||pl.sh.au!=='ja')return 0;const n=(pl.sh.q||{})['100428']||0;return pl.sh.m10==='ja'?Math.max(1,n):n};
 const loxFl=pl=>{const ps=loxPs(pl);return ps&&ps.big&&pl.sh.sp==='tree'?Math.min(7,+pl.sh.spSt||0):0}; /* Stockwerke mit Tree-Spots: je eigener Abgang */
+/* Netzteil-Abgänge laufend zählen (Tobi 23.11.): Miniserver, Audioserver, Tree-Spots-Stockwerke, weitere Abgänge */
+const loxAbg=pl=>{const ps=loxPs(pl);if(!ps||!ps.big)return null;const h=pl.sh,ms=loxMs(pl)?1:0,as=loxAs(pl),fl=h.sp==='tree'?+h.spSt||0:0,ab=+h.abg||0,want=ms+as+fl+ab;return {max:7,ms,as,fl,ab,want,used:Math.min(7,want),frei:Math.max(0,7-want),zuviel:Math.max(0,want-7)}};
+function loxAbgBox(pl){const a=loxAbg(pl);if(!a||!a.want)return '';const t=[a.ms?'Miniserver 1':'',a.as?'Audioserver '+a.as:'',a.fl?'Tree-Spots '+a.fl+(a.fl===1?' Stockwerk':' Stockwerke'):'',a.ab?'weitere '+a.ab:''].filter(Boolean).join(', ');
+  return a.zuviel?`<div class="msg err alarm"><b>Alarm: Zu viele Netzteil-Abgänge!</b> Gebraucht ${a.want}, das Power Supply &amp; Backup hat nur 7 (${t}). Es fehlen ${a.zuviel} Abgänge: bitte weniger einplanen oder ein weiteres Netzteil vorsehen.</div>`:a.frei?`<div class="msg info"><b>Netzteil-Abgänge: ${a.used} von 7 belegt</b> (${t}), ${a.frei} frei.</div>`:`<div class="msg err alarm"><b>Alarm: Alle 7 Netzteil-Abgänge sind belegt</b> (${t}). Für weitere Verbraucher braucht es ein weiteres Netzteil.</div>`}
 const loxRes=pl=>(loxMs(pl)?1:0)+loxAs(pl); /* reservierte Netzteil-Abgänge (Miniserver, Audioserver) */
 const loxBlk=(pl,o)=>{const h=pl.sh||{};if(o.grp==='Audioserver'){const ps=loxPs(pl);if(!ps)return 'Zuerst ein Netzteil wählen.';if(h.au!=='ja'||h.as!=='ja')return 'Nur bei Audiotechnik mit Audioserver.';if(!ps.big)return 'Das Netzteil 4,2A reicht nicht (Audioserver bis 110 W). Power Supply & Backup wählen.';if(loxRes(pl)>=7)return 'Keine freien Netzteil-Abgänge mehr.';return ''}
   if(o.grp!=='Miniserver')return '';if(!loxPs(pl))return 'Zuerst ein Netzteil wählen.';if(!h.au||(h.au==='ja'&&(!h.m10||!h.as)))return 'Zuerst die Frage zur Audiotechnik beantworten.';if(loxMsOnlyCompact(h)&&!o.tt)return 'Ohne Audioserver nur Miniserver Compact (Tree Turbo).';return ''};
@@ -1283,7 +1287,7 @@ function loxMsOnlyCompact(h){return h.au==='ja'&&h.as==='nein'}
 function shOf(pl){return pl.sh||(pl.sh={q:{}})}
 function shBody(p,pl,dis){const h=shOf(pl);h.q=h.q||{};
   const nbUI=()=>{const ps=loxPs(pl);if(!ps)return '<p class="sub">Bitte zuerst ein Netzteil wählen. Es wird sofort im Schema eingezeichnet.</p>';
-    const ab=ps.big?`<label class="m" style="margin-top:8px;max-width:420px"><span>Benutzte 24-V-Abgänge (z. B. für Spots)</span><select data-shsel="abg"${dis}>${opt([0,1,2,3,4,5,6,7].slice(0,8-loxRes(pl)-loxFl(pl)).map(n=>[String(n),n?n+(n===1?' Abgang':' Abgänge'):'keine']),String(h.abg||0))}</select></label><p class="sub">${loxFl(pl)?'Die Tree-Spots-Stockwerke belegen '+loxFl(pl)+' Abgänge. ':''}Jeder benutzte Abgang geht verteilerintern mit 2 Drähten (orange +24 V, weiss GND) auf eigene Abgangsklemmen. Der Tree-Anschluss kommt vom Miniserver (nur Tree, nie Tree Turbo).${loxRes(pl)?' Für '+[loxMs(pl)?'den Miniserver':'',loxAs(pl)?(loxAs(pl)>1?loxAs(pl)+' Audioserver':'den Audioserver'):''].filter(Boolean).join(' und ')+' '+(loxRes(pl)>1?'sind Abgang 1–'+loxRes(pl):'ist Abgang 1')+' reserviert.':''}</p>`:'<p class="sub">Der 24-V-Ausgang geht verteilerintern mit 2 Drähten (orange +24 V, weiss GND) auf Abgangsklemmen.</p>';
+    const ab=ps.big?`<label class="m" style="margin-top:8px;max-width:420px"><span>Benutzte 24-V-Abgänge (z. B. für Spots)</span><select data-shsel="abg"${dis}>${opt([0,1,2,3,4,5,6,7].slice(0,8-loxRes(pl)-loxFl(pl)).map(n=>[String(n),n?n+(n===1?' Abgang':' Abgänge'):'keine']),String(h.abg||0))}</select></label><p class="sub">${loxFl(pl)?'Die Tree-Spots-Stockwerke belegen '+loxFl(pl)+' Abgänge. ':''}${'' }Jeder benutzte Abgang geht verteilerintern mit 2 Drähten (orange +24 V, weiss GND) auf eigene Abgangsklemmen. Der Tree-Anschluss kommt vom Miniserver (nur Tree, nie Tree Turbo).${loxRes(pl)?' Für '+[loxMs(pl)?'den Miniserver':'',loxAs(pl)?(loxAs(pl)>1?loxAs(pl)+' Audioserver':'den Audioserver'):''].filter(Boolean).join(' und ')+' '+(loxRes(pl)>1?'sind Abgang 1–'+loxRes(pl):'ist Abgang 1')+' reserviert.':''}</p>`:'<p class="sub">Der 24-V-Ausgang geht verteilerintern mit 2 Drähten (orange +24 V, weiss GND) auf Abgangsklemmen.</p>';
     if(!ps.big)return '<p class="sub">Das Power Supply 4,2A hat keinen Notstrom. Vorsicherung: LS '+ps.vs+' 2-polig.</p>'+ab;
     return `<p class="sub">Vorsicherung: LS ${ps.vs} 2-polig.</p>${ab}<div class="legend">Notstrom?</div><div class="tiles two-col">${tl('nb','nein','Nein','')}${tl('nb','ja','Ja','')}</div>${h.nb==='ja'?`<div class="legend">Notstrom über</div><div class="tiles two-col">${tl('nbArt','pv','PV-Speicher','')}${tl('nbArt','bat','Externe Batterie','')}</div><div class="msg info">Kommt als Hinweis ins Schema. Genauere Informationen folgen.</div>`:''}`};
   const tl=(key,val,label,sub,off)=>`<button type="button" class="tile" data-sh="${key}" data-v="${esc(val)}" aria-pressed="${h[key]===val}"${off?' disabled':dis}><b>${esc(label)}</b>${sub?`<span>${esc(sub)}</span>`:''}</button>`;
@@ -1299,9 +1303,9 @@ function shBody(p,pl,dis){const h=shOf(pl);h.q=h.q||{};
     if(h.sp==='ext')x+=grp('sp','Externe Spots','Spot','Spots');
     x+=`<div class="legend">Weitere Lampen (z. B. Pendelleuchten, Deckenleuchten)?</div><div class="tiles two-col">${tl('lp','nein','Nein','')}${tl('lp','ja','Ja','')}</div>`;
     if(h.lp==='ja')x+=grp('lp','Weitere Lampen','Lampen','Lampen');
-    if(rb.need||h.sp||h.lp)x+=`<div class="msg ${rb.fehlt?'err':'info'}"><b>Relais:</b> ${esc(ms.art)} hat ${rb.have} Relaisausgänge, gebraucht ${rb.need}. ${rb.fehlt?'Es fehlen '+rb.fehlt+' Relais: Dafür braucht es Relay Extensions (folgen).':'Die Relais des Miniservers reichen.'}</div>`;
+    x+=loxAbgBox(pl);if(rb.need||h.sp||h.lp)x+=`<div class="msg ${rb.fehlt?'err':'info'}"><b>Relais:</b> ${esc(ms.art)} hat ${rb.have} Relaisausgänge, gebraucht ${rb.need}. ${rb.fehlt?'Es fehlen '+rb.fehlt+' Relais: Dafür braucht es Relay Extensions (folgen).':'Die Relais des Miniservers reichen.'}</div>`;
     return x};
-  let b=`<h2>Smart Home</h2><div class="msg info"><b>Hinweis: Smart Home ist noch in Überarbeitung (Testphase).</b> Angaben und Schema bitte noch prüfen.</div><p class="sub">Soll ein Smart Home eingebaut werden?</p><div class="tiles two-col">${tl('on','nein','Nein','kein Smart Home')}${tl('on','ja','Ja','Smart Home einplanen')}</div>`;
+  let b=`<h2>Smart Home</h2><div class="msg info"><b>Hinweis: Smart Home ist noch in Überarbeitung (Testphase).</b> Angaben und Schema bitte noch prüfen.</div>${h.on==='ja'&&h.sys==='loxone'&&loxAbg(pl)&&!loxAbg(pl).frei?loxAbgBox(pl):''}<p class="sub">Soll ein Smart Home eingebaut werden?</p><div class="tiles two-col">${tl('on','nein','Nein','kein Smart Home')}${tl('on','ja','Ja','Smart Home einplanen')}</div>`;
   if(h.on!=='ja')return b;
   b+=`<div class="legend">System</div><div class="tiles two-col">${tl('sys','knx','KNX','folgt',true)}${tl('sys','loxone','Loxone','')}</div>`;
   if(h.sys!=='loxone')return b;
