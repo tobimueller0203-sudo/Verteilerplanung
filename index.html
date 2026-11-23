@@ -209,7 +209,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-23.0832';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-23.0835';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -1107,6 +1107,17 @@ function skLayout(s){
 }
 const skSorted=s=>skLayout(s).list;
 const stepIdx=k=>stepsOf(S.site).findIndex(x=>x[0]===k);
+/* Zurücksetzen einzelner Planungsschritte (Baustellendaten bleiben) */
+const RS_KEYS={unterlagen:['docs'],hersteller:['hersteller','herstellerFrei'],gehaeuse:['gehaeuse','montage','vtSer'],zuleitung:['qs','adern','nb','nbAuto','bez','bezA','x0Side'],zaehler:['zl'],klemmen:['klAbg','klPos'],heizung:['hz','hzAck'],stromkreise:['sk','relSame','resPct','resOff'],schienen:['bus','etag','big4','x0Moved','busSeen'],extras:['spd','hs','hsA','siem','siemOk','preise','litzeMag','material']};
+function rsPanel(p){const ST=stepsOf(p),sel=S.rsSel||new Set();
+  return `<div class="msg err" style="margin-top:14px"><b>Planung zurücksetzen</b><p style="margin:6px 0">Welche Schritte sollen wieder leer werden? Die Baustellendaten bleiben.</p>
+  <div class="row" style="margin-bottom:8px"><button type="button" class="btn small" data-act="rsAll">Alles ab Schritt 2</button><button type="button" class="btn small" data-act="rsNone">Keine</button></div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:4px 12px">${ST.map(([k,l],i)=>`<label class="chk"><input type="checkbox" data-rs="${k}" ${sel.has(k)?'checked':''}> ${i+1}. ${esc(l)}</label>`).join('')}</div>
+  <div class="row" style="margin-top:10px">${sel.size?(S.armed==='rs'?'<button type="button" class="btn danger" data-act="rsDo">Wirklich zurücksetzen? Kann nicht rückgängig gemacht werden</button><button type="button" class="btn small" data-act="disarm">Abbrechen</button>':'<button type="button" class="btn danger" data-arm="rs">'+sel.size+(sel.size===1?' Schritt':' Schritte')+' zurücksetzen</button>'):'<span class="sub">Bitte Schritte ankreuzen.</span>'}</div></div>`}
+function rsDo(s,keys){const pl=planOf(s),ST=stepsOf(s);keys.forEach(k=>{(RS_KEYS[k]||[]).forEach(x=>delete pl[x]);
+    if(k==='zuleitung'){pl.adern='5';pl.nb='';pl.nbAuto=false;if(pl.zl&&pl.zl[0])Object.assign(pl.zl[0],{bez:s.norm==='VDE'?'NH':'DZ',bezA:'',qs:'',adern:'5'})}
+    if(k==='extras')pl.material=false});
+  planOf(s);const first=ST.find(x=>keys.includes(x[0]));if(first&&stepIdx(first[0])<stepIdx(pl.step))pl.step=first[0]}
 function stepOk(pl,k){return {heizung:true,verteiler:true,schienen:true,klemmen:true,unterlagen:true,hersteller:!!pl.hersteller,gehaeuse:!!pl.gehaeuse&&!!pl.montage,zuleitung:!!pl.qs&&qsNum(pl.qs)<=QS_MAX,stromkreise:(pl.sk||[]).some(r=>(r.name||'').trim())||(pl.zl||[]).length>1,zaehler:(pl.zl||[]).some(z=>!z.res),extras:true}[k]}
 /* Heizsystem (Tobi 23.11.): Fragen; Sicherungen der Wärmepumpe kommen automatisch ins Schema (Schütz-Steuerung folgt) */
 const HZ_ART=[['wp-fbh','Wärmepumpe','über Fussbodenheizung'],['wp-hk','Wärmepumpe','über Heizkörper'],['gas','Gasheizung',''],['andere','Anderes','']];
@@ -1305,7 +1316,9 @@ function vPlan(){
   <section class="card">
     ${stepper(pl)}
     ${body}
+    ${ed&&S.rsOpen?rsPanel(p):''}
     <div class="actions">
+      ${ed?'<button type="button" class="btn small" data-act="rsOpen" style="order:3">'+(S.rsOpen?'Zurücksetzen schliessen':'Zurücksetzen …')+'</button>':''}
       <button type="button" class="btn" data-act="planPrev">← ${pk2?ST.find(x=>x[0]===pk2)[1]:'Baustellendaten'}</button>
       <div class="row">${ed?'<button type="button" class="btn" data-act="saveNow">Speichern</button>':''}${last?(k==='verteiler'?'':'<span class="saved">Nächster Schritt folgt</span>'):`<button type="button" class="btn primary" data-act="planNext"${stepOk(pl,k)?'':' disabled'}>Weiter</button>`}</div>
     </div>
@@ -1855,6 +1868,7 @@ document.addEventListener('input',e=>{
 });
 document.addEventListener('change',e=>{
   const t=e.target;
+  if(t.dataset.rs){S.rsSel=S.rsSel||new Set();t.checked?S.rsSel.add(t.dataset.rs):S.rsSel.delete(t.dataset.rs);S.armed=null;render();return}
   if(t.id==='userSel'){S.sel=t.value;S.msg=null;render();return}
   if(t.dataset.b&&S.site&&canEdit(S.site)){
     S.site[t.dataset.b]=t.value;
@@ -2033,10 +2047,14 @@ document.addEventListener('click',e=>{
     const s=D.sites.find(x=>x.id===t.dataset.open);if(!s)return;
     S.site=JSON.parse(JSON.stringify(s));S.isNew=false;S.savedAt=null;return go('baustelle')}
   if(t.dataset.arm){S.armed=t.dataset.arm;S.msg=null;if(S.screen==='liste'){$('#siteList').innerHTML=siteListHTML()}else render();return}
-  if(act==='disarm'){S.armed=null;$('#siteList').innerHTML=siteListHTML();return}
+  if(act==='disarm'){S.armed=null;const sl=$('#siteList');if(sl)sl.innerHTML=siteListHTML();else render();return}
   if(t.dataset.delsite){const s=D.sites.find(x=>x.id===t.dataset.delsite);if(!s||!canDelete(s))return;D.sites=D.sites.filter(x=>x.id!==s.id);save();cloudDel(s.id);S.armed=null;return go('liste',{t:'ok',m:'Baustelle '+(s.kom||'')+' gelöscht.'})}
   if(act==='liste'||act==='back'){if(SITE_SCR.includes(S.screen)&&S.site&&!S.isNew)persistSite();const up={schema:'plan',plan:'baustelle'};return go(act==='back'&&up[S.screen]?up[S.screen]:'liste')}
   if(act==='logout'){if(S.screen==='baustelle'&&S.site&&!S.isNew)persistSite();cloudLogout();S.user=null;S.admin=false;S.sel='';S.site=null;return go('start')}
+  if(act==='rsOpen'){S.rsOpen=!S.rsOpen;S.rsSel=new Set();S.armed=null;render();return}
+  if(act==='rsAll'){S.rsSel=new Set(stepsOf(S.site).map(x=>x[0]).filter(k=>k!=='unterlagen'));S.armed=null;render();return}
+  if(act==='rsNone'){S.rsSel=new Set();S.armed=null;render();return}
+  if(act==='rsDo'&&S.site&&canEdit(S.site)){const ks=[...(S.rsSel||[])],L=stepsOf(S.site).filter(x=>ks.includes(x[0])).map(x=>x[1]);rsDo(S.site,ks);S.rsOpen=false;S.rsSel=new Set();S.armed=null;touchPlan('Zurückgesetzt: '+L.join(', '));persistSite();render();return}
   if(act==='appUpdate'){if(SITE_SCR.includes(S.screen)&&S.site&&!S.isNew)persistSite();saveSession();location.reload();return}
   if(act==='adminLogin')return go('adminLogin');
   if(act==='adminOpen'&&SB.on&&S.user&&S.user.admin){S.admin=true;return go('admin')}
