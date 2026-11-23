@@ -149,6 +149,8 @@ input:disabled,select:disabled{opacity:1;background:var(--bg);color:var(--ink);-
 .vtc .vtn{height:120px;display:flex;align-items:center;justify-content:center;background:#f4f4f1;color:var(--muted);border-radius:4px}.vtc span{color:var(--muted)}
 .enr{font-family:"DejaVu Sans Mono",ui-monospace,monospace;font-size:16px;font-weight:700;letter-spacing:.5px;user-select:all}
 .te.ml th{text-align:left;font-size:12px;color:var(--muted);padding:4px}
+.mlx{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}.mlx>.ml{min-width:680px}.ml td,.ml th{padding-right:12px}.ml td:nth-child(1),.ml td:nth-child(2),.ml td:nth-child(4){white-space:nowrap}.ml td:nth-child(3){min-width:220px}
+@media print{.mlx{overflow:visible}.mlx>.ml{min-width:0}}
 .pform{border:1px solid var(--line);border-radius:4px;padding:10px;margin-top:6px;background:var(--bg)}
 .skro .sk{opacity:.6;background:var(--bg);padding:10px 8px}.skro .sk input,.skro .sk select{cursor:not-allowed}
 .sk1{display:flex;gap:8px;align-items:center}.sk1 input{flex:1;padding:9px 10px}
@@ -219,7 +221,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-23.0950';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-23.1212';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -1432,8 +1434,8 @@ function matPick(s){const M=matList(s,'Sonepar',{vt:true}),out=[];let sonTot=0;
 const qtyTxt=x=>x.u?String(Math.round(x.n*10)/10).replace('.',',')+' m':x.n+'×';
 function matTables(P,print){return P.G.map(({g,L})=>{const net=L.reduce((a,x)=>a+(x.net||0)*x.n,0),bru=L.reduce((a,x)=>a+(x.bru||0)*x.n,0),cp=L.filter(x=>x.enr).map(x=>x.enr.replace(/\s/g,'')+'\t'+(x.u?Math.round(x.n*10)/10:x.n)).join('\n');
   return `<div class="mlg"><div class="row between"><h3 style="margin:14px 0 6px">${esc(g)} <span class="sub">(${L.length} ${L.length===1?'Position':'Positionen'})</span></h3>${!print&&cp?`<button type="button" class="btn small" data-copy="${esc(cp)}">Alle E-Nummern mit Menge kopieren</button>`:''}</div>
-  <table class="te ml"><tr><th>Menge</th><th>E-Nummer</th><th>Bezeichnung</th><th style="text-align:right">Netto</th></tr>${L.map(x=>`<tr><td>${qtyTxt(x)}</td><td>${x.enr?`<span class="enr">${esc(x.enr)}</span>${print?'':` <button type="button" class="btn small" data-copy="${esc(x.enr.replace(/\s/g,''))}">Kopieren</button>`}`:'<span class="sub">–</span>'}</td><td>${esc(x.art)}${x.son!=null&&x.son>x.net?` <span class="sub">(Sonepar ${chf(x.son)})</span>`:''}</td><td style="text-align:right;white-space:nowrap">${x.net==null?'<span style="color:#b42318">kein Preis</span>':chf(x.net*x.n)}</td></tr>`).join('')}
-  <tr class="sum"><td colspan="3">Total ${esc(g)}</td><td style="text-align:right;white-space:nowrap">netto ${chf(net)}<br><span class="sub">brutto ${chf(bru)}</span></td></tr></table></div>`}).join('')}
+  <div class="mlx"><table class="te ml"><tr><th>Menge</th><th>E-Nummer</th><th>Bezeichnung</th><th style="text-align:right">Netto</th></tr>${L.map(x=>`<tr><td>${qtyTxt(x)}</td><td>${x.enr?`<span class="enr">${esc(x.enr)}</span>${print?'':` <button type="button" class="btn small" data-copy="${esc(x.enr.replace(/\s/g,''))}">Kopieren</button>`}`:'<span class="sub">–</span>'}</td><td>${esc(x.art)}${x.son!=null&&x.son>x.net?` <span class="sub">(Sonepar ${chf(x.son)})</span>`:''}</td><td style="text-align:right;white-space:nowrap">${x.net==null?'<span style="color:#b42318">kein Preis</span>':chf(x.net*x.n)}</td></tr>`).join('')}
+  <tr class="sum"><td colspan="3">Total ${esc(g)}</td><td style="text-align:right;white-space:nowrap">netto ${chf(net)}<br><span class="sub">brutto ${chf(bru)}</span></td></tr></table></div></div>`}).join('')}
 function matBody(p,pl,dis){const self=vtSelf(p),VK=vtKind(p),V=vtParts(p);if(pl.partSel&&pl.partSel.Verteiler&&VK==='Verteiler AP'&&!pl.partSel[VK])pl.partSel[VK]=pl.partSel.Verteiler;const cur=(pl.partSel||{})[VK]||'',ok=!self||V.some(x=>x.id===cur);
   let h=`<h2>Materialliste</h2><p class="sub">Die App nimmt für jedes Bauteil den günstigsten Grosshändler (Netto) und listet die Bauteile nach Grosshändler. Die E-Nummer kannst du direkt kopieren.</p>`;
   if(self)h+=`<div class="legend">Verteiler (Selbstbau, ${VK.endsWith('UP')?'Unterputz':'Aufputz'})</div>${V.length?`<div class="vtg">${V.map(x=>{const im=partImg(x.id);return `<button type="button" class="vtc" data-vtsel="${x.id}" aria-pressed="${x.id===cur}"${dis}>${im?`<img src="${im}" alt="">`:'<span class="vtn">kein Bild</span>'}<b>${esc([x.hst,x.typ].filter(Boolean).join(' ')||'Verteiler')}</b><span>${esc(x.lf||'')} · E-Nr. ${esc(x.enr)}</span><span>${x.net!=null?'netto '+chf(x.net):''}${x.bru!=null?' / brutto '+chf(x.bru):''} CHF</span></button>`}).join('')}</div>`:'<p class="sub">Noch kein '+(VK.endsWith('UP')?'Unterputz':'Aufputz')+'verteiler hinterlegt.</p>'}
