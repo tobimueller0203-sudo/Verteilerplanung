@@ -210,7 +210,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-23.0855';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-23.0857';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -621,9 +621,9 @@ function touchPlan(grund){
 const bezTypes=s=>s.norm==='VDE'?[['SLS','SLS-Schalter, selektiv (3-polig)'],['NH','NH-Sicherung (3-polig)']]:[['DZ','Diazed (3-polig)'],['LSD','LS 4-polig, D-Charakteristik']];
 const BEZ_A={DZ:['16','20','25','35','50','63'],LSD:['16','20','25','32','40','50','63'],SLS:['35','40','50','63'],NH:['35','50','63','80','100']};
 const bezTxt=pl=>pl.bez?(pl.bez==='DZ'?(pl.bezA&&+pl.bezA<=25?'DII':pl.bezA?'DIII':'Diazed'):{LSD:'LS D',SLS:'SLS',NH:'NH'}[pl.bez])+(pl.bezA?' '+pl.bezA+' A':'')+(pl.bez==='LSD'?' 4-polig':pl.bez==='DZ'||pl.bez==='NH'?' + N-Trenner':' 3-polig'):'';
-const HS_A=['20','32','40','63','63C','80'];
+const HS_A=['20','32','40','63'];
 /* Hauptschalter = Lasttrennschalter Hager 4L (Sonepar, Tobi 23.11.); Klemmenabdeckung IMMER mitrechnen */
-const HS_PROD={'20':{nr:'550 405 101',t:'HAB402',art:'Lasttrennschalter Hager HAB402 4L 20A',net:29.70,bru:54.00},'32':{nr:'550 405 301',t:'HAB403',art:'Lasttrennschalter Hager HAB403 4L 32A',net:38.50,bru:70.00},'40':{nr:'550 405 401',t:'HAB404',art:'Lasttrennschalter Hager HAB404 4L 40A',net:48.24,bru:87.70},'63':{nr:'550 405 601',t:'HAB406',art:'Lasttrennschalter Hager HAB406 4L 63A',net:55.83,bru:101.50},'63C':{nr:'550 405 602',t:'HAC406',art:'Lasttrennschalter Hager HAC406 4L 63A',net:66.55,bru:121.00},'80':{nr:'550 405 702',t:'HAC408',art:'Lasttrennschalter Hager HAC408 4L 80A',net:69.30,bru:126.00}};
+const HS_PROD={'20':{nr:'550 405 101',t:'HAB402',art:'Lasttrennschalter Hager HAB402 4L 20A',net:29.70,bru:54.00},'32':{nr:'550 405 301',t:'HAB403',art:'Lasttrennschalter Hager HAB403 4L 32A',net:38.50,bru:70.00},'40':{nr:'550 405 401',t:'HAB404',art:'Lasttrennschalter Hager HAB404 4L 40A',net:48.24,bru:87.70},'63':{nr:'550 405 601',t:'HAB406',art:'Lasttrennschalter Hager HAB406 4L 63A',net:55.83,bru:101.50}};
 const HS_KA={nr:'550 495 001',art:'Klemmenabdeckung Hager 4L für Lasttrennschalter 20…63A',net:10.64,bru:19.35};
 const hsAmp=a=>String(a||'').replace('C',''),hsLbl=a=>HS_PROD[a]?hsAmp(a)+' A · '+HS_PROD[a].t:a+' A';
 /* Zähler (nur HV): alle im Zählerschrank auf der Kupferschiene. Standard Diazed, LS auf Hutschiene mit Litze eingespiesen */
