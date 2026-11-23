@@ -227,7 +227,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-23.1522';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-23.1530';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -331,6 +331,8 @@ const cur2=v=>chf(v)+' '+LOX_CUR;
 const LOX_ONE=['Spannungsversorgung','Miniserver']; /* Gruppen mit genau einer Auswahl */
 /* Netzteil: Vorsicherung immer 2-poliger LS (Tobi 23.11.): Backup C13, 4,2A C10 */
 const LOX_PS={'100401':{vs:'C13',big:1},'100617':{vs:'C10'}};
+/* Smart Home angewählt: keine 2D-Verteileransicht (Tobi 23.11.) */
+const shSel=pl=>!!(pl&&pl.sh&&pl.sh.on==='ja');
 const loxOn=pl=>!!(pl.sh&&pl.sh.on==='ja'&&pl.sh.sys==='loxone');
 const loxPs=pl=>{if(!loxOn(pl))return null;const q=pl.sh.q||{},id=Object.keys(LOX_PS).find(k=>q[k]>0);return id?{id,o:LOX.find(x=>x.id===id),...LOX_PS[id]}:null};
 const loxMs=pl=>{if(!loxOn(pl))return null;const q=pl.sh.q||{},o=LOX.find(x=>x.grp==='Miniserver'&&q[x.id]>0);return o||null};
@@ -1239,8 +1241,8 @@ function busBody(p,pl,dis){if(canEdit(p))pl.busSeen=true;const B=busPlan(p),tile
   <div class="tiles two-col">${tile('big4','o','Oben','auf der obersten Sicherungsschiene')}${tile('big4','u','Unten','auf der untersten Sicherungsschiene')}</div>
   <div class="legend">Einspeisung -X0</div>
   <div class="tiles two-col">${tile('x0Side','l','Links','Etagenschienen links')}${tile('x0Side','r','Rechts','Etagenschienen rechts')}</div>
-  <div class="legend">2D-Ansicht</div>
-  <div class="b2wrap">${bus2D(p)}</div>
+  ${shSel(planOf(p))?'<div class="sub" style="margin:6px 0">Mit Smart Home gibt es keine 2D-Verteileransicht (Stromschienen werden trotzdem gerechnet).</div>':`<div class="legend">2D-Ansicht</div>
+  <div class="b2wrap">${bus2D(p)}</div>`}
   ${busEdit(p,B,dis)}
   ${edited&&canEdit(p)?'<div><button type="button" class="btn small" data-act="busReset">Vorschlag wiederherstellen</button></div>':''}
   <div id="busMsgs">${busMsgs(B)}</div>
@@ -1743,7 +1745,7 @@ function pagesOf(s){
     a.push({kind:'za',title:s.geb==='MFH'?'Messung Allgemein':'Messung',sub:'-P1 '+(pl.zl[0].name||zlLbl(s,0))})}
   L.pages.forEach(q=>{const fs=q.items.filter(it=>!it.sk).map(it=>it.f),zk=hv?pl.zl.findIndex(z=>z.id===q.zid):-1,zt=zk>=0?'-P'+(zk+1)+(pl.zl[zk].name?' '+pl.zl[zk].name:'')+' · ':'';a.push({kind:'sk',title:'Stromkreise',sub:zt+(fs.length?fs[0]+(fs.length>1?' bis '+fs[fs.length-1]:''):'Relais'),dp:q,zid:q.zid})});
   {loxSyncTe(pl);const ps=loxPs(pl);if(ps)a.push({kind:'loxps',title:'Smart Home Loxone',sub:'-G1 '+ps.o.art});const ms=loxMs(pl);if(ms)a.push({kind:'loxms',title:'Smart Home Loxone',sub:'-A1 '+ms.art});for(let k=0;k<loxAs(pl);k++)a.push({kind:'loxas',k,title:'Smart Home Loxone',sub:'-A'+(k+2)+' Audioserver'});for(let k=0;k<loxTeN(pl);k++)a.push({kind:'loxte',k,title:'Smart Home Loxone',sub:'-A'+(k+2+loxAs(pl))+' Tree Extension'});loxDaliExt(pl).forEach((x,k)=>a.push({kind:'loxdali',k,title:'Smart Home Loxone',sub:'-A'+(2+loxAs(pl)+loxTeN(pl)+k)+' DALI Extension '+(x.id==='100200'?64:10)}));if(loxKnxN(pl))a.push({kind:'loxknx',title:'Smart Home Loxone',sub:'-A'+(2+loxAs(pl)+loxTeN(pl)+loxDaliExt(pl).length)+' KNX Extension · KNX-DALI'})}
-  if(busOn(s)&&L.list.length)a.push({kind:'bus2d',title:'Verteileransicht',sub:'Sammel- und Etagenschienen'});
+  if(busOn(s)&&L.list.length&&!shSel(planOf(s)))a.push({kind:'bus2d',title:'Verteileransicht',sub:'Sammel- und Etagenschienen'});
   {const m=hzWP(pl)&&pl.hz.wpPdf;if(m)for(let k=0;k<m.n;k++)a.push({kind:'wpdoc',key:m.key,k,title:'Wärmepumpe',sub:'Schema Hersteller'+(m.n>1?', Seite '+(k+1):'')})}
   if(d.klemmen){const n=(five?5:3)+(hv?pl.zl.length-1+Object.values(L.ext).reduce((a,x)=>a+x.length,0):0)+L.pages.reduce((a,q)=>a+q.items.filter(it=>it.sk?it.k===0:!it.rel.length).reduce((b,it)=>b+(it.sk?it.sk.abgN||1:it.abgN||1),0),0),c=Math.max(1,Math.ceil(n/KL_PER_PAGE));for(let i=0;i<c;i++)a.push({kind:'klemmen',title:'Klemmenliste',sub:sk.length&&!noKl(s)?'-X0 Einspeisung, '+(L.nX>1?'-X1 bis -X'+L.nX:'-X1')+' Abgänge':'Klemmblock -X0',part:i})}
   {const h=pl.sh;if(h&&h.on==='ja'&&h.sys==='loxone'&&h.ds){LOX.filter(o=>(h.q||{})[o.id]>0).forEach(o=>loxDs(o.id).forEach(d=>{for(let k=0;k<d.n;k++)a.push({kind:'wpdoc',key:d.key,k,title:'Loxone '+o.art,sub:'Datenblatt'+(d.n>1?', Seite '+(k+1):'')})}));if(loxKnxN(pl))['ps','da'].forEach(q2=>{if(!kxProd(pl,q2).std)return;loxDs('kx-'+q2).forEach(d=>{for(let k=0;k<d.n;k++)a.push({kind:'wpdoc',key:d.key,k,title:'KNX '+KX_STD[q2].hst+' '+KX_STD[q2].nr,sub:'Datenblatt'+(d.n>1?', Seite '+(k+1):'')})})})}}
