@@ -1267,8 +1267,10 @@ async function wpUpload(file){await loadJS('lib/pdf.min.js');pdfjsLib.GlobalWork
   const key='wp-'+S.site.id+'-'+Date.now();await wpPut(key,out);WPIMG[key]=out;cloudWpPut(key,out);return {key,name:file.name,n:out.length,tot:doc.numPages}}
 function shOf(pl){return pl.sh||(pl.sh={q:{}})}
 function shBody(p,pl,dis){const h=shOf(pl);h.q=h.q||{};
-  const nbUI=()=>{const ps=loxPs(pl);if(!ps)return '<p class="sub">Bitte ein Netzteil wählen.</p>';if(!ps.big)return '<p class="sub">Das Power Supply 4,2A hat keinen Notstrom. Vorsicherung: LS '+ps.vs+' 2-polig.</p>';
-    return `<p class="sub">Vorsicherung: LS ${ps.vs} 2-polig.</p><div class="legend">Notstrom?</div><div class="tiles two-col">${tl('nb','nein','Nein','')}${tl('nb','ja','Ja','')}</div>${h.nb==='ja'?`<div class="legend">Notstrom über</div><div class="tiles two-col">${tl('nbArt','pv','PV-Speicher','')}${tl('nbArt','bat','Externe Batterie','')}</div><div class="msg info">Kommt als Hinweis ins Schema. Genauere Informationen folgen.</div>`:''}`};
+  const nbUI=()=>{const ps=loxPs(pl);if(!ps)return '<p class="sub">Bitte zuerst ein Netzteil wählen. Es wird sofort im Schema eingezeichnet.</p>';
+    const ab=ps.big?`<label class="m" style="margin-top:8px;max-width:420px"><span>Benutzte 24-V-Abgänge (z. B. für Spots)</span><select data-shsel="abg"${dis}>${opt([0,1,2,3,4,5,6,7].map(n=>[String(n),n?n+(n===1?' Abgang':' Abgänge'):'keine']),String(h.abg||0))}</select></label><p class="sub">Jeder benutzte Abgang geht verteilerintern mit 2 Drähten (orange +24 V, weiss GND) auf eigene Abgangsklemmen. Der Tree-Anschluss kommt vom Miniserver (nur Tree, nie Tree Turbo).</p>`:'<p class="sub">Der 24-V-Ausgang geht verteilerintern mit 2 Drähten (orange +24 V, weiss GND) auf Abgangsklemmen.</p>';
+    if(!ps.big)return '<p class="sub">Das Power Supply 4,2A hat keinen Notstrom. Vorsicherung: LS '+ps.vs+' 2-polig.</p>'+ab;
+    return `<p class="sub">Vorsicherung: LS ${ps.vs} 2-polig.</p>${ab}<div class="legend">Notstrom?</div><div class="tiles two-col">${tl('nb','nein','Nein','')}${tl('nb','ja','Ja','')}</div>${h.nb==='ja'?`<div class="legend">Notstrom über</div><div class="tiles two-col">${tl('nbArt','pv','PV-Speicher','')}${tl('nbArt','bat','Externe Batterie','')}</div><div class="msg info">Kommt als Hinweis ins Schema. Genauere Informationen folgen.</div>`:''}`};
   const tl=(key,val,label,sub,off)=>`<button type="button" class="tile" data-sh="${key}" data-v="${esc(val)}" aria-pressed="${h[key]===val}"${off?' disabled':dis}><b>${esc(label)}</b>${sub?`<span>${esc(sub)}</span>`:''}</button>`;
   let b=`<h2>Smart Home</h2><p class="sub">Soll ein Smart Home eingebaut werden?</p><div class="tiles two-col">${tl('on','nein','Nein','kein Smart Home')}${tl('on','ja','Ja','Smart Home einplanen')}</div>`;
   if(h.on!=='ja')return b;
@@ -1713,22 +1715,32 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     Rc(gx,gy,gw,gh,'bxw');Rc(gx+4,gy+4,gw-8,gh-8,'bxd');
     T(gx-8,gy+16,'-G1','tbig','end');T(gx-8,gy+32,'Loxone','t','end');(big?['Power Supply','& Backup']:['Power Supply','4,2A']).forEach((t,i)=>T(gx-8,gy+44+i*12,t,'t','end'));T(gx-8,gy+70,ps.o.nr+' · '+ps.o.te+' TE','tm','end');T(gx-8,gy+82,'Hutschiene','tm','end');
     [['L',gx+30],['N',gx+48],['PE',gx+66]].forEach(([l,x])=>{term(x,gy);T(x,gy+16,l,'tk2','middle')});L(gx+66,gy-4,gx+66,gy-16,'wpe');T(gx+72,gy-10,'PE an PE-Schiene','tm');
-    const yk=620;T(gx-8,yk+4,'-X3','tb','end');
+    const yk=620;
     if(big){T(gx+100,gy+22,'Eingang 100–240 VAC · 40 A dauernd / 60 A für 10 s · Lastminderung beachten','tm');
       const ox0=gx+40,dx=58;T(ox0,gy+50,'Ausgänge 24 VDC, je max. 10 A, eigene Kfz-Mini-Flachsicherung + Leistungsmessung','tm');
-      for(let k=0;k<7;k++){const x=ox0+k*dx;Rc(x-5,gy+60,10,26,'bx');L(x,gy+56,x,gy+90,'cpl');T(x+8,gy+70,'F'+(k+1),'tk2');T(x+8,gy+81,'≤15 A','tk5');L(x,gy+90,x,gy+gh);term(x,gy+gh);T(x+4,gy+gh-8,'+'+(k+1),'tk2');L(x,gy+gh+4,x,yk);term(x,yk);T(x,yk+16,String(k+1),'tk','middle');T(x,yk+24,'+24V','tk5','middle');T(x,yk+44,'Abgang '+(k+1),'tnm2','middle');T(x,yk+55,'max. 10 A','tk5','middle')}
-      const xg=ox0+7*dx,xt=xg+dx;term(xg,gy+gh);T(xg+4,gy+gh-8,'GND','tk2');T(xg-30,gy+gh-22,'GND intern verbunden','tk5');L(xg,gy+gh+4,xg,yk,'wn');term(xg,yk);T(xg,yk+16,'8','tk','middle');T(xg,yk+24,'GND','tk5','middle');T(xg,yk+44,'GND','tnm2','middle');
+      const nA=Math.min(7,+h.abg||0),xg=ox0+7*dx,xt=xg+dx,yGb=yk-40;let kn=0;const xsK=[];
+      for(let k=0;k<7;k++){const x=ox0+k*dx,u=k<nA;Rc(x-5,gy+60,10,26,'bx');L(x,gy+56,x,gy+90,'cpl');T(x+8,gy+70,'F'+(k+1),'tk2');T(x+8,gy+81,'≤15 A','tk5');L(x,gy+90,x,gy+gh);term(x,gy+gh);T(x+4,gy+gh-8,'+'+(k+1),'tk2');
+        if(!u){T(x,gy+gh+18,'frei','tk5','middle');continue}
+        const xp=x-8,xm=x+8;L(x,gy+gh+4,x,gy+gh+20);L(x,gy+gh+20,xp,gy+gh+20);L(xp,gy+gh+20,xp,yk);dot(xm,yGb);L(xm,yGb,xm,yk,'wn');
+        T(xp-2,yk-60,'or','tk5','end');T(xm+2,yk-24,'ws','tk5');
+        [[xp,'+24V'],[xm,'GND']].forEach(([xx,l])=>{kn++;term(xx,yk);T(xx,yk+16,String(kn),'tk','middle');T(xx,yk+24,l,'tk5','middle')});
+        T(x,yk+44,'Abgang '+(k+1),'tnm2','middle');T(x,yk+55,'max. 10 A','tk5','middle');xsK.push(xm)}
+      term(xg,gy+gh);T(xg+4,gy+gh-8,'GND','tk2');T(xg-30,gy+gh-22,'GND intern verbunden','tk5');
+      if(nA){L(xg,gy+gh+4,xg,yGb,'wn');L(Math.min(...xsK),yGb,xg,yGb,'wn');T((Math.max(...xsK)+xg)/2,yGb-4,'GND (weiss)','tk5','middle')}
+      if(!nA)T(ox0,yk-10,'Keine 24-V-Abgänge benutzt (Auswahl im Schritt Smart Home).','tm');
+      if(nA)T(gx-8,yk+4,'-X3','tb','end');
       term(xt,gy+gh);term(xt+16,gy+gh);T(xt+20,gy+gh-8,'Tree','tk2');T(xt-10,gy+110,'Tree überwacht','tk5');T(xt-10,gy+119,'24–27 V einstellbar','tk5');
-      [xt,xt+16].forEach((x,j)=>{L(x,gy+gh+4,x,yk,j?'wn':'w');term(x,yk);T(x,yk+16,String(9+j),'tk','middle')});T(xt+8,yk+24,'grün / weiss','tk5','middle');T(xt+8,yk+44,'Loxone Tree','tnm2','middle');T(xt+8,yk+58,'J-Y(St)Y 2×2×0,8','tk5','middle');
+      [xt,xt+16].forEach((x,j)=>{L(x,gy+gh+4,x,yk-70,j?'wn':'w')});o.push(`<path d="M${xt-4} ${yk-60} l12 -10 l12 10" fill="none" stroke="#111" stroke-width="1"/>`);
+      T(xt+30,yk-62,'Tree vom Miniserver','tnm2');T(xt+30,yk-51,'grün / grün-weiss','tk5');T(xt+30,yk-39,'nur Tree, nie Tree Turbo','tred');T(xt+30,yk-27,'Miniserver folgt','tk5');
       const xb=gx+gw;term(xb,gy+50);term(xb,gy+80);T(xb-6,gy+53,'BAT +','tk2','end');T(xb-6,gy+83,'BAT −','tk2','end');
       if(h.nb==='ja'){const bx=xb+70;L(xb+4,gy+50,bx,gy+50);L(xb+4,gy+80,bx+40,gy+80,'wn');Rc(bx,gy+43,26,14,'bx');L(bx,gy+50,bx+26,gy+50,'cpl');L(bx+26,gy+50,bx+40,gy+50);T(bx+13,gy+36,fB,'tb','middle');T(bx+13,gy+72,'Sicherung','tk','middle');
         const pv=h.nbArt==='pv';Rc(bx+40,gy+30,60,70,'bxw');T(bx+70,gy+52,'-GB1','tb','middle');(pv?['PV-Speicher','Notstrom']:['Batterie','36 V']).forEach((t,i)=>T(bx+70,gy+66+i*12,t,'tk2','middle'));
         o.push(`<rect class="bxr" x="${bx-8}" y="${gy+20}" width="116" height="100"/>`);T(bx-6,gy+132,pv?'Notstrom über PV-Speicher':'externe Batterie, ausserhalb Verteiler,','tm');T(bx-6,gy+143,pv?'Anbindung: genauere Infos folgen':'Kabel max. 2 m, Sicherung nahe Batterie','tm');T(bx-6,gy+157,'Hinweis: genauere','tred');T(bx-6,gy+168,'Informationen folgen','tred')}
       else T(xb+10,gy+66,h.nb==='nein'?'ohne Notstrom':'Notstrom offen','tm')}
     else{T(gx+100,gy+22,'Eingang 100–240 VAC · Einschaltstrom typ. 80 A','tm');T(gx+100,gy+50,'1 Ausgang 24 VDC, max. 4,2 A','tm');T(gx+100,gy+62,'Überlast- und Kurzschlussschutz (Auto-Neustart)','tk5');T(gx+100,gy+72,'kein Notstrom, kein Parallelbetrieb','tk5');
-      const x1=gx+120,x2=x1+40;term(x1,gy+gh);term(x2,gy+gh);T(x1+4,gy+gh-8,'+24V','tk2');T(x2+4,gy+gh-8,'GND','tk2');L(x1,gy+gh+4,x1,yk);L(x2,gy+gh+4,x2,yk,'wn');
+      const x1=gx+120,x2=x1+40;T(gx-8,yk+4,'-X3','tb','end');T(x1-2,yk-40,'or','tk5','end');T(x2+2,yk-40,'ws','tk5');term(x1,gy+gh);term(x2,gy+gh);T(x1+4,gy+gh-8,'+24V','tk2');T(x2+4,gy+gh-8,'GND','tk2');L(x1,gy+gh+4,x1,yk);L(x2,gy+gh+4,x2,yk,'wn');
       [[x1,'1','+24V'],[x2,'2','GND']].forEach(([x,n,l])=>{term(x,yk);T(x,yk+16,n,'tk','middle');T(x,yk+24,l,'tk5','middle')});T((x1+x2)/2,yk+44,'24 V Ausgang','tnm2','middle');T((x1+x2)/2,yk+55,'max. 4,2 A','tk5','middle')}
-    T(cx(5),236,'Hinweis: Einbau '+(big?'unten im Verteiler, oben und unten 50 mm frei,':'auf der Hutschiene, Belüftung beachten.'),'tnote');if(big)T(cx(5),248,'Verteiler mind. 100 l.','tnote');
+    if(big){T(cx(5),272,'Loxone Tree-Kabel (kein KNX-Kabel): 2×2×0,8 (grün/grün-weiss Tree-Daten, orange/orange-weiss 24 V)','tnote');T(cx(5),284,'+ 2×1,5 mm² für die Spannungsversorgung der Spots.','tnote');}T(cx(5),236,'Hinweis: Einbau '+(big?'unten im Verteiler, oben und unten 50 mm frei,':'auf der Hutschiene, Belüftung beachten.'),'tnote');if(big)T(cx(5),248,'Verteiler mind. 100 l.','tnote');
   }else if(pg.kind==='sk'){
     const all=pagesOf(s),pvP=all.find(p=>p.no===pg.no-1),nxt=all.find(p=>p.no===pg.no+1),cont=!!(nxt&&nxt.kind==='sk'&&nxt.zid===pg.zid),LY=skLayout(s),railOf=n=>LY.rails[n-1]||{};
     const zk=hv?pl.zl.findIndex(z=>z.id===pg.zid):-1,zz=zk>=0?pl.zl[zk]:null,pref=String(pg.no-1)+'.9',five=(pl.adern||'5')==='5'&&(!zz||(zz.adern||'5')==='5');
@@ -2099,6 +2111,7 @@ document.addEventListener('change',e=>{
   if(t.dataset.psel!=null&&S.site&&canEdit(S.site)){const pl=planOf(S.site),k=t.dataset.psel;pl.partSel=pl.partSel||{};if(t.value)pl.partSel[k]=t.value;else delete pl.partSel[k];touchPlan('Produkt gewählt: '+manTxt(k));render();return}
   if(t.dataset.cedit&&S.user&&S.user.admin&&SB.on){const r=catReg().find(q=>q.key===t.dataset.cedit);if(!r)return;const v=t.value.trim(),k=t.dataset.pk,val=v===''?null:Math.max(0,+v.replace(',','.')||0),lf=t.dataset.lf||'Sonepar';
     const o=lfPrice(r,lf);o[k]=val;catSetLf(r,lf,o.net,o.bru);return}
+  if(t.dataset.shsel&&S.site&&canEdit(S.site)){shOf(planOf(S.site))[t.dataset.shsel]=+t.value||0;touchPlan('Smart Home angepasst');persistSite();render();return}
   if(t.dataset.shds&&S.site&&canEdit(S.site)){shOf(planOf(S.site)).ds=t.checked;touchPlan('Loxone-Datenblätter '+(t.checked?'in der Planmappe':'nicht in der Planmappe'));render();return}
   if(t.dataset.loxds&&S.user&&S.user.admin){const id=t.dataset.loxds,f=t.files&&t.files[0];if(!f)return;const m=$('#dsmsg-'+id);if(m)m.textContent=' wird verarbeitet …';
     pdfImgs(f,20,1600).then(async({out,tot})=>{const key='loxds-'+id+'-'+Date.now();await wpPut(key,out).catch(()=>{});WPIMG[key]=out;await cloudWpPut(key,out);const L=loxDs(id);L.push({key,name:f.name.replace(/\.pdf$/i,''),n:out.length});await cfgSet('CFG:loxds:'+id,null,JSON.stringify(L));}).catch(e=>{if(m)m.textContent=' Fehler: '+(e.message||e)});return}
