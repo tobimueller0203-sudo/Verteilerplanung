@@ -232,7 +232,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-23.1831';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-23.1841';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -370,9 +370,9 @@ const loxRelN=pl=>loxRelais(pl).rel;
 /* Licht-Sicherungen (Tobi 23.11.): Nutzer ordnet jeden Raum einer Sicherung zu (h.rf[rid]=Nr.). Relais-Lampengruppen im Raum = je 1 Schaltdraht.
    Kabel: L braun, N blau, PE gn-ge + Schaltdrähte schwarz, grau (bis 2 Gruppen 5×1,5); mehr Gruppen: 7×1,5 nummeriert (Vorschlag, Tobi bestätigt noch) */
 /* nur real erhältliche FE0-Kabel (Tobi 23.11., NIN/NIV, bestätigt) */
-const FE0_AD=[3,4,5,7,10,12,16,21,27];const rfAd=k=>FE0_AD.find(a=>a>=k)||27;
+const FE0_AD=[3,5,7,10,12,16,21,27]; /* 4×1,5 gibt es nicht: auf 5× aufrunden (Tobi 23.11.) */const rfAd=k=>FE0_AD.find(a=>a>=k)||27;
 const rfRooms=pl=>{const h=(pl&&pl.sh)||{};return ((h.fl)||[]).filter(flDone).flatMap(f=>f.rooms.map(r=>({fid:f.id,rid:r.id,name:f.name+' · '+r.name,g:loxGroups(pl).filter(g=>g.rid===r.id&&g.ctl==='rel')})))};
-const rfList=pl=>{const h=(pl&&pl.sh)||{},M=h.rf||{},R=rfRooms(pl),N=[...new Set(R.map(r=>+M[r.rid]).filter(Boolean))].sort((a,b)=>a-b);return N.map(n=>{const rs=R.filter(r=>+M[r.rid]===n),G=rs.flatMap(r=>r.g),k=3+G.length;return {n,rooms:rs,G,ad:rfAd(k),res:rfAd(k)-k,cab:'FE0 '+rfAd(k)+'×1,5',cores:['L braun','N blau','PE gn-ge'].concat(G.map((g,i)=>(G.length<=2?['schwarz','grau'][i]:'Ader '+(i+1))+' → '+g.room+(g.n?' ('+g.n+(g.k==='sp'?' Spots':' Lampen')+')':''))).concat(Array.from({length:rfAd(k)-k},(_,i)=>'Ader '+(G.length+i+1)+' Reserve (Reserveklemme)'))}})};
+const rfList=pl=>{const h=(pl&&pl.sh)||{},M=h.rf||{},R=rfRooms(pl),N=[...new Set(R.map(r=>+M[r.rid]).filter(Boolean))].sort((a,b)=>a-b);return N.map(n=>{const rs=R.filter(r=>+M[r.rid]===n),G=rs.flatMap(r=>r.g),k=3+G.length;return {n,rooms:rs,G,ad:rfAd(k),res:rfAd(k)-k,cab:'FE0 '+rfAd(k)+'×1,5',cores:['L braun','N blau','PE gn-ge'].concat(G.map((g,i)=>(G.length<=2?['schwarz','grau'][i]:'Ader '+(i+1))+' → '+g.room+(g.n?' ('+g.n+(g.k==='sp'?(g.n>1?' Spots':' Spot'):(g.n>1?' Lampen':' Lampe'))+')':''))).concat(Array.from({length:rfAd(k)-k},(_,i)=>'Ader '+(G.length+i+1)+' Reserve (Reserveklemme)'))}})};
 const loxDaliExt=pl=>{const N=loxDaliN(pl),big=Math.floor(N/64),r=N%64,L=[];for(let i=0;i<big;i++)L.push({id:'100200',n:64});if(r)L.push({id:r<=10?'100623':'100200',n:r});return L};
 /* Spots pro Raum (spFl[fid].rn {rid:n}), Schalter pro Raum (h.sw {rid:{typ,n}}); Tree-Geräte pro Tree laufend zählen (max. 50) */
 const SW_T=()=>LOX.filter(o=>o.grp==='Schalter');
@@ -1292,6 +1292,7 @@ function skLayout(s){
   const res=pl.resOff?0:Math.max(10,+pl.resPct||10)/100,cap=RAIL_TE;
   list.forEach((r,n)=>{r.f='-F'+(n+1);const p=+r.pol;if(phz!==r.zid){phz=r.zid;ph=0}r.nt=needsNT(s,r);r.siem=r.typ==='FILS'&&p<=2&&siemOn(pl);r.te=teOf(s,pl,r);
     r.cond=p===4?['L1','L2','L3','N','PE']:p===3?(r.nt?['L1','L2','L3','N','PE']:['L1','L2','L3','PE']):[r.zf?['L1','L2','L3'][ph++%3]:'L','N','PE'];
+    if(r.liSw&&r.liSw.length)r.cond=r.cond.concat(r.liSw.map((_,i)=>'S'+(i+1)));
     r.poles=p===1?1:p;r.rel=(r.relais||[]).map((t,k)=>({t,k,te:relInfo(t)[3],sk:r,same:true}))});
   /* Hutschienen à 12 TE zuerst ganz gefüllt, Rest auf die letzte Schiene; Relais standardmässig auf eigenen Schienen */
   const rails=[];const newRail=(kind,zid)=>{const r={no:rails.length+1,used:0,items:[],kind,zid,nt:false,siem:false,rel:false};rails.push(r);return r};
@@ -1371,7 +1372,8 @@ const hkvN=h=>Math.max(1,Math.min(12,+h.hkvN||1)),hkvF=h=>{const n=hkvN(h),d=Mat
 /* Stromkreise aus dem Heizsystem, erscheinen automatisch im Schema */
 /* Licht-Sicherungen aus Smart Home -> Stromkreise (ausgegraut wie Heizsystem, Tobi 23.11.); Standard FI/LS 2-polig C13, Kabel aus Schaltdrähten */
 function liSk(s){const pl=planOf(s);if(!loxOn(pl))return [];return rfList(pl).map(x=>{const nm=x.rooms.map(r=>r.name.split(' · ').pop()).join(' + '),fl=[...new Set(x.rooms.map(r=>r.name.split(' · ')[0]))].join(' + ');
-  return {name:'Licht '+fl+' '+nm,pol:'2',char:'C',amp:'13',typ:'FILS',adern:String(x.ad),qs:'1.5',kabAuto:false,relais:[],hz:'li',note:x.G.length?'Adern: '+x.cores.join(' · '):'L braun · N blau · PE gn-ge'}})}
+  const RG=loxGroups(pl).filter(g=>g.ctl==='rel'),RD=loxDev(pl).filter(v=>v.t==='rel'),liSw=x.G.map((g,i)=>{const ix=RG.findIndex(q=>q.rid===g.rid&&q.k===g.k&&q.i===g.i),d=RD[Math.floor(ix/14)];return {room:g.room,col:x.G.length<=2?['sw','gr'][i]:'Ader '+(i+4),A:d?d.name.split(' ')[0]:'-A?',Q:'Q'+(ix%14+1)}});
+  return {name:'Licht '+fl+' '+nm,pol:'2',char:'C',amp:'13',typ:'FILS',adern:String(x.ad),qs:'1.5',kabAuto:false,relais:[],hz:'li',liSw,note:x.G.length?'Adern: '+x.cores.join(' · '):'L braun · N blau · PE gn-ge'}})}
 function hzSk(s){const pl=planOf(s),h=pl.hz||{};if(!hzWP(pl))return [];const out=[];
   const fz=(pre,name,note)=>{const d=HZ_DEF[pre]||HZ_DEF.in,g=(x,i)=>(pre+x) in h?h[pre+x]:d[i],op=HZ_OPEN.includes(pre),pol=op?g('Pol',0):(h[pre+'Pol']||d[0]),r={name,pol:pol||'2',char:op?g('Char',1):(h[pre+'Char']||d[1]),amp:op?g('Amp',2):(h[pre+'Amp']||d[2]),typ:op?g('Typ',3):(h[pre+'Typ']||d[3]),note:note||'',kabAuto:true,relais:[],hz:pre};
     if(op){r.kabAuto=false;r.adern=h[pre+'Adern']||'';r.qs=h[pre+'Qs']||'';r.polMiss=!pol;
@@ -1940,7 +1942,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     T(ix0+40,iy0+50,'Klemmenliste'+(nParts>1?' · Teil '+(pg.part+1)+' von '+nParts:''),'tdeck2');
     const cols=[ix0+40,ix0+150,ix0+220,ix0+340,ix0+460,ix0+590,ix0+850];const hv=s.art==='HV';
     ['Klemmblock','Nr.','Belegung','Querschnitt','Aderfarbe','Feldseite','Hinweis'].forEach((h,i)=>T(cols[i],iy0+90,h,'tb'));L(ix0+40,iy0+97,ix1-40,iy0+97,'fr2');
-    const col={L1:'braun',L2:'schwarz',L3:'grau',L:'braun',N:'blau',PE:'grün-gelb'},ck={L1:'br',L2:'sw',L3:'gr',L:'br',N:'bl',PE:'gn-ge'},cols2=cc=>cc.map(c=>ck[c]||'').filter(Boolean).join(' '),
+    const col={L1:'braun',L2:'schwarz',L3:'grau',L:'braun',N:'blau',PE:'grün-gelb'},ck={L1:'br',L2:'sw',L3:'gr',L:'br',N:'bl',PE:'gn-ge',S1:'sw',S2:'gr'},cols2=cc=>cc.map(c=>ck[c]||'').filter(Boolean).join(' '),
       kab2=(cb,t)=>cb.length>1&&cb.every(c=>t(c)===t(cb[0]))?'2 Kabel: '+cb.map(c=>c.w).join(' + ')+' je '+t(cb[0]):(cb.length>1?'2 Kabel: ':'')+cb.map(c=>c.w+' '+t(c)).join(' + ');
     const cond=five?['L1','L2','L3','N','PE']:['L','N','PE'];
     const rows=cond.map((c,i)=>['-X0',String(i+1),c,pl.qs?qsTxt(pl.qs)+' mm²':'offen',col[c],'-W1 Zuleitung',klZulTyp(s)?klZulTyp(s)+(c==='PE'?'-PE':c==='N'?' BU':''):'Klemmentyp folgt'])
@@ -2228,7 +2230,10 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
             if(gp.cabs.length>1){T(bx+wq/2,yy+2,'2 Kabel angeschlossen','tm','middle');nmBot=Math.max(nmBot,yy+2)}})}
         foot(it,G.get(it));return}
       const r=it,n=r.cond.length,hasRel=r.rel.length>0;
+      if(r.liSw&&r.liSw.length){const xL=xs[0],yJ=yK-120;r.liSw.forEach((sw,q)=>{const x=xs[r.cond.indexOf('S'+(q+1))];L(x,yF+24,x,yK,'w');o.push(`<path d="M${x-4} ${yF+32} l4 -8 l4 8" fill="none" stroke="#111" stroke-width="1"/>`);o.push(`<text class="tk5" transform="translate(${x+8} ${busY.PE-6}) rotate(-90)">${esc(sw.A+' '+sw.Q+' · '+sw.col+' → '+sw.room)}</text>`)});
+        o.push(`<circle cx="${xL}" cy="${yJ}" r="2" fill="#111"/>`);L(xL,yJ,xL-16,yJ,'w');T(xL-18,yJ-8,'L → Steckbrücke + Litze','tk5','end');T(xL-18,yJ+2,'auf '+r.liSw.map(w=>w.A+' '+w.Q).join(', '),'tk5','end')}
       r.cond.forEach((cn,k)=>{const x=xs[k],cls=bcls(cn),yb=busY[cn];
+        if(/^S\d/.test(cn))return;
         if(hasRel&&cn==='PE')return;
         o.push(`<circle cx="${x}" cy="${yb}" r="2.2" fill="#111"/>`);
         const ntHere=r.nt&&cn==='N',yEnd=hasRel?(k===0?yF:cn==='N'?yF+8:null):yK,y1=yD+6,y2=yD+42,ye=yEnd==null?yD2+30:yEnd;
@@ -2251,7 +2256,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
           for(let q=1;q<na;q++){const x2=xs[k]+off[q];L(xs[k]+off[q-1],yb,x2,yb,cls);L(x2,yb,x2,yK,cls);if(q<na-1)o.push(`<circle cx="${x2}" cy="${yb}" r="2" fill="#111"/>`)}});
         if(na>1)T(xs[0]+off[1]/2,yK-76,'Steckbrücke','tm','middle');
         r.grp.forEach((gp,q)=>foot({...r,kl:gp.kl,w:gp.w,adern:gp.adern,qs:gp.qs,res:gp.res,cabs:gp.cabs,name:na>1?r.name+' ('+(q+1)+'/'+na+')':r.name},{...g,x0:g.x0+off[q],w:cw*r.gsp[q],xs:xs.map(x=>x+off[q])}))}
-      if(r.note){const mx=Math.max(10,Math.floor(w/4.8)),words=String(r.note).split(/\s+/),lines=[''];words.forEach(wd=>{const cur=lines[lines.length-1];if((cur+' '+wd).trim().length>mx&&cur)lines.push(wd);else lines[lines.length-1]=(cur+' '+wd).trim()});
+      if(r.note&&!(r.liSw&&r.liSw.length)){const mx=Math.max(10,Math.floor(w/4.8)),words=String(r.note).split(/\s+/),lines=[''];words.forEach(wd=>{const cur=lines[lines.length-1];if((cur+' '+wd).trim().length>mx&&cur)lines.push(wd);else lines[lines.length-1]=(cur+' '+wd).trim()});
         lines.forEach((t,m)=>T(x0+4,462+m*11,(m===0?'Notiz: ':'')+t,'tnote'))}
     });
     let hy=Math.max(yK+86,nmBot+11);if(hy+3*9>iy1)hy=busY.PE+30;/* lange Beschriebe: Hinweise unter die PE-Schiene statt über den Rahmen */const hint=t=>{T(ix0+10,hy,'⚠ Hinweis: '+t,'twarn');hy+=9};
