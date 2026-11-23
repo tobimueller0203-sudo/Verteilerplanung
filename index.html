@@ -239,7 +239,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-23.2108';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-23.2109';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -1378,6 +1378,7 @@ function shMissing(pl){if(!loxOn(pl))return [];const h=pl.sh,M=[];if(!loxPs(pl))
   if(!h.lp)M.push('Weitere Lampen');
   {const K=(h.sp==='ext'?['sp']:[]).concat(h.lp==='ja'?['lp']:[]),all=K.flatMap(k=>Object.values(((h.lmX||{})[k])||{}).flat());if(K.length&&(!all.length||all.some(it=>!(+it.n)||!it.ctl)))M.push('Lampengruppen (Anzahl und DALI/Relais)')}
   if(daliLamps(pl)&&!h.daliArt)M.push('DALI-Ansteuerung');
+  if(!h.stA||(h.stA==='lox'&&!(+h.stN)))M.push('Stellantriebe Heizkreisverteiler');
   if(h.wd==='ja'){const a=Object.keys(h.sw||{}).reduce((x,rid)=>x+swItems(pl,rid).reduce((y,it)=>y+(it.typ==='100891'?+it.n||0:0),0),0);if(a!==(+h.wdN||0))M.push('Wall Display einem Raum zuweisen')}
   if(Object.keys(h.sw||{}).some(rid=>swItems(pl,rid).some(it=>!it.typ||!(+it.n))))M.push('Schalter (Gerät und Anzahl)');
   if(rfRooms(pl).some(r=>!(h.rf||{})[r.rid]))M.push('Raum-Sicherungen');
@@ -1399,7 +1400,7 @@ function missEl(t){const pl=S.site?planOf(S.site):{},h=pl.sh||{},q=x=>document.q
     'Miniserver':()=>box('[data-loxone="100512"]')||box('[data-loxone="100335"]'),'Stockwerke und Räume':()=>q('[data-flok]')||q('[data-fladd]'),'Spots':()=>box('[data-sh=sp]'),
     'Räume mit Tree-Spots':()=>q('[data-sprm]'),'Spot-Typ und Anzahl pro Raum':()=>{const e=qa('[data-sprn]').find(e=>!(+e.value));return e?e.closest('.sprow'):q('.sptyp')},
     'Weitere Lampen':()=>box('[data-sh=lp]'),'Lampengruppen (Anzahl und DALI/Relais)':()=>{const e=qa('[data-lmn]').find(e=>!(+e.value))||qa('[data-lmc]').find(e=>!e.value);return e?(e.closest('.row')||e):q('[data-lmadd]')},
-    'DALI-Ansteuerung':()=>box('[data-sh=daliArt]'),'Wall Display einem Raum zuweisen':()=>{const e=q('[data-swadd]');return e?e.closest('.pform'):null},
+    'DALI-Ansteuerung':()=>box('[data-sh=daliArt]'),'Stellantriebe Heizkreisverteiler':()=>h.stA==='lox'?q('[data-shsel=stN]'):box('[data-sh=stA]'),'Wall Display einem Raum zuweisen':()=>{const e=q('[data-swadd]');return e?e.closest('.pform'):null},
     'Schalter (Gerät und Anzahl)':()=>{const b=qa('.pkb').find(b=>/Auswählen/.test(b.textContent))||qa('[data-swn]').find(e=>!(+e.value));return b?(b.closest('.row')||b):null},
     'Raum-Sicherungen':()=>qa('.rfr').find(r=>!r.querySelector('.chp.on')),'Kabel der Raum-Sicherungen (zu wenig Adern)':()=>{const e=q('.rfc .msg.err');return e?e.closest('.rfc'):null},
     'Hersteller':()=>box('[data-plv=hersteller]'),'Montage (AP/UP)':()=>box('[data-plv=montage]'),'Gehäuse':()=>box('[data-plv=gehaeuse]'),'Zuleitung (Querschnitt)':()=>q('#p-qs'),
@@ -1419,6 +1420,7 @@ const HZ_DEF={au:['4','C','16','FILS'],in:['2','C','13','FILS'],puf:['4','','','
 /* Boiler und Puffer: Sicherung und Kabel trägt der Planer selbst ein (Tobi), bis dahin rot im Schema und PDF gesperrt (quittierbar in Extras) */
 const HZ_OPEN=['puf','boi'];
 const hzJa=(h,k)=>(h[k]||'ja')==='ja';
+const hkvLox=pl=>loxOn(pl)&&(pl.sh||{}).stA==='lox';
 const hkvN=h=>Math.max(1,Math.min(12,+h.hkvN||1)),hkvF=h=>{const n=hkvN(h),d=Math.ceil(n/2),f=+h.hkvF||d;return Math.max(1,Math.min(n,f))};
 /* Stromkreise aus dem Heizsystem, erscheinen automatisch im Schema */
 /* Licht-Sicherungen aus Smart Home -> Stromkreise (ausgegraut wie Heizsystem, Tobi 23.11.); Standard FI/LS 2-polig C13, Kabel aus Schaltdrähten */
@@ -1434,7 +1436,7 @@ function hzSk(s){const pl=planOf(s),h=pl.hz||{};if(!hzWP(pl))return [];const out
   if(hzJa(h,'in'))out.push(fz('in','Wärmepumpe Inneneinheit',hzJa(h,'au')?'':kw));
   if(h.puf==='ja'&&h.pufHs==='ja')out.push(fz('puf','Heizstab Pufferspeicher',h.pufKw?String(h.pufKw).replace('.',',')+' kW':''));
   if(h.boiHs==='ja')out.push(fz('boi','Heizstab Boiler',h.boiKw?String(h.boiKw).replace('.',',')+' kW':''));
-  if(h.art==='wp-fbh'){const n=hkvN(h),f=hkvF(h),per=Math.ceil(n/f);
+  if(h.art==='wp-fbh'&&!hkvLox(pl)){const n=hkvN(h),f=hkvF(h),per=Math.ceil(n/f);
     for(let q=0;q<f;q++){const ids=[];for(let k=q*per;k<Math.min(n,(q+1)*per);k++)ids.push(k);if(!ids.length)continue;
       const loc=ids.map(k=>[h['hkvG'+k],h['hkvZ'+k]].filter(Boolean).join(' ')||'HZV '+(k+1)).join(', ');
       const r={name:'Heizkreisverteiler '+loc,pol:'2',char:'C',amp:'13',typ:'FILS',note:'automatisch (Fussbodenheizung)',kabAuto:true,relais:[],hz:'hkv'};autoKab(r);out.push(r)}}
@@ -1470,6 +1472,10 @@ function shBody(p,pl,dis){const h=shOf(pl);h.q=h.q||{};loxSyncTe(pl);
     if(!ps.big)return '<p class="sub">Das Power Supply 4,2A hat keinen Notstrom. Vorsicherung: LS '+ps.vs+' 2-polig.</p>'+ab;
     return `<p class="sub">Vorsicherung: LS ${ps.vs} 2-polig.</p>${ab}<div class="legend">Notstrom?</div><div class="tiles two-col">${tl('nb','nein','Nein','')}${tl('nb','ja','Ja','')}</div>${h.nb==='ja'?`<div class="legend">Notstrom über</div><div class="tiles two-col">${tl('nbArt','pv','PV-Speicher','')}${tl('nbArt','bat','Externe Batterie','')}</div><div class="msg info">Kommt als Hinweis ins Schema. Genauere Informationen folgen.</div>`:''}`};
   const tl=(key,val,label,sub,off)=>`<button type="button" class="tile" data-sh="${key}" data-v="${esc(val)}" aria-pressed="${h[key]===val}"${off?' disabled':dis}><b>${esc(label)}</b>${sub?`<span>${esc(sub)}</span>`:''}</button>`;
+  /* Heizkreisverteiler-Stellantriebe (Tobi 23.11.): normale vom Heizungsbauer (auf/zu) oder Loxone */
+  const stUI=()=>{if(!(h.wd==='nein'||(h.wd==='ja'&&+h.wdN>0&&h.wdCon)))return '';
+    return `<div class="legend">Heizkreisverteiler: welche Stellantriebe?</div><div class="tiles two-col">${tl('stA','std','Normale Stellantriebe','vom Heizungsbauer, nur auf/zu')}${tl('stA','lox','Loxone-Stellantriebe','über Loxone gesteuert')}${tl('stA','kein','Kein Heizkreisverteiler','z. B. keine Fussbodenheizung')}</div>
+    ${h.stA==='lox'?`<div class="legend">Wie viele Heizkreise (= Stellantriebe)?</div><label class="m" style="max-width:260px"><input type="number" min="0" max="200" data-shsel="stN" value="${h.stN||''}" placeholder="Anzahl"${dis}></label><div class="row" style="gap:12px;align-items:center;margin-top:6px"><span class="ph" style="width:90px;height:70px">Bild folgt</span><span class="sub">Loxone-Stellantrieb: Artikel, Bild und Preis folgen (Verwaltung «Loxone-Material»). Im Heizsystem braucht der Heizkreisverteiler dann keine Sicherung.</span></div>`:''}`};
   const wdUI=()=>{if(!(h.au==='nein'||(h.au==='ja'&&+h.mN>0)))return '';const wd=LOX.find(o=>o.id==='100891'),im=loxImg('100891');
     let s=`<div class="legend">Wall Display 10" (Loxone, fest an der Wand)?</div><div class="row" style="gap:12px;align-items:center;margin-bottom:6px">${im?`<img src="${im}" alt="Wall Display 10&quot;" style="width:180px;height:116px;object-fit:contain;border:1px solid var(--line);border-radius:8px;background:#fff">`:'<span class="ph" style="width:180px;height:116px">Bild folgt (Verwaltung «Loxone-Material»)</span>'}<span class="sub">${wd.nr} · ${cur2(wd.bru)} · 24 V, max. 13 W · Tree Turbo oder PoE/LAN (USB-C-Adapter)</span></div><div class="tiles two-col">${tl('wd','nein','Nein','')}${tl('wd','ja','Ja','')}</div>`;
     if(h.wd!=='ja')return s;
@@ -1477,7 +1483,7 @@ function shBody(p,pl,dis){const h=shOf(pl);h.q=h.q||{};loxSyncTe(pl);
     s+=`<div class="legend">Anschluss Wall Display</div><div class="tiles two-col">${tl('wdCon','tt','Tree Turbo','zählt zu den Tree-Turbo-Geräten (max. 10 pro Anschluss)')}${tl('wdCon','poe','PoE / LAN','geht immer, alle Miniserver. Nachteil: bei Internetausfall geht das Display nicht')}</div>`;
     return s+`<p class="sub">Wo das Wall Display hinkommt, wählst du bei den Schaltern pro Raum.</p>`};
   const auUI=()=>{if(!loxPs(pl))return '';const T=ttN(h),req=loxAsReq(pl),nA=loxAs(pl);
-    return `<div class="legend">Audiotechnik (Loxone-Lautsprecher, z. B. Decke oder TV)?</div><div class="tiles two-col">${tl('au','nein','Nein','')}${tl('au','ja','Ja','')}</div>${h.au==='ja'?`<div class="legend">Anzahl Master-Lautsprecher am Tree Turbo (Slaves am Master zählen nicht)</div><label class="m" style="max-width:260px"><input type="number" min="0" max="99" data-shsel="mN" value="${h.mN||''}" placeholder="Anzahl"${dis}></label>`:''}${wdUI()}
+    return `<div class="legend">Audiotechnik (Loxone-Lautsprecher, z. B. Decke oder TV)?</div><div class="tiles two-col">${tl('au','nein','Nein','')}${tl('au','ja','Ja','')}</div>${h.au==='ja'?`<div class="legend">Anzahl Master-Lautsprecher am Tree Turbo (Slaves am Master zählen nicht)</div><label class="m" style="max-width:260px"><input type="number" min="0" max="99" data-shsel="mN" value="${h.mN||''}" placeholder="Anzahl"${dis}></label>`:''}${wdUI()}${stUI()}
     ${T?`<div class="msg ${loxTT(pl)&&loxTT(pl).mRest?'err':'info'}"><b>Tree Turbo: ${T} Gerät${T>1?'e':''}</b> (${[h.au==='ja'&&+h.mN?(+h.mN)+' Master-Lautsprecher':'',h.wd==='ja'&&h.wdCon==='tt'&&+h.wdN?(+h.wdN)+' Wall Display':''].filter(Boolean).join(' + ')}). Pro Tree-Turbo-Anschluss max. 10 Geräte. Der Miniserver Compact hat einen Anschluss und reicht bis 10 Geräte. ${req?`Dafür braucht es ${req} Audioserver (zwingend, wird automatisch eingebaut).`:'Ein Audioserver ist nicht nötig, kann aber unten dazugenommen werden.'}${h.au!=='ja'&&nA?' <b>Hinweis:</b> Ohne Audio ist ein Audioserver eigentlich sinnfrei.':''}</div>
     <details class="pform" style="margin:6px 0"><summary><b>? Was kann der Audioserver</b></summary><p class="sub" style="margin:6px 0 0">Loxone Audioserver 100428 (9 TE): eigener Tree-Turbo-Anschluss für 10 weitere Geräte, 4 Lautsprecherausgänge (2× Stereo, je 18 W RMS), Line-in/-out, SPDIF, Streaming und Radio. Mehr Leistung für grössere Audioanlagen. Braucht das Power Supply &amp; Backup (bis 110 W) und LAN zum Miniserver. Ab über 10 Tree-Turbo-Geräten zwingend, ab über 20 ein zweiter und so weiter.</p></details>`:''}`};
   const outUI=()=>{const S=loxSlots(pl);if(!S)return '';const D=loxCons(pl);if(!D.length)return '';
@@ -1600,6 +1606,7 @@ function hzBody(p,pl,dis){const h=hzOf(pl);
   if(h.puf==='ja'){b+=jn('pufHs','Hat der Pufferspeicher einen Heizstab?');if(h.pufHs==='ja')b+=inp('pufKw','Leistung Heizstab Puffer (kW)','z. B. 6')+fuse('puf')}
   b+=jn('boiHs','Hat der Boiler einen Heizstab?');if(h.boiHs==='ja')b+=inp('boiKw','Leistung Heizstab Boiler (kW)','z. B. 3')+fuse('boi');
   if(h.art==='wp-fbh'){const n=hkvN(h),d=Math.ceil(n/2),f=hkvF(h);
+    if(hkvLox(pl))b+=`<div class="legend">Heizkreisverteiler (Fussbodenheizung)</div><div class="msg info"><b>Heizkreisverteiler benötigt keine Sicherung</b>, da über Loxone-Stellantriebe (${+(pl.sh||{}).stN||0} Heizkreise, Schritt Smart Home).</div>`;else
     b+=`<div class="legend">Heizkreisverteiler (Fussbodenheizung)</div><div class="msg info">Pro 2 Heizkreisverteiler kommt automatisch eine Sicherung C13 FI/LS ins Schema.</div>
     <label class="f" style="max-width:260px">Wie viele Heizkreisverteiler?<select data-hz="hkvN"${dis}>${opt([...Array(12)].map((_,k)=>[String(k+1),String(k+1)]),String(n))}</select></label>
     ${[...Array(n)].map((_,k)=>`<div class="grid" style="align-items:end"><label class="f c3">HZV ${k+1} · Geschoss<input data-hz="hkvG${k}" value="${esc(h['hkvG'+k]||'')}" placeholder="z. B. EG" autocomplete="off"${dis}></label><label class="f c3">Zimmer<input data-hz="hkvZ${k}" value="${esc(h['hkvZ'+k]||'')}" placeholder="z. B. Technik" autocomplete="off"${dis}></label></div>`).join('')}
