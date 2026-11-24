@@ -243,7 +243,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-24.1541';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-24.1554';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -1479,7 +1479,7 @@ function rsPanel(p){const ST=stepsOf(p),sel=S.rsSel||new Set(),ci=ST.findIndex(x
   <div class="row" style="margin-bottom:8px">${cur?'<button type="button" class="btn small" data-act="rsCur">Nur Schritt '+(ci+1)+' «'+esc(cur[1])+'»</button>':''}<button type="button" class="btn small" data-act="rsAll">Alles zurücksetzen</button><button type="button" class="btn small" data-act="rsNone">Keine</button></div>
   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:4px 12px">${ST.map(([k,l],i)=>`<label class="chk"><input type="checkbox" data-rs="${k}" ${sel.has(k)?'checked':''}> ${i+1}. ${esc(l)}</label>`).join('')}</div>
   <div class="row" style="margin-top:10px">${sel.size?(S.armed==='rs'?'<button type="button" class="btn danger" data-act="rsDo">Sicher? Ja, '+(all?'alles':sel.size===1?'diesen Schritt':'diese '+sel.size+' Schritte')+' zurücksetzen (nicht rückgängig)</button><button type="button" class="btn small" data-act="disarm">Abbrechen</button>':'<button type="button" class="btn danger" data-arm="rs">'+(all?'Alles':sel.size+(sel.size===1?' Schritt':' Schritte'))+' zurücksetzen</button>'):'<span class="sub">Bitte Schritte ankreuzen.</span>'}</div></div>`}
-function rsDo(s,keys){const pl=planOf(s),ST=stepsOf(s);keys.forEach(k=>{(RS_KEYS[k]||[]).forEach(x=>delete pl[x]);
+function rsDo(s,keys){const pl=planOf(s),ST=stepsOf(s);if(keys.includes('smarthome')){S.shp=null;S.shpSite=null;S.zsSub=null;S.zsSite=null;S.spzSub=null;S.ntSel=null;S.tbNew=false}keys.forEach(k=>{(RS_KEYS[k]||[]).forEach(x=>delete pl[x]);
     if(k==='zuleitung'){pl.adern='5';pl.nb='';pl.nbAuto=false;if(pl.zl&&pl.zl[0])Object.assign(pl.zl[0],{bez:s.norm==='VDE'?'NH':'DZ',bezA:'',qs:'',adern:'5'})}
     if(k==='extras')pl.material=false;if(k==='matliste'&&pl.partSel)['Verteiler','Verteiler AP','Verteiler UP'].forEach(q=>delete pl.partSel[q])});
   planOf(s);const first=ST.find(x=>keys.includes(x[0]));if(first&&stepIdx(first[0])<stepIdx(pl.step))pl.step=first[0]}
@@ -1953,7 +1953,7 @@ function shBody(p,pl,dis){const h=shOf(pl);h.q=h.q||{};if(loxOn(pl)){shPtsSync(h
     rf:()=>flReady(pl)?(rfUI()||'<p class="sub">Keine Raum-Sicherung nötig. Eine Raum-Sicherung braucht es nur für Räume mit Relay-Extension- oder DALI-Beleuchtung. Weitere Sicherungen (z. B. Aussenbereich) im Bereich Stromkreise planen.</p>'):lock,li:()=>flReady(pl)?(liUI()+daliUI()+knxUI()+rfCabUI()||later):lock,sw:()=>flReady(pl)?(swUI()+stRUI()||later):lock,
     nt:()=>ntUI(),ov:()=>otherG.map(g=>`<div class="legend">${esc(g)}</div>`+grpT(g)).join('')+'<p class="sub">Alle Punkte erledigt? Dann mit «Weiter» zum nächsten Schritt.</p>'};
   const ci=shPtCur(pl),ck=SH_PTS[ci][0],M=shMissing(pl);S.shp=ck;S.shpSite=p.id;if(ck!=='spz')S.spzSub=null;
-  b+=dsChk+`<nav class="shnav" aria-label="Smart-Home-Punkte">${SH_PTS.map(([k,l],i)=>{const m=M.some(t=>SH_MISS_PT[t]===k);return `<button type="button" class="shc${i===ci?' on':''}${m?' miss':' ok'}" data-shp="${k}"><b>${i+1}</b><span>${esc(l)}</span>${m?'':'<i>✓</i>'}</button>`}).join('')}</nav>
+  b+=dsChk+`<nav class="shnav" aria-label="Smart-Home-Punkte">${(()=>{const mi=SH_PTS.findIndex(([k2])=>M.some(t=>SH_MISS_PT[t]===k2));return SH_PTS.map(([k,l],i)=>{const m=M.some(t=>SH_MISS_PT[t]===k)||(mi>=0&&i>mi);return `<button type="button" class="shc${i===ci?' on':''}${m?' miss':' ok'}" data-shp="${k}"><b>${i+1}</b><span>${esc(l)}</span>${m?'':'<i>✓</i>'}</button>`}).join('')})()}</nav>
     <div class="shpt${ck==='spz'&&S.spzSub&&S.spzSite===p.id?' sub':''}"><h3>${ci+1} · ${esc(SH_PTS[ci][1])}</h3>${PT[ck]()}
     <div class="row shptnav">${ci>0?`<button type="button" class="btn small" data-shp="${SH_PTS[ci-1][0]}">← ${ci} ${esc(SH_PTS[ci-1][1])}</button>`:'<span></span>'}${ci<SH_PTS.length-1?`<button type="button" class="btn small primary" data-shpnext="1">Weiter zu ${ci+2} ${esc(SH_PTS[ci+1][1])} →</button>`:''}</div></div><table class="te"><tr><td>Gewählt</td><td style="text-align:right">${sel.reduce((a,o)=>a+h.q[o.id],0)} Bauteile · ${te} TE auf der Hutschiene</td></tr><tr class="sum"><td>Total Loxone</td><td style="text-align:right">${rb?'netto '+cur2(net)+' / ':''}Liste ${cur2(bru)}</td></tr></table>`;
   return b}
