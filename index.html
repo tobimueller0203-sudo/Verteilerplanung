@@ -242,7 +242,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-24.0541';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-24.0548';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -2157,9 +2157,15 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     const x0=gx+40,dq=56,yx=200;T(x0-24,yx+4,'-X9','tb','end');
     const FM={};skLayout(s).list.filter(r=>r.hz==='li').forEach(r=>(r.liSw||[]).forEach(w=>{let tg='';(r.grp||[]).forEach(gp=>{const j=(gp.cond||[]).indexOf(w.id);if(j>=0&&gp.kl)tg=(r.X||'-X1')+':'+(gp.kl+j)});FM[w.key]={f:r.f,sid:w.id,cab:w.cab,tg}}));
     const gLbl=g=>{const m=FM[g.rid+'|'+g.k+'|'+g.i];return g.room+' · '+(m?m.f:'-F?')+' · '+(g.k==='sp'?'Spots ':'')+'Gruppe '+(g.i+1)};
-    for(let q=0;q<14;q++){const x=x0+q*dq,g=G[q],b=(off+q)*4;[[x,1],[x+16,3]].forEach(([xx,j])=>{term(xx,gy,3);if(g){L(xx,gy-4,xx,yx,'w');term(xx,yx);T(xx,yx-8,String(b+j),'tk','middle')}});
+    const fOf=g=>g?(FM[g.rid+'|'+g.k+'|'+g.i]||{}).f:null,bOf=q=>(off+q)*4;
+    for(let q=0;q<14;q++){const x=x0+q*dq,g=G[q],b=bOf(q);[[x,1],[x+16,3]].forEach(([xx,j])=>{term(xx,gy,3);if(g){L(xx,gy-4,xx,yx,'w');term(xx,yx);T(j===1?xx-6:xx,yx-8,String(b+j),'tk','middle')}});
       o.push(`<path d="M${x} ${gy+26} l0 -8 M${x+16} ${gy+26} l0 -8 M${x} ${gy+18} l14 -8" fill="none" stroke="#111" stroke-width="1"/>`);T(x+8,gy+40,'Q'+(q+1),'tk5','middle');
-      if(g){const lb=gLbl(g),m=FM[g.rid+'|'+g.k+'|'+g.i];o.push(`<text class="tk5" transform="translate(${x+12} ${yx-20}) rotate(-90)">${esc(lb.length>40?lb.slice(0,39)+'…':lb)}</text>`);if(!m)T(x+8,yx+16,'keine Sicherung','tred','middle')}else T(x+8,gy-10,'frei','tk5','middle')}
+      if(g){const f=fOf(g),same=[];for(let j=0;j<14;j++)if(j!==q&&G[j]&&f&&fOf(G[j])===f)same.push('-X9:'+(bOf(j)+1));
+        const l1='L1 von '+(f||'-F?')+(same.length?' (gebrückt mit '+same.join(', ')+')':''),l3=(g.floor?g.floor+' · ':'')+g.room+' · '+(g.k==='sp'?'Spots ':'')+'Gruppe '+(g.i+1);
+        [[x+3,l1],[x+19,l3]].forEach(([tx,t])=>o.push(`<text class="tk5" transform="translate(${tx} ${yx-20}) rotate(-90)">${esc(t.length>44?t.slice(0,43)+'…':t)}</text>`));
+        if(!f)T(x+8,yx+16,'keine Sicherung','tred','middle')}else T(x+8,gy-10,'frei','tk5','middle')}
+    /* gleiche Sicherung: dezenter Strich zwischen den L1-Klemmen */
+    {let q=0;while(q<14){const f=fOf(G[q]);if(!f){q++;continue}let e=q;while(e+1<14&&fOf(G[e+1])===f)e++;if(e>q){const yy=yx-14;o.push(`<path d="M${x0+q*dq} ${yy} H${x0+e*dq}" fill="none" stroke="#111" stroke-width="0.6"/>`);for(let j=q;j<=e;j++){const xj=x0+j*dq;o.push(`<path d="M${xj} ${yx-4} V${yy}" fill="none" stroke="#111" stroke-width="0.6"/>`)}}q=e+1}}
     T(gx+200,530,'-X9: Doppelstockklemmen PTTBS 2,5. Links am Kontakt immer L1 (Nr. 1, 5, 9 …), rechts Lampendraht (Nr. 3, 7, 11 …).','tk5');T(gx+200,542,'Einspeisung L1 (Nr. 4 …, Steckbrücke) und Abgang zum Kabel (Nr. 2 …) siehe Klemmenliste. Nie am Relais brücken.','tk5');
     /* unten: Versorgung, Link */
     const X={p:gx+40,g:gx+58,lb:gx+110,lw:gx+128};[['p','24V'],['g','GND'],['lb','BU'],['lw','WH']].forEach(([q,l])=>{term(X[q],yb);T(X[q],yb-8,l,'tk5','middle')});T((X.lb+X.lw)/2,yb-22,'Link','tk5','middle');
