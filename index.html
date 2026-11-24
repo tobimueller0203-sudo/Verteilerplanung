@@ -243,7 +243,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-24.1839';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-24.1858';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -617,6 +617,7 @@ function loxAdmin(){const R=catReg().filter(r=>r.grp==='Loxone'),rb=loxR(),c=(D.
   <label class="chk">Sammelrabatt <input class="pct" style="width:90px" type="number" min="0" max="100" step="0.5" data-loxr="1" value="${rb||''}" placeholder="0"> %</label>${c&&c.updated_by?`<p class="sub">Zuletzt geändert von ${esc(userName(c.updated_by))} am ${fmtDate(c.updated_at)}</p>`:''}
   ${R.length?`<table class="te">${R.map(r=>{const im=loxImg(r.o.id);return `<tr><td style="width:70px">${im?`<img src="${im}" alt="" style="width:60px;height:60px;object-fit:contain">`:'<span class="sub">kein Bild</span>'}</td><td><b>${esc(r.o.art)}</b><br><span class="sub">${esc(r.o.nr||'')} · ${r.o.te?r.o.te+' TE':'nicht auf Hutschiene'}</span><br><label class="sub">Bild ${im?'ändern':'hochladen'} <input type="file" accept="image/*" data-loximg="${esc(r.o.id)}"></label>
     <div class="sub" style="margin-top:4px">Datenblätter: ${loxDs(r.o.id).map((d,i)=>`<button type="button" class="btn link" data-dsview="${esc(r.o.id)}" data-di="${i}">${esc(d.name)} (${d.n} S.)</button> <button type="button" class="btn link" style="color:#b42318" data-dsdel="${esc(r.o.id)}" data-di="${i}">entfernen</button>`).join(' · ')||'keine'}<br><label>PDF hinzufügen <input type="file" accept="application/pdf" data-loxds="${esc(r.o.id)}"></label><span id="dsmsg-${esc(r.o.id)}"></span></div></td><td style="white-space:nowrap;text-align:right">Listenpreis <input class="pct" style="width:100px" type="number" step="0.05" min="0" data-cedit="${esc(r.key)}" data-lf="Sonepar" data-pk="bru" value="${r.o.bru??''}"> ${LOX_CUR}<br><span class="sub">netto ${cur2(loxNet(r.o)??0)} (−${rb} %)</span></td></tr>`}).join('')}</table>`:'<p class="sub">Noch keine Loxone-Bauteile eingepflegt.</p>'}
+  <h3 style="margin:14px 0 6px">Loxone-Logo fürs Deckblatt</h3><p class="sub">Erscheint auf dem Deckblatt, wenn Smart Home Loxone gewählt ist. Am besten PNG mit transparentem Hintergrund (z. B. aus dem Loxone-Partnerbereich).</p>${(()=>{const im=loxImg('logo');return `${im?`<img src="${im}" alt="" style="max-width:260px;max-height:80px;border:1px solid var(--line);border-radius:8px;padding:6px;background:#fff"><br>`:'<span class="sub">noch kein Logo</span><br>'}<label class="sub">Logo ${im?'ändern':'hochladen'} <input type="file" accept="image/*" data-loximg="logo"></label>`})()}
   <h3 style="margin:14px 0 6px">Kombinationstabelle Stromwandler</h3><p class="sub">Wird bei Energiezähler «Messwandler» als Infobild angezeigt.</p>${(()=>{const im=loxImg('ct-kombi');return `${im?`<img src="${im}" alt="" style="max-width:320px;border:1px solid var(--line);border-radius:8px"><br>`:'<span class="sub">kein Bild</span><br>'}<label class="sub">Bild ${im?'ändern':'hochladen'} <input type="file" accept="image/*" data-loximg="ct-kombi"></label>`})()}
   <h3 style="margin:14px 0 6px">Zubehör anderer Händler</h3><table class="te">${[WS_SPD].map(o=>{const id=o.id,im=loxImg(id);return `<tr><td style="width:70px">${im?`<img src="${im}" alt="" style="width:60px;height:60px;object-fit:contain">`:'<span class="sub">kein Bild</span>'}</td><td><b>${esc(o.art)}</b> · ${esc(o.txt)}<br><span class="sub">${esc(o.nr)} · ${o.te} TE · ${esc(o.lf)} · ${o.eur.toFixed(2).replace('.',',')} € inkl. MwSt. (Preis Deutschland) = CHF ${chf(o.chf)} (Kurs ${EUR_CHF})</span><br><label class="sub">Bild ${im?'ändern':'hochladen'} <input type="file" accept="image/*" data-loximg="${id}"></label>
     <div class="sub" style="margin-top:4px">Datenblätter: ${loxDs(id).map((d,i)=>`<button type="button" class="btn link" data-dsview="${id}" data-di="${i}">${esc(d.name)} (${d.n} S.)</button> <button type="button" class="btn link" style="color:#b42318" data-dsdel="${id}" data-di="${i}">entfernen</button>`).join(' · ')||'keine'}<br><label>PDF hinzufügen <input type="file" accept="application/pdf" data-loxds="${id}"></label><span id="dsmsg-${id}"></span></div></td></tr>`}).join('')}</table></section>`}
@@ -2170,6 +2171,8 @@ const vtKind=s=>'Verteiler '+(planOf(s).montage==='UP'?'UP':'AP'),vtParts=s=>{co
 const vtSelf=s=>s.art!=='HV'&&!!planOf(s).gehaeuse&&planOf(s).gehaeuse!=='alu';
 const PIMG={};
 function partImg(id){if(PIMG[id]===undefined){PIMG[id]='load';wpGet('part-'+id).then(async v=>{if(!v){v=await cloudWpGet('part-'+id);if(v)wpPut('part-'+id,v).catch(()=>{})}PIMG[id]=v&&v[0]||null;if(PIMG[id])render()})}return typeof PIMG[id]==='string'&&PIMG[id]!=='load'?PIMG[id]:null}
+/* Logo: PNG behalten (transparent) */
+const imgPng=file=>new Promise((ok,ko)=>{const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{const sc=Math.min(1,1200/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*sc);c.height=Math.round(im.height*sc);c.getContext('2d').drawImage(im,0,0,c.width,c.height);ok(c.toDataURL('image/png'))};im.onerror=ko;im.src=fr.result};fr.onerror=ko;fr.readAsDataURL(file)});
 const imgSmall=file=>new Promise((ok,ko)=>{const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{const sc=Math.min(1,900/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*sc);c.height=Math.round(im.height*sc);c.getContext('2d').drawImage(im,0,0,c.width,c.height);ok(c.toDataURL('image/jpeg',0.8))};im.onerror=ko;im.src=fr.result};fr.onerror=ko;fr.readAsDataURL(file)});
 function matPick(s){const M=matList(s,'Sonepar',{vt:true}),out=[];let sonTot=0;
   M.it.forEach(x=>{if(x.mag)return;const q=x.n;
@@ -2261,28 +2264,30 @@ function skDecor(){
 /* Tobi 24.11.: Infoseiten für den externen Verteilerbauer (am Anfang der Planmappe) */
 function bauData(s){const pl=planOf(s),hv=s.art==='HV',five=(pl.adern||'5')==='5',L=skLayout(s),sk=L.list,u=L.sum||{},ku=klUnten(s),SEC=[];
   const vtArt=(()=>{try{if(!vtSelf(s))return '';const id=(pl.partSel||{})[vtKind(s)];const x=id&&vtParts(s).find(v=>v.id===id);return x?(x.art||''):''}catch(_){return ''}})();
-  const lox=loxOn(pl),loxTE=lox?LOX.reduce((a,o)=>a+((pl.sh.q||{})[o.id]||0)*(o.te||0),0):0;
-  const teSich=(u.sichTE||0)+(u.relTE||0),teRes=u.resTE||0,rails=(u.rails||0)+(ku.rails||0);
-  const ks=klStrips(s).filter(k=>k.mm||k.offen),kt=ks.reduce((a,k)=>a+k.mm,0),nZ=five?5:3;
-  const fig=[[String(rails||'–'),'Hutschienen à 12 TE'],[String(teSich+teRes),'TE Schutzgeräte inkl. Reserve'],[lox?String(loxTE):'–','TE Smart Home'],[ks.length?mmTxt(kt):'–','Klemmen gesamt ('+klTE(kt)+' TE)']];
-  SEC.push({h:'Verteiler',rows:[['Art',hv?'Hauptverteilung (HV)':'Unterverteilung (UV)'],['Gehäuse',pl.gehaeuse?(pl.gehaeuse==='alu'?'Alu-Verteiler (Schaltschrankbauer)':'Herstellerverteiler')+(pl.montage?' · '+(pl.montage==='AP'?'Aufputz':'Unterputz'):''):'offen'],...(vtArt?[['Verteiler',vtArt]]:[]),['Hersteller',pl.hersteller||'offen'],['Zuleitung',pl.qs?(five?'5×':'3×')+qsTxt(pl.qs)+' mm² Cu':'offen'],['Stromkreise',String(sk.length)],['Norm',s.norm==='VDE'?'DIN VDE 0100':'NIN SN 411000']]});
-  SEC.push({h:'Platzbedarf Hutschienen',rows:[['Schutzgeräte, Relais',teSich+' TE'],['Reserve',teRes+' TE'],...(ku.rails?[['Klemmen unten',ku.rails+' Hutschiene'+(ku.rails>1?'n':'')]]:[]),['Hutschienen',rails+' à 12 TE'],...(lox?[['Smart Home Loxone',loxTE+' TE zusätzlich (siehe unten)']]:[])]});
-  if(ks.length)SEC.push({h:'Klemmleisten (Phoenix Push-in)',table:{head:['Leiste','Lage','Klemmen','Breite','TE'],w:[.2,.2,.2,.24,.16],rows:ks.map(k=>[k.X,klPos(pl,k.X),String(k.X==='-X0'?nZ:(k.n||'–')),k.offen&&!k.mm?'folgt':mmTxt(k.mm),String(klTE(k.mm))]).concat([['Total','',String(ks.reduce((a,k)=>a+(k.X==='-X0'?nZ:(k.n||0)),0)),mmTxt(kt),String(klTE(kt))]])},note:'Breite inkl. Endhalter und Deckel bzw. Trennplatte. TE immer aufgerundet (1 TE = 18 mm).'});
-  if(lox){const R=[],ps=loxPs(pl),nP=fkPtrvN(pl),nT=tkList(pl).length;
-    if(ps)R.push(['-G1 '+ps.o.art,ps.o.te+' TE'+(ps.big?' · unten einbauen':'')]);loxPsx(pl).forEach(X=>R.push(['-G'+X.g+' '+X.o.art,X.o.te+' TE']));
-    LOX.filter(o=>((pl.sh.q||{})[o.id]||0)>0&&o.te>0&&!LOX_PS[o.id]).forEach(o=>R.push([((pl.sh.q||{})[o.id])+'× '+o.art,(o.te*((pl.sh.q||{})[o.id]))+' TE']));
-    if(nT){const mm=nT*2*KL.PTTBS15.mm+KL.ATPSTTB.mm;R.push(['-X11 Bus/24 V',nT*2+'× PTTBS 1,5/S + Abdeckplatte = '+mmTxt(mm)+' ('+klTE(mm)+' TE)'])}
-    if(nP)R.push(['-X10 Fensterkontakte',nP+'× PTRV 8 à 10,45 mm (86 mm hoch, 100 mm quer)']);
-    {const n=loxTermN(pl);if(n)R.push(['weitere Smart-Home-Klemmen',n+' Stück (Typ folgt)'])}
-    SEC.push({h:'Smart Home Loxone',rows:R})}
-  const H=[];
-  if(lox){const ps=loxPs(pl);if(ps&&ps.big)H.push('Power Supply & Backup: 18 TE, Einbau unten im Verteiler, oben und unten 50 mm frei, Verteiler mind. 100 l.');if(fkPtrvN(pl))H.push('Rangierverbinder PTRV 8 sind sehr gross (86 mm hoch, 100 mm quer zur Hutschiene): Platz einplanen.');H.push('Tree und Tree Turbo nie verbinden. GND aller Netzteile verbinden.')}
-  H.push('3- und 4-polige Sicherungen nie mit 1- und 2-poligen auf derselben Hutschiene, eigene Klemmleiste.');H.push('Max. 6 Sicherungen pro Klemmleiste, danach Endhalter + Deckel und nächste Leiste.');
-  if(pl.hs)H.push('Hauptschalter'+(hsTxt(pl)?' '+hsTxt(pl):'')+': Klemmenabdeckung mitliefern.');
-  H.push('Belegung, Querschnitte und Aderfarben: siehe Schema'+((pl.docs||{}).klemmen?' und Klemmenliste.':'.'));
+  const lox=loxOn(pl),q=lox?(pl.sh.q||{}):{},LR=lox?LOX.filter(o=>(q[o.id]||0)>0&&o.te>0):[],loxTE=LR.reduce((a,o)=>a+q[o.id]*o.te,0);
+  const teSich=u.sichTE||0,teRel=u.relTE||0,teRes=u.resTE||0,teAll=teSich+teRel+teRes+loxTE,ks=klStrips(s).filter(k=>k.mm||k.offen),kt=ks.reduce((a,k)=>a+k.mm,0),nZ=five?5:3;
+  let fig=[[teSich+teRel+' TE','Sicherungen'+(teRel?' und Relais':'')+' ('+sk.length+' Stromkreise)'],[lox?loxTE+' TE':'–','Smart Home Loxone'],[teRes+' TE','Reserve'],[teAll+' TE','Total auf Hutschienen = mind. '+Math.ceil(teAll/12)+' × 12 TE']];
+  /* 1) Wichtig */
+  const W=[];if(lox){const ps=loxPs(pl);if(ps&&ps.big)W.push('Loxone Power Supply & Backup: 18 TE breit. Einbau unten im Verteiler, oben und unten 50 mm frei, Verteiler mind. 100 l.');loxPsx(pl).forEach(X=>W.push('Weiteres Netzteil -G'+X.g+': '+X.o.art+', '+X.o.te+' TE.'));if(fkPtrvN(pl))W.push('Fensterkontakte -X10: '+fkPtrvN(pl)+'× Rangierverbinder PTRV 8, sehr gross (86 mm hoch, 100 mm quer zur Hutschiene).')}
+  if(pl.hs)W.push('Hauptschalter'+(hsTxt(pl)?' '+hsTxt(pl):'')+' mit Klemmenabdeckung.');if(pl.spd)W.push('Überspannungsschutz direkt nach der Einspeisung.');
+  if(W.length)SEC.push({h:'Wichtig für den Einbau',hl:1,list:W});
+  /* 2) Sicherungen pro Stromkreis */
+  const typ=r=>((r.typ==='LS'?'LS ':r.typ?'FI/LS ':'')+(r.char||'')+(r.amp||'')+(r.amp?' A':'')+(r.pol?' '+r.pol+'P':'')).trim()||'–';
+  const SR=sk.map(r=>{const n=String(r.name||'');return [r.f||'',n.length>34?n.slice(0,33)+'…':n,typ(r),String(r.te||0)]});if(teRel)SR.push(['','Relais / Schütze','',String(teRel)]);let teLv=0;if(lox){const fmax=Math.max(0,...sk.map(r=>+String(r.f||'').replace(/\D/g,'')||0)),ps=loxPs(pl);if(ps){SR.push(['-F'+(fmax+1),'Vorsicherung -G1 '+ps.o.art,'LS '+ps.vs+' 2P','2']);teLv+=2}loxPsx(pl).forEach(X=>{SR.push(['-F'+(fmax+1+X.g),'Vorsicherung -G'+X.g+' '+X.o.art,'LS '+(LOX_PS[X.o.id]||{}).vs+' 2P','2']);teLv+=2})}
+  for(let i=0;i<SR.length||i===0;i+=24){const part=SR.slice(i,i+24),lastP=i+24>=SR.length;SEC.push({h:'Sicherungen (Stromkreise)'+(i?' · Fortsetzung':''),table:{head:['Nr.','Stromkreis','Gerät','TE'],w:[.12,.5,.26,.12],rows:part.concat(lastP?[['Total','','',String(teSich+teRel+teLv)]]:[]),tot:lastP}});if(!SR.length)break}
+  /* 3) Smart Home auf der Hutschiene */
+  if(lox&&LR.length)SEC.push({h:'Smart Home Loxone (Hutschiene)',table:{head:['Gerät','Anzahl','TE'],w:[.62,.2,.18],rows:LR.map(o=>[o.art+(o.id==='100401'?' (unten einbauen)':''),String(q[o.id]),String(q[o.id]*o.te)]).concat([['Total','',String(loxTE)]]),tot:1}});
+  /* 4) Klemmleisten */
+  if(ks.length)SEC.push({h:'Klemmleisten (Phoenix Push-in)',table:{head:['Leiste','Lage','Klemmen','Breite','TE'],w:[.2,.2,.2,.24,.16],rows:ks.map(k=>[k.X,klPos(pl,k.X),String(k.X==='-X0'?nZ:(k.n||'–')),k.offen&&!k.mm?'folgt':mmTxt(k.mm),String(klTE(k.mm))]).concat([['Total','',String(ks.reduce((a,k)=>a+(k.X==='-X0'?nZ:(k.n||0)),0)),mmTxt(kt),String(klTE(kt))]]),tot:1},note:'Breite inkl. Endhalter und Deckel bzw. Trennplatte. TE aufgerundet (1 TE = 18 mm).'});
+  if(lox){const R=[],nP=fkPtrvN(pl),nT=tkList(pl).length;if(nT){const mm=nT*2*KL.PTTBS15.mm+KL.ATPSTTB.mm;R.push(['-X11 Bus / 24 V',nT*2+'× PTTBS 1,5/S + Abdeckplatte = '+mmTxt(mm)+' ('+klTE(mm)+' TE)'])}if(nP)R.push(['-X10 Fensterkontakte',nP+'× PTRV 8 à 10,45 mm']);{const n=loxTermN(pl);if(n)R.push(['weitere Smart-Home-Klemmen',n+' Stück (Typ folgt)'])}if(R.length)SEC.push({h:'Smart-Home-Klemmen',rows:R})}
+  /* 5) Verteiler */
+  SEC.push({h:'Verteiler',rows:[['Art',hv?'Hauptverteilung (HV)':'Unterverteilung (UV)'],['Gehäuse',pl.gehaeuse?(pl.gehaeuse==='alu'?'Alu-Verteiler (Schaltschrankbauer)':'Herstellerverteiler')+(pl.montage?' · '+(pl.montage==='AP'?'Aufputz':'Unterputz'):''):'offen'],...(vtArt?[['Verteiler',vtArt]]:[]),['Hersteller',pl.hersteller||'offen'],['Zuleitung',pl.qs?(five?'5×':'3×')+qsTxt(pl.qs)+' mm² Cu':'offen'],['Norm',s.norm==='VDE'?'DIN VDE 0100':'NIN SN 411000']]});
+  /* 6) Hinweise */
+  const H=[];if(lox)H.push('Tree und Tree Turbo nie verbinden. GND aller Netzteile verbinden.');H.push('3- und 4-polige Sicherungen nie mit 1- und 2-poligen auf derselben Hutschiene, eigene Klemmleiste.');H.push('Max. 6 Sicherungen pro Klemmleiste, danach Endhalter + Deckel und nächste Leiste.');H.push('Belegung, Querschnitte und Aderfarben: siehe Schema'+((pl.docs||{}).klemmen?' und Klemmenliste.':'.'));
   SEC.push({h:'Hinweise zum Bau',list:H});
+  {const tS=teSich+teRel+teLv,tA=tS+teRes+loxTE;fig=[[tS+' TE','Sicherungen'+(teRel?' und Relais':'')+' ('+(sk.length+(teLv/2))+' Stück)'],[lox?loxTE+' TE':'–','Smart Home Loxone'],[teRes+' TE','Reserve'],[tA+' TE','Total auf Hutschienen = mind. '+Math.ceil(tA/12)+' × 12 TE']]}
   return {fig,SEC}}
-function bauPages(s){const {SEC}=bauData(s),hOf=x=>36+(x.rows?x.rows.length*18:0)+(x.table?22+x.table.rows.length*18:0)+(x.note?16:0)+(x.list?x.list.reduce((a,t)=>a+wrapTxt(t,80).length*14+4,0):0)+14;
+function bauPages(s){const {SEC}=bauData(s),hOf=x=>36+(x.rows?x.rows.length*18:0)+(x.table?22+x.table.rows.length*18:0)+(x.note?16:0)+(x.list?x.list.reduce((a,t)=>a+wrapTxt(t,80).length*14+4,0)+(x.hl?12:0):0)+14;
   const cap0=490,cap=578,P=[];let cur=[[],[]],hh=[0,0],first=true;
   SEC.forEach(x=>{const h=hOf(x),c=first?cap0:cap;let i=hh[0]<=hh[1]?0:1;if(hh[i]+h-14>c){i=1-i;if(hh[i]+h-14>c){P.push(cur);cur=[[],[]];hh=[0,0];first=false;i=0}}cur[i].push(x);hh[i]+=h});
   P.push(cur);return P}
@@ -2396,9 +2401,8 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     T(lx,y1+158,cut(s.bauherr||'Bauherrschaft offen',52),'tdeck3');
     T(lx,y1+178,cut([s.adr,[s.plz,s.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ')||'Adresse offen',70),'tcovs');
     {const b=[s.bereich,s.stock].filter(Boolean).join(' · ');if(b)T(lx,y1+196,cut(b,70),'tcovs')}
-    /* Kennzahlen */
-    {const F=[[String(sk.length),'Stromkreise'],[String((skLayout(s).sum||{}).rails+(klUnten(s).rails||0)||'–'),'Hutschienen'],[String(all.length),'Blätter'],...(lox?[['Loxone','Smart Home']]:[])],gap=12,tw=(px-50-lx-gap*(F.length-1))/F.length,ty=iy0+440;
-      F.forEach((f,i)=>{const x=lx+i*(tw+gap);o.push(`<rect x="${x}" y="${ty}" width="${tw}" height="64" fill="#fff" stroke="#d8d8d4" stroke-width=".8"/><rect x="${x}" y="${ty+60}" width="${tw}" height="4" fill="#ffed00"/>`);T(x+14,ty+32,f[0],'tnum');T(x+14,ty+50,f[1].toUpperCase(),'tkv')})}
+    /* Tobi 24.11.: keine Kennzahlen aufs Deckblatt. Smart Home nur wenn gewählt, mit Loxone-Logo */
+    if(lox){const ty=iy0+452,lg=loxImg('logo');T(lx,ty,'SMART HOME','tkv');if(lg)o.push(`<image href="${lg}" x="${lx}" y="${ty+10}" width="220" height="44" preserveAspectRatio="xMinYMid meet"/>`);else T(lx,ty+40,'LOXONE','tcov2')}
     /* Planung */
     {const R=[['PLANER',userName(s.owner)],['ERSTELLT',s.created?fmtDate(s.created).slice(0,10):'–'],['STAND'+(last?' · INDEX '+last.idx:''),fmtDate(pl.changed||s.updated).slice(0,10)],['GEPRÜFT','–']],yy=iy0+548,cw2=(px-50-lx)/R.length;
       L(lx,yy-18,px-50,yy-18,'fr2');R.forEach((r,i)=>{const x=lx+i*cw2;if(i)L(x-10,yy-6,x-10,yy+22,'fr3');T(x,yy,r[0],'tkv');T(x,yy+18,cut(r[1],Math.floor((cw2-16)/7.6)),'tkvb')})}
@@ -2416,9 +2420,9 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     cols.forEach((C,ci)=>{let y=y0;const x=cx0+ci*(cW+40),w=cW;
       C.forEach(sec=>{T(x,y+14,sec.h.toUpperCase(),'tlab');L(x,y+21,x+w,y+21,'fr2');y+=36;
         if(sec.rows){const kx=Math.min(w*.52,Math.max(130,Math.max(...sec.rows.map(r=>String(r[0]).length))*5.7+16));sec.rows.forEach(r=>{const mx=Math.floor((w-kx)/5.9);T(x,y,r[0],'tm2');T(x+kx,y,String(r[1]).length>mx?String(r[1]).slice(0,mx-1)+'…':String(r[1]),'tk4');L(x,y+6,x+w,y+6,'fr3');y+=18})}
-        if(sec.table){const tb=sec.table;let xx=x;const X=tb.w.map(f=>{const v=xx;xx+=f*w;return v});tb.head.forEach((h2,i)=>T(X[i],y,h2,'tb'));L(x,y+6,x+w,y+6,'fr2');y+=22;tb.rows.forEach((r,ri)=>{const last=ri===tb.rows.length-1;r.forEach((c,i)=>T(X[i],y,c,last?'tb':'tk4'));L(x,y+6,x+w,y+6,last?'fr2':'fr3');y+=18})}
+        if(sec.table){const tb=sec.table;let xx=x;const X=tb.w.map(f=>{const v=xx;xx+=f*w;return v});tb.head.forEach((h2,i)=>T(X[i],y,h2,'tb'));L(x,y+6,x+w,y+6,'fr2');y+=22;tb.rows.forEach((r,ri)=>{const last=tb.tot&&ri===tb.rows.length-1;r.forEach((c,i)=>T(X[i],y,c,last?'tb':'tk4'));L(x,y+6,x+w,y+6,last?'fr2':'fr3');y+=18})}
         if(sec.note){T(x,y+2,sec.note,'tk5');y+=16}
-        if(sec.list)sec.list.forEach(t=>{wrapTxt(t,80).forEach((ln,j)=>{if(!j)o.push(`<rect x="${x}" y="${y-6}" width="4" height="4" fill="#111"/>`);T(x+12,y,ln,'tk4');y+=14});y+=4});
+        if(sec.list){if(sec.hl){const hh=sec.list.reduce((a,t)=>a+wrapTxt(t,78).length*14+4,0)+8;o.push(`<rect x="${x}" y="${y-11}" width="${w}" height="${hh+2}" fill="#fff6c7" stroke="#f2d200" stroke-width="1"/>`);y+=2}sec.list.forEach(t=>{wrapTxt(t,sec.hl?78:80).forEach((ln,j)=>{if(!j)o.push(`<rect x="${x+(sec.hl?6:0)}" y="${y-6}" width="4" height="4" fill="#111"/>`);T(x+12+(sec.hl?6:0),y,ln,'tk4');y+=14});y+=4});if(sec.hl)y+=8}
         y+=14})});
   }else if(pg.kind==='bus2d'){
     const R=bus2D(s,true),B=busPlan(s),aw=640,ah=iy1-iy0-80,sc=Math.min(aw/R.VW,ah/R.H,1.6);
@@ -3132,7 +3136,7 @@ document.addEventListener('change',e=>{
   if(t.dataset.loxds&&S.user&&S.user.admin){const id=t.dataset.loxds,f=t.files&&t.files[0];if(!f)return;const m=$('#dsmsg-'+id);if(m)m.textContent=' wird verarbeitet …';
     pdfImgs(f,20,1600).then(async({out,tot})=>{const key='loxds-'+id+'-'+Date.now();await wpPut(key,out).catch(()=>{});WPIMG[key]=out;await cloudWpPut(key,out);const L=loxDs(id);L.push({key,name:f.name.replace(/\.pdf$/i,''),n:out.length});await cfgSet('CFG:loxds:'+id,null,JSON.stringify(L));}).catch(e=>{if(m)m.textContent=' Fehler: '+(e.message||e)});return}
   if(t.dataset.loxr&&S.user&&S.user.admin&&SB.on){const v=t.value.trim();cfgSet('CFG:loxRabatt',v===''?0:Math.min(100,Math.max(0,+v.replace(',','.')||0)));return}
-  if(t.dataset.loximg&&S.user&&S.user.admin){const id=t.dataset.loximg,f=t.files&&t.files[0];if(f)imgSmall(f).then(u=>{LOXIMG[id]=u;wpPut('lox-'+id,[u]).catch(()=>{});cloudWpPut('lox-'+id,[u]);render()});return}
+  if(t.dataset.loximg&&S.user&&S.user.admin){const id=t.dataset.loximg,f=t.files&&t.files[0];if(f)(id==='logo'?imgPng(f):imgSmall(f)).then(u=>{LOXIMG[id]=u;wpPut('lox-'+id,[u]).catch(()=>{});cloudWpPut('lox-'+id,[u]);render()});return}
   if(t.dataset.pedit&&S.user&&S.user.admin){const x=partsAll().find(q=>q.id===t.dataset.pedit);if(!x)return;const v=t.value.trim();x[t.dataset.pk]=v===''?null:Math.max(0,+v.replace(',','.')||0);partSave(x);return}
   if(t.dataset.preis&&S.site&&canEdit(S.site)){const pl=planOf(S.site),k=t.dataset.preis;pl.preise=pl.preise||{};const o=pl.preise[k]=pl.preise[k]||{},v=t.value.trim();if(v==='')delete o[t.dataset.pk];else o[t.dataset.pk]=Math.max(0,+v.replace(',','.')||0);if(o.net==null&&o.bru==null)delete pl.preise[k];touchPlan('Preis von Hand: '+manTxt(k));render();return}
   if(t.dataset.ex==='litzeMag'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.litzeMag=t.checked;touchPlan('Litze '+(t.checked?'aus dem Magazin':'auf Kommission'));render();return}
