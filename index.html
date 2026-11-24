@@ -242,7 +242,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-24.0509';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-24.0512';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -1418,6 +1418,11 @@ function rsDo(s,keys){const pl=planOf(s),ST=stepsOf(s);keys.forEach(k=>{(RS_KEYS
     if(k==='extras')pl.material=false;if(k==='matliste'&&pl.partSel)['Verteiler','Verteiler AP','Verteiler UP'].forEach(q=>delete pl.partSel[q])});
   planOf(s);const first=ST.find(x=>keys.includes(x[0]));if(first&&stepIdx(first[0])<stepIdx(pl.step))pl.step=first[0]}
 /* Sperre (Tobi 23.11.): Heizsystem/Stromkreise erst, wenn Smart Home (Spots, Beleuchtung, Schalter) fertig deklariert ist */
+/* Fehler (nicht nur fehlende Angaben) im Smart Home: sperren Weiter und alle späteren Schritte */
+const SH_ERR={'Fehler: zu viele Netzteil-Abgänge':'ov','Fehler: Netzteil-Abgang über 10 A':'ov','Fehler: Netzteil zu klein':'ps','Fehler: Tree Turbo voll':'au','Fehler: Tree voll (max. 50 Geräte)':'fl','Fehler: KNX-DALI-Aktor max. 64 Leuchten':'li'};
+function shErr(pl){if(!loxOn(pl))return [];const h=pl.sh,E=loxCheck(pl),M=new Set();
+  E.forEach(e=>{if(/Netzteil-Abgänge/.test(e))M.add('Fehler: zu viele Netzteil-Abgänge');else if(/^Abgang \d/.test(e))M.add('Fehler: Netzteil-Abgang über 10 A');else if(/Leistung zu gross|Power Supply 4,2A/.test(e))M.add('Fehler: Netzteil zu klein');else if(/Tree Turbo voll/.test(e))M.add('Fehler: Tree Turbo voll');else if(/pro Tree/.test(e))M.add('Fehler: Tree voll (max. 50 Geräte)')});
+  if(h.daliArt==='knx'&&daliLamps(pl)>64)M.add('Fehler: KNX-DALI-Aktor max. 64 Leuchten');return [...M]}
 function shMissing(pl){if(!loxOn(pl))return [];const h=pl.sh,M=[];if(!loxPs(pl))M.push('Netzteil');if(!h.au||(h.au==='ja'&&!(+h.mN)))M.push('Audiotechnik');if(!h.wd||(h.wd==='ja'&&(!(+h.wdN)||!h.wdCon)))M.push('Wall Display');if(!loxMs(pl))M.push('Miniserver');
   if(!flReady(pl))M.push('Stockwerke und Räume');if(!h.sp)M.push('Spots');
   if(h.sp==='tree'){const F=spFloors(pl);if(!F.length)M.push('Räume mit Tree-Spots');else if(F.some(f=>f.rooms.some(r=>((h.spFl[f.id]||{}).rooms||{})[r.id]&&(!roomSpots(pl,f.id,r.id)||!roomTyp(pl,f.id,r.id)))))M.push('Spot-Typ und Anzahl pro Raum')}
@@ -1430,8 +1435,9 @@ function shMissing(pl){if(!loxOn(pl))return [];const h=pl.sh,M=[];if(!loxPs(pl))
   if(Object.keys(h.sw||{}).some(rid=>swItems(pl,rid).some(it=>!it.typ||!(+it.n))))M.push('Schalter (Gerät und Anzahl)');
   if(rfRooms(pl).some(r=>!(h.rf||{})[r.rid]))M.push('Raum-Sicherungen');
   if(rfList(pl).some(x=>!x.ok))M.push('Kabel der Raum-Sicherungen (zu wenig Adern)');
+  shErr(pl).forEach(e=>M.push(e));
   return M}
-const shGated=(s,k)=>{const ST=stepsOf(s),i=ST.findIndex(x=>x[0]===k),hz=ST.findIndex(x=>x[0]==='heizung');return hz>=0&&i>=hz&&shMissing(planOf(s)).length>0};
+const shGated=(s,k)=>{const ST=stepsOf(s),i=ST.findIndex(x=>x[0]===k),hz=ST.findIndex(x=>x[0]==='heizung'),sh=ST.findIndex(x=>x[0]==='smarthome');if(sh>=0&&i>sh&&shErr(planOf(s)).length)return true;return hz>=0&&i>=hz&&shMissing(planOf(s)).length>0};
 /* Fehlende Pflichtangaben (Tobi 23.11.): bei «Weiter» sofort melden, «Hinführen» springt hin und markiert rot */
 function stepMiss(s,k){const pl=planOf(s),M=[];
   if(k==='smarthome'){const h=pl.sh||{};if(!h.on)M.push('Smart Home Ja/Nein');else if(h.on==='ja'&&!h.sys)M.push('Smart-Home-System');else shMissing(pl).forEach(t=>M.push(t))}
@@ -1440,6 +1446,7 @@ function stepMiss(s,k){const pl=planOf(s),M=[];
   if(k==='zuleitung'&&!(pl.qs&&qsNum(pl.qs)<=QS_MAX))M.push('Zuleitung (Querschnitt)');
   if(k==='stromkreise'&&!stepOk(pl,k))M.push('Mindestens ein Stromkreis');
   if(k==='zaehler'&&!stepOk(pl,k))M.push('Mindestens ein Zähler');
+  if(k==='stromkreise'&&s.art==='HV'){const act=zlAct(s);act.slice(1).forEach(z=>{if((pl.sk||[]).filter(r=>(r.name||'').trim()&&rowZid(s,r)===z.id).length>ZM_EXT_MAX)M.push('Fehler: zu viele Sicherungen beim Zähler -P'+(pl.zl.indexOf(z)+1))})}
   return M}
 function missEl(t){const pl=S.site?planOf(S.site):{},h=pl.sh||{},q=x=>document.querySelector('#main '+x),qa=x=>[...document.querySelectorAll('#main '+x)],box=x=>{const e=q(x);return e?(e.closest('.tiles,.seg,.lxg')||e):null};
   const F={'Smart Home Ja/Nein':()=>box('[data-sh=on]'),'Smart-Home-System':()=>box('[data-sh=sys]'),'Netzteil':()=>box('[data-loxone="100401"]'),
@@ -1451,12 +1458,12 @@ function missEl(t){const pl=S.site?planOf(S.site):{},h=pl.sh||{},q=x=>document.q
     'Schalter (Gerät und Anzahl)':()=>{const b=qa('.pkb').find(b=>/Auswählen/.test(b.textContent))||qa('[data-swn]').find(e=>!(+e.value));return b?(b.closest('.row')||b):null},
     'Raum-Sicherungen':()=>qa('.rfr').find(r=>!r.querySelector('.chp.on')),'Kabel der Raum-Sicherungen (zu wenig Adern)':()=>{const e=q('.rfc .msg.err');return e?e.closest('.rfc'):null},
     'Hersteller':()=>box('[data-plv=hersteller]'),'Montage (AP/UP)':()=>box('[data-plv=montage]'),'Gehäuse':()=>box('[data-plv=gehaeuse]'),'Zuleitung (Querschnitt)':()=>q('#p-qs'),
-    'Mindestens ein Stromkreis':()=>q('#skRows input[data-sk=name]'),'Mindestens ein Zähler':()=>q('input[data-zl="name"]')};
-  return (F[t]||(()=>null))()}
+    'Mindestens ein Stromkreis':()=>q('#skRows input[data-sk=name]'),'Fehler: zu viele Netzteil-Abgänge':()=>{const e=q('[data-shout]');return e?(e.closest('.row')||e):q('.msg.alarm')},'Fehler: Netzteil-Abgang über 10 A':()=>{const e=q('[data-shout]');return e?(e.closest('.row')||e):q('.msg.alarm')},'Fehler: Netzteil zu klein':()=>box('[data-loxone="100401"]')||q('.msg.alarm'),'Fehler: Tree Turbo voll':()=>q('.msg.err')||box('[data-sh=au]'),'Fehler: Tree voll (max. 50 Geräte)':()=>q('[data-flnt]')?box('[data-flnt]'):q('.msg.alarm'),'Fehler: KNX-DALI-Aktor max. 64 Leuchten':()=>box('[data-sh=daliArt]'),'Mindestens ein Zähler':()=>q('input[data-zl="name"]')};
+  return (F[t]||(()=>/^Fehler/.test(t)?q('.msg.err'):null))()}
 function missGo(t,smooth){document.querySelectorAll('.missHl').forEach(e=>e.classList.remove('missHl'));document.querySelectorAll('.missTag').forEach(e=>e.remove());
-  const e=missEl(t);if(!e)return false;e.classList.add('missHl');const tag=document.createElement('div');tag.className='missTag';tag.textContent='Achtung: '+t+' noch auswählen';e.parentNode.insertBefore(tag,e);
+  const e=missEl(t);if(!e)return false;e.classList.add('missHl');const tag=document.createElement('div');tag.className='missTag';tag.textContent=/^Fehler: /.test(t)?'Gesperrt: '+t.slice(8)+' – zuerst beheben':'Achtung: '+t+' noch auswählen';e.parentNode.insertBefore(tag,e);
   if(smooth!==false)tag.scrollIntoView({block:'center',behavior:'smooth'});return true}
-const missBox=(items,st)=>`<div class="msg err" id="missBox"><b>Achtung, noch auswählen:</b>${items.map(t=>`<div class="missRow"><span>${esc(t)}</span><button type="button" class="btn small" data-goto="${esc(st+'|'+t)}">Hinführen</button></div>`).join('')}</div>`;
+const missBox=(items,st)=>`<div class="msg err" id="missBox">${items.some(t=>/^Fehler: /.test(t))?'<b>Gesperrt, zuerst beheben:</b>':''}${items.filter(t=>/^Fehler: /.test(t)).map(t=>`<div class="missRow"><span>${esc(t.slice(8))}</span><button type="button" class="btn small" data-goto="${esc(st+'|'+t)}">Hinführen</button></div>`).join('')}${items.some(t=>!/^Fehler: /.test(t))?'<b>Achtung, noch auswählen:</b>':''}${items.filter(t=>!/^Fehler: /.test(t)).map(t=>`<div class="missRow"><span>${esc(t)}</span><button type="button" class="btn small" data-goto="${esc(st+'|'+t)}">Hinführen</button></div>`).join('')}</div>`;
 function stepOk(pl,k){return {smarthome:!!(pl.sh&&(pl.sh.on==='nein'||(pl.sh.on==='ja'&&pl.sh.sys))),matliste:true,heizung:true,verteiler:true,schienen:true,klemmen:true,unterlagen:true,hersteller:!!pl.hersteller,gehaeuse:!!pl.gehaeuse&&!!pl.montage,zuleitung:!!pl.qs&&qsNum(pl.qs)<=QS_MAX,stromkreise:(pl.sk||[]).some(r=>(r.name||'').trim())||(pl.zl||[]).length>1,zaehler:(pl.zl||[]).some(z=>!z.res),extras:true}[k]}
 /* Heizsystem (Tobi 23.11.): Fragen; Sicherungen der Wärmepumpe kommen automatisch ins Schema (Schütz-Steuerung folgt) */
 const HZ_ART=[['wp-fbh','Wärmepumpe','über Fussbodenheizung'],['wp-hk','Wärmepumpe','über Heizkörper'],['gas','Gasheizung',''],['andere','Anderes','']];
@@ -1515,7 +1522,7 @@ function loxWdFix(h,key){h.q=h.q||{};if(key==='au'&&h.au==='nein')delete h.mN;if
 function shOf(pl){return pl.sh||(pl.sh={q:{}})}
 /* Smart Home Punkt für Punkt (Tobi 23.11.): nummerierte Unterpunkte, einer nach dem anderen */
 const SH_PTS=[['ps','Spannungsversorgung'],['au','Audio'],['wd','Wall Display'],['ms','Miniserver'],['st','Heizkreisverteiler'],['fl','Stockwerke, Räume, Trees'],['rf','Raum-Sicherungen'],['li','Beleuchtung'],['sw','Schalter'],['ov','Übersicht']];
-const SH_MISS_PT={'Netzteil':'ps','Audiotechnik':'au','Wall Display':'wd','Miniserver':'ms','Stellantriebe Heizkreisverteiler':'st','Stockwerke und Räume':'fl','Raum-Sicherungen':'rf','Kabel der Raum-Sicherungen (zu wenig Adern)':'li','Spots':'li','Räume mit Tree-Spots':'li','Spot-Typ und Anzahl pro Raum':'li','Weitere Lampen':'li','Lampengruppen (Anzahl und DALI/Relais)':'li','DALI-Ansteuerung':'li','Wall Display einem Raum zuweisen':'sw','Schalter (Gerät und Anzahl)':'sw','Stellantriebe einem Raum zuweisen':'st'};
+const SH_MISS_PT={...SH_ERR,'Netzteil':'ps','Audiotechnik':'au','Wall Display':'wd','Miniserver':'ms','Stellantriebe Heizkreisverteiler':'st','Stockwerke und Räume':'fl','Raum-Sicherungen':'rf','Kabel der Raum-Sicherungen (zu wenig Adern)':'li','Spots':'li','Räume mit Tree-Spots':'li','Spot-Typ und Anzahl pro Raum':'li','Weitere Lampen':'li','Lampengruppen (Anzahl und DALI/Relais)':'li','DALI-Ansteuerung':'li','Wall Display einem Raum zuweisen':'sw','Schalter (Gerät und Anzahl)':'sw','Stellantriebe einem Raum zuweisen':'st'};
 const shPtMiss=(pl,k)=>shMissing(pl).filter(t=>SH_MISS_PT[t]===k);
 const shPtCur=pl=>{const i=S.site&&S.shpSite===S.site.id?SH_PTS.findIndex(x=>x[0]===S.shp):-1;if(i>=0)return i;const M=shMissing(pl),j=SH_PTS.findIndex(x=>M.some(t=>SH_MISS_PT[t]===x[0]));return j>=0?j:0};
 function shBody(p,pl,dis){const h=shOf(pl);h.q=h.q||{};loxSyncTe(pl);stCleanFl(h);
@@ -1695,7 +1702,7 @@ function hzBody(p,pl,dis){const h=hzOf(pl);
 function stepper(pl){
   const cur=stepIdx(pl.step);
   const ST=stepsOf(S.site);
-  return `<nav class="steps" aria-label="Planungsschritte">${ST.map(([k,l],i)=>{const reach=ST.slice(0,i).every(x=>stepOk(pl,x[0]))&&!shGated(S.site,k);
+  return `<nav class="steps" aria-label="Planungsschritte">${ST.map(([k,l],i)=>{const reach=ST.slice(0,i).every(x=>stepOk(pl,x[0])&&!stepMiss(S.site,x[0]).some(t=>/^Fehler/.test(t)))&&!shGated(S.site,k);
     return `<button type="button" class="st${k===pl.step?' on':''}${i!==cur&&stepOk(pl,k)?' done':''}" data-step="${k}"${reach||i<=cur?'':' disabled'}><b>${i+1}</b><span>${l}</span></button>`}).join('')}</nav>`;
 }
 function vPlan(){
