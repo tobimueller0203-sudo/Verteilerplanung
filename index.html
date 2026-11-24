@@ -166,7 +166,8 @@ input:disabled,select:disabled{opacity:1;background:var(--bg);color:var(--ink);-
 .missRow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;flex-wrap:wrap}
 .swc{display:flex;gap:6px;flex-wrap:wrap;flex-basis:100%;margin:2px 0 4px}.swcb{display:flex;align-items:center;gap:6px;padding:5px 10px 5px 6px;border:1px solid var(--line);border-radius:8px;background:#f3f3f1;font:inherit;font-size:13px;color:inherit;cursor:pointer}.swcb i{width:20px;height:20px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}.swcb.on{background:#111;color:#fff;border-color:#111}.swcb small{color:#b42318;font-size:11px}.swcb.on small{color:#ffb4ab}
 .shnav{display:flex;gap:6px;overflow-x:auto;padding:4px 2px 8px;margin:12px 0 4px;scrollbar-width:thin}.shc{flex:none;display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:#fff;font:inherit;font-size:13px;color:inherit;cursor:pointer;white-space:nowrap}.shc b{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#eee;font-size:12px}.shc.ok b{background:#3fa34d;color:#fff}.shc.miss b{background:#f3d0cc;color:#b42318}.shc i{font-style:normal;color:#3fa34d;font-weight:700}.shc.on{border-color:#111;background:var(--accent);font-weight:700}
-.shpt{border:2px solid #111;border-radius:12px;padding:14px;margin:6px 0 10px;background:#fff}.shpt>h3{margin:0 0 8px;font:800 22px var(--f-display);letter-spacing:-.01em}.shptnav{justify-content:space-between;gap:8px;margin-top:14px;flex-wrap:wrap}
+.shpt{border:2px solid #111;border-radius:12px;padding:14px;margin:6px 0 10px;background:#fff}.shpt>h3{margin:0 0 8px;font:800 22px var(--f-display);letter-spacing:-.01em}.shptnav{justify-content:space-between;gap:8px;margin-top:14px;flex-wrap:wrap}.shpt .btn{max-width:100%;white-space:normal;text-align:center}.shpt.sub .shptnav{display:none}
+@media (max-width:640px){.actions{gap:6px;padding-top:8px;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px))}.actions .btn{padding:9px 11px;font-size:14px}.actions>.row{gap:6px}.actions [data-act=rsOpen]{padding:5px 8px;font-size:12px}.lxg{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.lxc{font-size:12px;padding:6px;overflow-wrap:anywhere}.shptnav [data-shpnext]{display:none}.shpt{padding:10px}.shpt>h3{font-size:19px}}
 .ph{display:flex;align-items:center;justify-content:center;background:#f4f4f1;color:var(--muted);border-radius:6px;font-size:11px;text-align:center}
 .lxc.soft{opacity:.5}.lxc img{width:100%;height:120px;object-fit:contain;background:#fff;border-radius:4px}.lxc .vtn{height:120px;display:flex;align-items:center;justify-content:center;background:#f4f4f1;color:var(--muted);border-radius:4px}.lxc span{color:var(--muted)}
 .mlx{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}.mlx>.ml{min-width:680px}.ml td,.ml th{padding-right:12px}.ml td:nth-child(1),.ml td:nth-child(2),.ml td:nth-child(4){white-space:nowrap}.ml td:nth-child(3){min-width:220px}
@@ -242,7 +243,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-24.1137';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-24.1143';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -708,6 +709,7 @@ function render(){
   $('#pagehead').innerHTML=t?`<h1>${esc(t)}</h1>`:'';
   const f={start:vStart,liste:vListe,baustelle:vBaustelle,plan:vPlan,schema:vSchema,adminLogin:vAdminLogin,admin:vAdmin}[S.screen]||vStart;
   $('#main').innerHTML=f();
+  {const sn=document.querySelector('#main .shnav .shc.on');if(sn){const n=sn.parentNode,a=n.getBoundingClientRect(),r=sn.getBoundingClientRect();n.scrollLeft+=(r.left-a.left)-(n.clientWidth-r.width)/2}}
   if(S.screen==='plan')skDecor();
   if(S.screen==='plan'&&S.hl&&S.site){const pl=planOf(S.site);if(stepMiss(S.site,pl.step).includes(S.hl)){const first=!S._hlShown||S._hlShown!==S.hl;missGo(S.hl,first);S._hlShown=S.hl}else{const M=stepMiss(S.site,pl.step);S.hl=S.missShow&&M.length?M[0]:null;S._hlShown=null;if(S.hl){missGo(S.hl,false);S._hlShown=S.hl}}}
   if(S.screen==='plan')fillDl('dlNB',[...new Set([...Object.values(D.nbMap||{}),...NB_LIST])]);
@@ -1568,10 +1570,10 @@ const spzDone=(h,x)=>x.k==='spzwb'?wbDone(h):x.k==='spzez'?!ezMiss(h)&&!ezMissK(
 const ezMissK=h=>{if(h.spzez!=='ja')return false;if(!h.ezW||(h.ezW==='ja'&&!ezList(h).length))return true;return ezList(h).some(e=>!(e.name||'').trim()||!e.t||!e.amp)};
 const ezLbl=s=>s&&s.art==='HV'&&s.geb==='EFH'?'Gesamthaus':'Gesamtanlage';
 const EZ_DIR=['100567','100566'],EZ_ALL=['100567','100566','100694','100652'];
-const ezCard=(o,on,off,attr,why,dis)=>{const im=loxImg(o.id);return `<div class="lxc${on?' on':''}${off?' soft':''}" style="${off?'opacity:.45':''}">${im?`<img src="${im}" alt="">`:'<span class="vtn">Bild folgt</span>'}<b>${esc(o.art)}</b><span>${esc(o.nr)}${o.te?' · '+o.te+' TE':''}</span><span>${o.bru!=null?cur2(o.bru):'Preis folgt'}</span>${loxDs(o.id).length?`<button type="button" class="btn link" style="font-size:13px;text-align:left" data-dsview="${esc(o.id)}">Datenblatt ansehen</button>`:''}${off?`<span style="color:#b42318;font-size:12px">${why}</span>`:`<button type="button" class="btn small${on?' primary':''}" style="margin-top:4px" ${attr}${dis}>${on?'Gewählt ✓':'Auswählen'}</button>`}</div>`};
+const ezCard=(o,on,off,attr,why,dis,note)=>{const im=loxImg(o.id);return `<div class="lxc${on?' on':''}${off?' soft':''}" style="${off?'opacity:.45':''}">${im?`<img src="${im}" alt="">`:'<span class="vtn">Bild folgt</span>'}<b>${esc(o.art)}</b><span>${esc(o.nr)}${o.te?' · '+o.te+' TE':''}</span><span>${o.bru!=null?cur2(o.bru):'Preis folgt'}</span>${loxDs(o.id).length?`<button type="button" class="btn link" style="font-size:13px;text-align:left" data-dsview="${esc(o.id)}">Datenblatt ansehen</button>`:''}${note?`<span style="color:#8a8a8a;font-size:11px;line-height:1.35">${note}</span>`:''}${off?`<span style="color:#b42318;font-size:12px">${why}</span>`:`<button type="button" class="btn small${on?' primary':''}" style="margin-top:4px" ${attr}${dis}>${on?'Gewählt ✓':'Auswählen'}</button>`}</div>`};
 /* Zählerwahl als Bildkarten: Direktanschluss (Phasenzahl fest nach Polzahl/Zuleitung) oder Messwandler-Zähler mit kompatiblen Wandlern */
 const ezPickUI=(key,t,m0,w0,a,three,dis,why3,aField)=>{const sel=t==='dir'?(three?'100567':'100566'):t==='mw'?ctRes(m0,w0,a)[0]:'';
-  let r=`<div class="lxg">${EZ_ALL.map(id=>{const o=LOX.find(x=>x.id===id);if(!o)return '';const off=EZ_DIR.includes(id)&&(id==='100567')!==three;return ezCard(o,sel===id,off,`data-ezpick="${key}|z|${id}"`,why3,dis)}).join('')}</div>`;
+  let r=`<div class="lxg">${EZ_ALL.map(id=>{const o=LOX.find(x=>x.id===id);if(!o)return '';const off=EZ_DIR.includes(id)&&(id==='100567')!==three;return ezCard(o,sel===id,off,`data-ezpick="${key}|z|${id}"`,why3,dis,EZ_DIR.includes(id)?'':`Tipp: Bis 100 A pro Phase und Leiter bis 25 mm² reicht meist der Direktanschluss-Zähler ${three?'3-phasig':'1-phasig'}, die Drähte kommen direkt drauf.`)}).join('')}</div>`;
   if(!t)return r+'<p class="sub" style="margin:4px 0 0;color:#b42318">Bitte einen Zähler auswählen.</p>';
   if(t==='dir')return r+'<p class="sub" style="margin:4px 0 0">Direktanschluss: Zähler ist eingebaut und kommt automatisch in die Materialliste.</p>';
   const [m,w]=ctRes(m0,w0,a),tab=loxImg('ct-kombi');
@@ -1762,7 +1764,7 @@ function shBody(p,pl,dis){const h=shOf(pl);h.q=h.q||{};if(loxOn(pl)){shPtsSync(h
     ov:()=>outUI()+otherG.map(g=>`<div class="legend">${esc(g)}</div>`+grpT(g)).join('')+'<p class="sub">Alle Punkte erledigt? Dann mit «Weiter» zum nächsten Schritt.</p>'};
   const ci=shPtCur(pl),ck=SH_PTS[ci][0],M=shMissing(pl);S.shp=ck;S.shpSite=p.id;if(ck!=='spz')S.spzSub=null;
   b+=dsChk+`<nav class="shnav" aria-label="Smart-Home-Punkte">${SH_PTS.map(([k,l],i)=>{const m=M.some(t=>SH_MISS_PT[t]===k);return `<button type="button" class="shc${i===ci?' on':''}${m?' miss':' ok'}" data-shp="${k}"><b>${i+1}</b><span>${esc(l)}</span>${m?'':'<i>✓</i>'}</button>`}).join('')}</nav>
-    <div class="shpt"><h3>${ci+1} · ${esc(SH_PTS[ci][1])}</h3>${PT[ck]()}
+    <div class="shpt${ck==='spz'&&S.spzSub&&S.spzSite===p.id?' sub':''}"><h3>${ci+1} · ${esc(SH_PTS[ci][1])}</h3>${PT[ck]()}
     <div class="row shptnav">${ci>0?`<button type="button" class="btn small" data-shp="${SH_PTS[ci-1][0]}">← ${ci} ${esc(SH_PTS[ci-1][1])}</button>`:'<span></span>'}${ci<SH_PTS.length-1?`<button type="button" class="btn small primary" data-shpnext="1">Weiter zu ${ci+2} ${esc(SH_PTS[ci+1][1])} →</button>`:''}</div></div><table class="te"><tr><td>Gewählt</td><td style="text-align:right">${sel.reduce((a,o)=>a+h.q[o.id],0)} Bauteile · ${te} TE auf der Hutschiene</td></tr><tr class="sum"><td>Total Loxone</td><td style="text-align:right">${rb?'netto '+cur2(net)+' / ':''}Liste ${cur2(bru)}</td></tr></table>`;
   return b}
 function hzBody(p,pl,dis){const h=hzOf(pl);
