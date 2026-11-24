@@ -243,7 +243,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-24.1754';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-24.1800';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -2448,10 +2448,10 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
   }else if(pg.kind==='loxtk'){
     const TK=tkList(pl),k=pg.k||0,P=TK.slice(k*6,k*6+6),term=(x,y)=>o.push(`<circle class="term" cx="${x}" cy="${y}" r="4"/>`),nAll=TK.length,mm=nAll*2*KL.PTTBS15.mm+KL.ATPSTTB.mm;
     T(80,130,'Bus- und 24-V-Abgänge · Klemmleiste -X11 · pro Tree 2 Doppelstockklemmen Phoenix PTTBS 1,5/S (oben/unten)','tb');
-    T(80,146,'Klemme A: oben +24 V (orange), unten 0 V / GND (weiss) · Klemme B: oben Tree grün, unten Tree grün-weiss. Alle nebeneinander, am Ende Abdeckplatte ATP-STTB 4.','tk5');
+    T(80,146,'Klemme A: oben +24 V (orange), unten 0 V / GND (weiss) · Klemme B: oben Tree grün, unten Tree grün-weiss. Alle nebeneinander, am Ende Abdeckplatte ATP-STTB 4. Nummer pro Ebene.','tk5');
     P.forEach((e,q)=>{const j=k*6+q,bx=100+q*168,xs=[bx,bx+22,bx+60,bx+82],yt=330,yb=380,sp=tkSpot(pl,e),key=sp?'tr'+e.key:'tk'+e.key,von=loxVonS(pl,key),src=tkSrc(pl,e);
-      o.push(`<rect x="${bx-16}" y="${yt-20}" width="130" height="${yb-yt+40}" fill="none" stroke="#111" stroke-width="1" stroke-dasharray="6 3"/>`);T(bx-12,574,'Gruppe '+(j+1)+' · Klemmen '+(j*2+1)+'+'+(j*2+2),'tk5');
-      [['pwo','+24V'],['pww','0V'],['trg','Tree'],['trw','Tree']].forEach(([cl,l],i)=>{const xx=xs[i];term(xx,yt);term(xx,yb);L(xx,yt+4,xx,yb-4,cl);L(xx,yt-4,xx,236,cl);L(xx,yb+4,xx,470,cl);T(xx+3,yt-26,l,'tk5')});
+      o.push(`<rect x="${bx-16}" y="${yt-20}" width="130" height="${yb-yt+40}" fill="none" stroke="#111" stroke-width="1" stroke-dasharray="6 3"/>`);T(bx-12,574,'Gruppe '+(j+1)+' · -X11:'+(j*4+1)+' bis '+(j*4+4)+' (2 Doppelstockklemmen)','tk5');
+      [['pwo','+24V'],['pww','0V'],['trg','Tree'],['trw','Tree']].forEach(([cl,l],i)=>{const xx=xs[i];term(xx,yt);term(xx,yb);L(xx,yt+4,xx,yb-4,cl);L(xx,yt-4,xx,236,cl);L(xx,yb+4,xx,470,cl);T(xx+3,yt-36,String(j*4+i+1),'tk');T(xx+3,yt-26,l,'tk5')});/* Tobi 24.11.: jede Klemme mit Nummer (pro Ebene) */
       T(bx-12,226,'24 V von '+von,'tk2');T(bx+50,214,'Tree von '+src,'tk2');
       o.push(`<text class="tk5" transform="translate(${bx+44} 560) rotate(-90)">${esc(('→ '+tkName(e)).slice(0,44))}</text>`);T(bx-12,583,'Tree-Kabel 2×2×0,8','tk5')});
     T(80,610,'Klemmleiste -X11 gesamt: '+nAll+' Gruppen × 2 PTTBS 1,5/S à '+String(KL.PTTBS15.mm).replace('.',',')+' mm + Abdeckplatte '+KL.ATPSTTB.mm+' mm = '+mm.toFixed(1).replace('.',',')+' mm ('+Math.ceil(mm/18)+' TE).','tk5');
