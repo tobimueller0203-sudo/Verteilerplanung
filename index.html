@@ -243,7 +243,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-24.1708';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-24.1714';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -1963,7 +1963,9 @@ function shBody(p,pl,dis){const h=shOf(pl);h.q=h.q||{};if(loxOn(pl)){shPtsSync(h
     <div class="shpt${ck==='spz'&&S.spzSub&&S.spzSite===p.id?' sub':''}"><h3>${ci+1} · ${esc(SH_PTS[ci][1])}</h3>${PT[ck]()}
     <div class="row shptnav">${ci>0?`<button type="button" class="btn small" data-shp="${SH_PTS[ci-1][0]}">← ${ci} ${esc(SH_PTS[ci-1][1])}</button>`:'<span></span>'}${ci<SH_PTS.length-1?`<button type="button" class="btn small primary" data-shpnext="1">Weiter zu ${ci+2} ${esc(SH_PTS[ci+1][1])} →</button>`:''}</div></div><table class="te"><tr><td>Gewählt</td><td style="text-align:right">${sel.reduce((a,o)=>a+h.q[o.id],0)} Bauteile · ${te} TE auf der Hutschiene</td></tr><tr class="sum"><td>Total Loxone</td><td style="text-align:right">${rb?'netto '+cur2(net)+' / ':''}Liste ${cur2(bru)}</td></tr></table>`;
   return b}
-function hzBody(p,pl,dis){const h=hzOf(pl);
+/* Tobi 24.11.: Fussbodenheizung im Smart Home (Heizkreisverteiler) → im Heizsystem nur Wärmepumpe über Fussbodenheizung */
+const hzShFbh=pl=>loxOn(pl)&&['lox','std'].includes((pl.sh||{}).stA);
+function hzBody(p,pl,dis){const h=hzOf(pl);const fb=hzShFbh(pl);if(fb&&!dis){if(!h.vorh)h.vorh='ja';if(h.vorh==='ja'&&h.art!=='wp-fbh')h.art='wp-fbh'}
   const tl=(key,val,label,sub,off)=>`<button type="button" class="tile" data-hz="${key}" data-v="${esc(val)}" aria-pressed="${h[key]===val}"${off?' disabled':dis}><b>${esc(label)}</b>${sub?`<span>${esc(sub)}</span>`:''}</button>`;
   const jn=(key,q,off)=>`<div class="legend">${q}</div><div class="tiles two-col">${tl(key,'ja','Ja','',off)}${tl(key,'nein','Nein','',off)}</div>`;
   const sel=(key,list,def,label)=>`<label class="m"><span>${label}</span><select data-hz="${key}"${dis}>${opt(list,key in h?h[key]:def)}</select></label>`;
@@ -1971,7 +1973,7 @@ function hzBody(p,pl,dis){const h=hzOf(pl);
   const inp=(key,label,ph,w)=>`<label class="f" style="max-width:${w||260}px">${label}<input data-hz="${key}" value="${esc(h[key]||'')}" placeholder="${ph}" autocomplete="off"${dis}></label>`;
   let b=`<h2>Heizsystem</h2><p class="sub">Gibt es ein Heizsystem, das über diesen Verteiler läuft? Die Sicherungen der Wärmepumpe kommen automatisch ins Schema.</p>`+jn('vorh','Heizsystem vorhanden?');
   if(h.vorh!=='ja')return b;
-  b+=`<div class="legend">Welches Heizsystem?</div><div class="tiles">${HZ_ART.map(a=>/^wp/.test(a[0])?tl('art',a[0],a[1],a[2]):tl('art',a[0],a[1],'folgt',1)).join('')}</div>`;
+  b+=`<div class="legend">Welches Heizsystem?</div><div class="tiles">${HZ_ART.map(a=>fb&&a[0]!=='wp-fbh'?tl('art',a[0],a[1],(a[2]?a[2]+' · ':'')+'schon beim Smart Home eingegeben',1):/^wp/.test(a[0])?tl('art',a[0],a[1],a[2]):tl('art',a[0],a[1],'folgt',1)).join('')}</div>${fb?'<div class="msg info">Im Smart Home (Punkt «Heizkreisverteiler») ist schon eine <b>Fussbodenheizung</b> eingegeben. Darum ist hier nur «Wärmepumpe über Fussbodenheizung» möglich. Ändern im Smart Home.</div>':''}`;
   if(h.art==='gas'||h.art==='andere')return b+`<div class="msg info">Gasheizung und andere Heizsysteme folgen. Bitte Wärmepumpe wählen oder «Nein».</div>`;
   if(!hzWP(pl))return b;
   if(h.au==null)h.au='ja';if(h.in==null)h.in='ja';
