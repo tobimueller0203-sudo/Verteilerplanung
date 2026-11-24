@@ -243,7 +243,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-24.1858';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-24.1911';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -2501,13 +2501,27 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     const TK=tkList(pl),k=pg.k||0,P=TK.slice(k*6,k*6+6),term=(x,y)=>o.push(`<circle class="term" cx="${x}" cy="${y}" r="4"/>`),nAll=TK.length,mm=nAll*2*KL.PTTBS15.mm+KL.ATPSTTB.mm;
     T(80,130,'Bus- und 24-V-Abgänge · Klemmleiste -X11 · pro Tree 2 Doppelstockklemmen Phoenix PTTBS 1,5/S (oben/unten)','tb');
     T(80,146,'Klemme A: oben +24 V (orange), unten 0 V / GND (weiss) · Klemme B: oben Tree grün, unten Tree grün-weiss. Alle nebeneinander, am Ende Abdeckplatte ATP-STTB 4. Nummer pro Ebene.','tk5');
-    P.forEach((e,q)=>{const j=k*6+q,bx=100+q*168,xs=[bx,bx+22,bx+60,bx+82],yt=330,yb=380,sp=tkSpot(pl,e),key=sp?'tr'+e.key:'tk'+e.key,von=loxVonS(pl,key),src=tkSrc(pl,e);
-      o.push(`<rect x="${bx-16}" y="${yt-20}" width="130" height="${yb-yt+40}" fill="none" stroke="#111" stroke-width="1" stroke-dasharray="6 3"/>`);T(bx-12,574,'Gruppe '+(j+1)+' · -X11:'+(j*4+1)+' bis '+(j*4+4)+' (2 Doppelstockklemmen)','tk5');
-      [['pwo','+24V'],['pww','0V'],['trg','Tree'],['trw','Tree']].forEach(([cl,l],i)=>{const xx=xs[i];term(xx,yt);term(xx,yb);L(xx,yt+4,xx,yb-4,cl);L(xx,yt-4,xx,236,cl);L(xx,yb+4,xx,470,cl);T(xx+3,yt-36,String(j*4+i+1),'tk');T(xx+3,yt-26,l,'tk5')});/* Tobi 24.11.: jede Klemme mit Nummer (pro Ebene) */
-      T(bx-12,226,'24 V von '+von,'tk2');T(bx+50,214,'Tree von '+src,'tk2');
-      o.push(`<text class="tk5" transform="translate(${bx+44} 560) rotate(-90)">${esc(('→ '+tkName(e)).slice(0,44))}</text>`);T(bx-12,583,'Tree-Kabel 2×2×0,8','tk5')});
-    T(80,610,'Klemmleiste -X11 gesamt: '+nAll+' Gruppen × 2 PTTBS 1,5/S à '+String(KL.PTTBS15.mm).replace('.',',')+' mm + Abdeckplatte '+KL.ATPSTTB.mm+' mm = '+mm.toFixed(1).replace('.',',')+' mm ('+Math.ceil(mm/18)+' TE).','tk5');
-    T(80,624,'Tree und Tree Turbo nie verbinden. GND aller Netzteile verbinden.','tred');
+    /* Tobi 24.11.: genau beschriften, woher 24 V und Tree kommen und wohin der Abgang geht */
+    const msA=loxMs(pl),nAs=loxAs(pl),x4=m=>{if(!m)return '';if(m.dev==='-A1')return '-X4:1/2';const i2=m.port==='rechts'?1:0,kb=(msA?2:0)+(msA&&msA.tt?2:0)+nAs*2+m.te*4;return '-X4:'+(kb+i2*2+1)+'/'+(kb+i2*2+2)};
+    P.forEach((e,q)=>{const j=k*6+q,bx=100+q*168,xs=[bx,bx+22,bx+60,bx+82],yt=330,yb=380,sp=tkSpot(pl,e),key=sp?'tr'+e.key:'tk'+e.key,oo=loxOutOf(pl,key),
+        r=e.root,mt=loxTreeMap(pl).find(x=>x.t&&r&&x.t.f&&r.f&&x.t.f.id===r.f.id&&x.t.n===r.n),tSrc=mt?mt.dev+' '+(mt.dev==='-A1'?'Miniserver':'Tree Ext.')+' '+(mt.port==='Tree'?'Tree':'Tree '+mt.port):'-A1 Miniserver Tree',tX4=x4(mt),
+        vP=oo?('-G'+oo.P.g+(oo.P.big?' Abgang '+oo.n+' (F'+oo.n+')':' +24V')):'',vG=oo?'-G'+oo.P.g+' GND':'';
+      o.push(`<rect x="${bx-16}" y="${yt-20}" width="130" height="${yb-yt+40}" fill="none" stroke="#111" stroke-width="1" stroke-dasharray="6 3"/>`);
+      [['pwo','+24V'],['pww','0V'],['trg','Tree'],['trw','Tree']].forEach(([cl,l],i)=>{const xx=xs[i];term(xx,yt);term(xx,yb);L(xx,yt+4,xx,yb-4,cl);L(xx,yt-4,xx,168,cl);L(xx,yb+4,xx,470,cl);T(xx+3,yt-36,String(j*4+i+1),'tk');T(xx+3,yt-26,l,'tk5')});
+      /* oben: woher (vertikal neben den Adern) */
+      const TV=(x,y,t,c)=>o.push(`<text class="${c||'tk5'}" transform="translate(${x} ${y}) rotate(-90)">${esc(t)}</text>`);
+      TV(bx+9,yt-46,vP?'+24 V von '+vP:'+24 V: Abgang offen','tk5');TV(bx+31,yt-46,vG?'0 V von '+vG:'0 V: offen','tk5');TV(bx+69,yt-46,'gn von '+tSrc,'tk5');TV(bx+91,yt-46,'gn-ws '+(tX4?'· '+tX4:''),'tk5');
+      if(!oo)TV(bx+17,yt-46,'Netzteil-Abgang zuordnen!','tk5');
+      /* unten: wohin (Text unter den Adern, nie auf Linien) */
+      const D=[];D.push(['Gruppe '+(j+1)+' · -X11:'+(j*4+1)+'–'+(j*4+4),'tb2']);
+      D.push(['24 V: '+(oo?'-G'+oo.P.g+' '+(oo.P.big?'Abgang '+oo.n+', Kfz-Sicherung F'+oo.n:'Ausgang +24V/GND'):'Netzteil-Abgang noch offen')+(sp?' (gemeinsam mit Tree-Spots)':''),'tk5']);
+      D.push(['Tree: '+tSrc+(tX4?' über '+tX4+' (gn-ws/gn)':''),'tk5']);
+      D.push(['Abgang: Tree-Kabel 2×2×0,8 (gn/gn-ws Tree, or/ws 24 V)','tk5']);
+      e.trees.forEach(t=>{const rm=t.rooms.map(x=>x.name).join(', ');D.push(['→ '+t.name+(rm?': '+rm:''),'tk5'])});
+      {const g=[e.sp?e.sp+' Spots':'',e.sw?e.sw+(e.sw>1?' Tree-Geräte':' Tree-Gerät'):'',e.st?e.st+' Stellantriebe':''].filter(Boolean).join(', ');const w=Math.round(treeW(pl,e));if(g)D.push(['Geräte: '+g+(w?' · ca. '+w+' W':''),'tk5'])}
+      let yy=486,nL=0;D.forEach(([t,c])=>wrapTxt(t,c==='tb2'?30:44).filter(Boolean).forEach((ln,li)=>{if(yy>598)return;T(bx-12,yy,(li&&c!=='tb2'?'   ':'')+ln,c==='tb2'?'tk2b':'tk5');yy+=c==='tb2'?11:8.5;nL++}))});
+    T(80,618,'Klemmleiste -X11 gesamt: '+nAll+' Gruppen × 2 PTTBS 1,5/S à '+String(KL.PTTBS15.mm).replace('.',',')+' mm + Abdeckplatte '+KL.ATPSTTB.mm+' mm = '+mm.toFixed(1).replace('.',',')+' mm ('+Math.ceil(mm/18)+' TE).','tk5');
+    T(80,632,'Tree und Tree Turbo nie verbinden. GND aller Netzteile verbinden.','tred');
   }else if(pg.kind==='loxdi'){
     const W=fkWin(pl),ms=loxMs(pl),nMs=ms?ms.di||0:0,DV=loxDev(pl).filter(v=>v.t==='diex'),k=pg.k||0,P=W.slice(k*16,k*16+16),term=(x,y,r)=>o.push(`<circle class="term" cx="${x}" cy="${y}" r="${r||4}"/>`);
     const tgt=j=>j<nMs?'-A1 I'+(j+1):((DV[Math.floor((j-nMs)/20)]||{name:'-A? DI Extension'}).name.split(' ')[0]+' I'+((j-nMs)%20+1));
@@ -2981,7 +2995,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
   .fr{stroke:#111;stroke-width:1.2;fill:none}.fr2{stroke:#111;stroke-width:.6}.bx{stroke:#111;stroke-width:.8;fill:#fff}.bxw{stroke:#111;stroke-width:1;fill:#fff}
   .bxd{stroke:#111;stroke-width:.9;fill:none;stroke-dasharray:10 3 2 3}.note{stroke:#bbb;stroke-width:.8;fill:#fff}.term{fill:#fff;stroke:#111;stroke-width:1}
   text{font-family:"DejaVu Sans",Inter,Arial,sans-serif;fill:#111}.t{font-size:10px}.tb{font-size:10.5px;font-weight:700}.tm{font-size:8.5px;fill:#555}.ta{font-size:9.5px;fill:#1f4fa0}
-  .tg{font-size:10px}.tr{font-size:8px;font-family:"DejaVu Sans Mono",monospace}.tk{font-size:6.5px}.tk2{font-size:8.5px}.tk3{font-size:9.5px}.th{font-size:11px;font-weight:700;fill:#444}.tbig{font-size:20px;font-weight:700}.tdeck{font-size:34px;font-weight:700}.tnum{font-size:24px;font-weight:700}.tcov{font-size:44px;font-weight:700;letter-spacing:-.01em}.tcov2{font-size:20px;font-weight:700}.tkv{font-size:9.5px;fill:#777;letter-spacing:.08em}.tkvb{font-size:12px;font-weight:700}.tcovs{font-size:13px;fill:#444}.tdeck2{font-size:16px;font-weight:700}.tm2{font-size:10px;fill:#666}.tk4{font-size:10.5px}.fr3{stroke:#ccc;stroke-width:.6}.cp{stroke:#111;stroke-width:.8;stroke-dasharray:3 2}.dbox{stroke:#111;stroke-width:.9;fill:#fff}.tbw{font-size:11px;font-weight:700;fill:#ffed00;letter-spacing:.06em}.tlab{font-size:11px;font-weight:700;letter-spacing:.18em;fill:#555}.tdeck3{font-size:14px;font-weight:700}.tk5{font-size:5.5px;fill:#555}.cpl{stroke:#111;stroke-width:.7}.kb{stroke:#111;stroke-width:3.2}.kbn{stroke:#111;stroke-width:2.6;stroke-dasharray:8 4}.kbpe{stroke:#111;stroke-width:2.6;stroke-dasharray:14 3 3 3}.tred{font-size:9px;font-weight:700;fill:#b42318}.twarn{font-size:9.5px;font-weight:700;fill:#b42318;paint-order:stroke;stroke:#fff;stroke-width:3px}.tnm2{font-size:8.5px;font-weight:700}.wc{stroke:#111;stroke-width:1.1}.bxr{fill:none;stroke:#111;stroke-width:.7;stroke-dasharray:3 2}.trel{font-size:7.5px;fill:#444}.tbh{font-size:10px;font-weight:700;paint-order:stroke;stroke:#fff;stroke-width:3px}.tgn{font-size:8px;font-weight:700;fill:#2e7d32}.tnote{font-size:8px;font-style:italic;fill:#1f4fa0;paint-order:stroke;stroke:#fff;stroke-width:3px}.thalo{font-size:7.5px;fill:#555;paint-order:stroke;stroke:#fff;stroke-width:3px}.b2b{font-size:11px;font-weight:700}.b2s{font-size:10px}.b2t{font-size:8px;font-weight:700}
+  .tg{font-size:10px}.tr{font-size:8px;font-family:"DejaVu Sans Mono",monospace}.tk{font-size:6.5px}.tk2{font-size:8.5px}.tk3{font-size:9.5px}.th{font-size:11px;font-weight:700;fill:#444}.tbig{font-size:20px;font-weight:700}.tdeck{font-size:34px;font-weight:700}.tnum{font-size:24px;font-weight:700}.tk2b{font-size:8.5px;font-weight:700}.tcov{font-size:44px;font-weight:700;letter-spacing:-.01em}.tcov2{font-size:20px;font-weight:700}.tkv{font-size:9.5px;fill:#777;letter-spacing:.08em}.tkvb{font-size:12px;font-weight:700}.tcovs{font-size:13px;fill:#444}.tdeck2{font-size:16px;font-weight:700}.tm2{font-size:10px;fill:#666}.tk4{font-size:10.5px}.fr3{stroke:#ccc;stroke-width:.6}.cp{stroke:#111;stroke-width:.8;stroke-dasharray:3 2}.dbox{stroke:#111;stroke-width:.9;fill:#fff}.tbw{font-size:11px;font-weight:700;fill:#ffed00;letter-spacing:.06em}.tlab{font-size:11px;font-weight:700;letter-spacing:.18em;fill:#555}.tdeck3{font-size:14px;font-weight:700}.tk5{font-size:5.5px;fill:#555}.cpl{stroke:#111;stroke-width:.7}.kb{stroke:#111;stroke-width:3.2}.kbn{stroke:#111;stroke-width:2.6;stroke-dasharray:8 4}.kbpe{stroke:#111;stroke-width:2.6;stroke-dasharray:14 3 3 3}.tred{font-size:9px;font-weight:700;fill:#b42318}.twarn{font-size:9.5px;font-weight:700;fill:#b42318;paint-order:stroke;stroke:#fff;stroke-width:3px}.tnm2{font-size:8.5px;font-weight:700}.wc{stroke:#111;stroke-width:1.1}.bxr{fill:none;stroke:#111;stroke-width:.7;stroke-dasharray:3 2}.trel{font-size:7.5px;fill:#444}.tbh{font-size:10px;font-weight:700;paint-order:stroke;stroke:#fff;stroke-width:3px}.tgn{font-size:8px;font-weight:700;fill:#2e7d32}.tnote{font-size:8px;font-style:italic;fill:#1f4fa0;paint-order:stroke;stroke:#fff;stroke-width:3px}.thalo{font-size:7.5px;fill:#555;paint-order:stroke;stroke:#fff;stroke-width:3px}.b2b{font-size:11px;font-weight:700}.b2s{font-size:10px}.b2t{font-size:8px;font-weight:700}
   </style>${o.join('')}</svg>`;
 }
 
