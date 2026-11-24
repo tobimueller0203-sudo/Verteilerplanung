@@ -242,7 +242,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-24.0457';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-24.0459';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -397,7 +397,7 @@ const rfGLbl=(g,G)=>{const nn=g.k==='sp'?(g.n>1?'Spots':'Spot'):(g.n>1?'Lampen':
 /* DALI (Tobi 23.11.): hat ein Raum der Sicherung eine DALI-Gruppe (Lampen oder Spots), führt das Kabel immer L, N, PE + DA+ (schwarz) / DA- (grau), erst danach die Schaltdrähte */
 const rfDaliRooms=(pl,rs)=>{const D=loxGroups(pl).filter(g=>g.ctl==='dali');return rs.filter(r=>D.some(g=>g.rid===r.rid)).map(r=>({rid:r.rid,name:r.name.split(' · ').pop()}))};
 const rfDaSrc=pl=>{const h=(pl&&pl.sh)||{};if(h.daliArt==='knx')return 'KNX-DALI-Aktor';const d=loxDev(pl).filter(v=>v.t==='dali');return d.length?d.map(v=>v.name).join(' / '):'DALI-Ansteuerung'};
-const rfPolOf=(h,n)=>{const v=+((h.rfPol||{})[n]);return v===3||v===4?v:2};
+const rfPolOf=(h,n)=>{const v=+((h.rfPol||{})[n]);return v===4?4:2};/* Loxone-Raum-Sicherungen nur 2- oder 4-polig (Tobi 24.11.) */
 const rfFuseTxt=P=>P===4?'FI/LS 4P C13':P===3?'LS 3P C13 + N-Trenner':'FI/LS 2P C13';
 const rfColB=(ad,j,B)=>B===3?rfCol(ad,j):j<5?[['braun','br'],['schwarz','sw'],['grau','gr'],['blau','bl'],['grün-gelb','gn-ge']][j]:['Ader Nr. '+(j+1),'Nr.'+(j+1)];
 const rfList=pl=>{const h=(pl&&pl.sh)||{},M=h.rf||{},R=rfRooms(pl),N=[...new Set(R.map(r=>+M[r.rid]).filter(Boolean))].sort((a,b)=>a-b),RG=loxGroups(pl).filter(g=>g.ctl==='rel'),RD=loxDev(pl).filter(v=>v.t==='rel');
@@ -1584,7 +1584,7 @@ function shBody(p,pl,dis){const h=shOf(pl);h.q=h.q||{};loxSyncTe(pl);stCleanFl(h
     return `<div class="legend" style="margin-top:14px">Raum-Sicherungen</div><p class="sub">Räume mit derselben Nummer kommen auf dieselbe Sicherung (Standard FI/LS 2-polig C13, Licht und Steckdosen des Raums). Die Kabel prüfst du nach der Beleuchtung.</p>
       <div class="rfg">${R.map(r=>{const cur=+h.rf[r.rid]||0;return `<div class="rfr"><span>${esc(r.name)}${r.g.length?` <small>${gN(r.g.length)}</small>`:''}</span><span class="rfb">${Array.from({length:mx},(_,i)=>`<button type="button" class="chp${cur===i+1?' on':''}" data-rfset="${r.rid}:${i+1}"${dis}>${i+1}</button>`).join('')}<button type="button" class="chp" data-rfset="${r.rid}:${mx+1}"${dis}>+ neu</button></span></div>`}).join('')}</div>
       ${R.some(r=>!h.rf[r.rid])?'<div class="msg err">Noch nicht alle Räume einer Sicherung zugewiesen.</div>':''}
-      ${L2.length?`<div class="legend" style="margin-top:12px">Polzahl</div><div class="rfg">${L2.map(x=>`<div class="rfr"><span><b>Sicherung ${x.n}</b> <small>${esc(x.rooms.map(r=>r.name.split(' · ').pop()).join(', '))}</small></span><span class="rfb">${[2,3,4].map(P=>`<button type="button" class="chp sm${x.P===P?' on':''}" data-rfpol="${x.n}:${P}"${dis}>${P}-polig</button>`).join('')}</span></div>`).join('')}</div>${L2.some(x=>x.P===3)?'<p class="sub">3-polig = LS 3P C13 mit N-Trenner, ohne FI-Schutz.</p>':''}`:''}`};
+      ${L2.length?`<div class="legend" style="margin-top:12px">Polzahl</div><div class="rfg">${L2.map(x=>`<div class="rfr"><span><b>Sicherung ${x.n}</b> <small>${esc(x.rooms.map(r=>r.name.split(' · ').pop()).join(', '))}</small></span><span class="rfb">${[2,4].map(P=>`<button type="button" class="chp sm${x.P===P?' on':''}" data-rfpol="${x.n}:${P}"${dis}>${P}-polig</button>`).join('')}</span></div>`).join('')}</div>`:''}`};
   const rfCabUI=()=>{if(!rfRooms(pl).length)return '';const L2=rfList(pl);if(!L2.length)return '';
     return `<div class="legend" style="margin-top:14px">Kabel der Raum-Sicherungen</div><p class="sub">Nach der Beleuchtung prüfen: Schaltdrähte und DALI-Adern pro Kabel.</p>
       ${L2.map(x=>`<div class="rfc"><div class="rfh"><b>Sicherung ${x.n}</b><small>${rfFuseTxt(x.P)} · ${esc(x.rooms.map(r=>r.name.split(' · ').pop()).join(', '))}</small></div>
