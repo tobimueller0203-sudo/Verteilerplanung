@@ -243,7 +243,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-24.1800';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-24.1839';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -945,7 +945,7 @@ const QS_MAX=16;
 const NB_LIST=['IWB Industrielle Werke Basel','Primeo Energie','EBL Genossenschaft Elektra Baselland','AEW Energie AG','BKW Energie AG','CKW AG','EKZ Elektrizitätswerke des Kantons Zürich','Netze BW GmbH','ED Netze GmbH','bnNETZE GmbH'];
 const qsNum=q=>parseFloat(String(q).replace(',','.'))||0;
 const qsTxt=q=>String(q).replace('.',',');
-function planOf(s){if(s.plan&&!s.plan.klAbg)s.plan.klAbg='ja';if(!s.plan)s.plan={step:s.art==='HV'&&s.geb==='EFH'?'smarthome':'unterlagen',qs:'',adern:'5',nb:'',nbAuto:false,material:false,revs:[]};const pl=s.plan;if(!pl.revs)pl.revs=[];if(!pl.docs)pl.docs={deck:false,toc:false,klemmen:false};if(!Array.isArray(pl.sk))pl.sk=[];if(pl.step==='produkte')pl.step='stromkreise';if(!Array.isArray(pl.zl)||!pl.zl.length)pl.zl=[{id:1,name:'',res:false,bez:pl.bez||(s.norm==='VDE'?'NH':'DZ'),bezA:pl.bezA||'',qs:'',adern:pl.adern||'5',ziel:''}];pl.zl[0].res=false;if(s.geb==='MFH'&&!pl.zl[0].name)pl.zl[0].name='Allgemein';if(s.art==='HV'){pl.gehaeuse='alu';pl.montage='AP'}else if(pl.montage==='UP'){pl.gehaeuse='hersteller'}return pl}
+function planOf(s){if(s.plan&&!s.plan.klAbg)s.plan.klAbg='ja';if(!s.plan)s.plan={step:s.art==='HV'&&s.geb==='EFH'?'smarthome':'unterlagen',qs:'',adern:'5',nb:'',nbAuto:false,material:false,revs:[]};const pl=s.plan;if(!pl.revs)pl.revs=[];if(!pl.docs)pl.docs={deck:false,toc:false,klemmen:false,bau:true};if(!Array.isArray(pl.sk))pl.sk=[];if(pl.step==='produkte')pl.step='stromkreise';if(!Array.isArray(pl.zl)||!pl.zl.length)pl.zl=[{id:1,name:'',res:false,bez:pl.bez||(s.norm==='VDE'?'NH':'DZ'),bezA:pl.bezA||'',qs:'',adern:pl.adern||'5',ziel:''}];pl.zl[0].res=false;if(s.geb==='MFH'&&!pl.zl[0].name)pl.zl[0].name='Allgemein';if(s.art==='HV'){pl.gehaeuse='alu';pl.montage='AP'}else if(pl.montage==='UP'){pl.gehaeuse='hersteller'}return pl}
 const initials=n=>String(n||'').split(/\s+/).filter(Boolean).map(w=>w[0].toUpperCase()).join('').slice(0,3);
 /* Netzbetreiber: zuerst was auf diesem Gerät für die PLZ gemerkt wurde, sonst sichere Regel (Basel-Stadt = IWB) */
 function guessNB(s){
@@ -1063,8 +1063,8 @@ const KL={
 /* Klemmen der Abgänge -X1 zählen: L/T/LA/Reserve grau, N blau, PE grün/gelb. Über 4 mm² folgt ein eigener Typ */
 function klAbg(s){if(noKl(s))return null;const L=skLayout(s),c={Q:0,QBU:0,QPE:0,PT6T:0,PT6TBU:0,PT6TPE:0,big:0};
   /* pro Klemmengruppe (Hutschiene bzw. Zähler) merken, ob PT 6-TWIN dabei ist: dann Deckel D-PT 6-TWIN statt Trennplatte am Ende */
-  const g6=new Set(),gm={},gb={};let gk='';
-  const add=(cond,res,qs)=>{const mx=Math.max(0,...qs.map(q=>q?qsNum(q):0));if(mx>10){c.big+=cond.length+res;gb[gk]=1;return}const t=mx>4?['PT6T','PT6TBU','PT6TPE']:['Q','QBU','QPE'];if(mx>4)g6.add(gk);gm[gk]=(gm[gk]||0)+(cond.length+res)*KL[t[0]].mm;cond.forEach(cn=>c[cn==='N'?t[1]:cn==='PE'?t[2]:t[0]]++);c[t[0]]+=res};
+  const g6=new Set(),gm={},gb={},gn={};let gk='';
+  const add=(cond,res,qs)=>{gn[gk]=(gn[gk]||0)+cond.length+(res||0);const mx=Math.max(0,...qs.map(q=>q?qsNum(q):0));if(mx>10){c.big+=cond.length+res;gb[gk]=1;return}const t=mx>4?['PT6T','PT6TBU','PT6TPE']:['Q','QBU','QPE'];if(mx>4)g6.add(gk);gm[gk]=(gm[gk]||0)+(cond.length+res)*KL[t[0]].mm;cond.forEach(cn=>c[cn==='N'?t[1]:cn==='PE'?t[2]:t[0]]++);c[t[0]]+=res};
   const grp=new Set();L.pages.forEach(q=>q.items.forEach(it=>{gk='x'+it.X;grp.add(gk);if(it.sk){add(it.cond||[],it.res||0,[it.qs]);(it.xgrp||[]).forEach(gp=>add(gp.cond,gp.res,gp.cabs.map(x=>x.qs)));(it.dgrp||[]).forEach(gp=>add(gp.cond,gp.res,gp.cabs.map(x=>x.qs)))}else if(!it.rel.length)(it.grp||[]).forEach(gp=>add(it.cond,gp.res,gp.cabs.map(x=>x.qs)))}));
   Object.keys(L.ext||{}).forEach(id=>{gk='z'+id;grp.add(gk);L.ext[id].forEach(r=>add(r.cond,r.res||0,[r.qs]))});
   const nT=c.Q+c.QBU+c.QPE+c.PT6T+c.PT6TBU+c.PT6TPE;if(!nT&&!c.big)return null;
@@ -1072,7 +1072,7 @@ function klAbg(s){if(noKl(s))return null;const L=skLayout(s),c={Q:0,QBU:0,QPE:0,
   const nb=L.list.filter(r=>!r.ext&&(r.abgN||1)>2).length,br=Math.ceil(nb/3);
   const it=[['Q',c.Q],['QBU',c.QBU],['QPE',c.QPE],['PT6T',c.PT6T],['PT6TBU',c.PT6TBU],['PT6TPE',c.PT6TPE],['EH',nT?grp.size:0],['TP',nT?grp.size-g6.size:0],['DPT6T',nT?g6.size:0],['BRRT',br],['BRBU',br]].filter(x=>x[1]).map(([k,n])=>({...KL[k],n}));
   /* Breite pro Klemmenleiste: Klemmen + Endhalter + Deckel bzw. Trennplatte */
-  const strips=[...grp].filter(k=>gm[k]||gb[k]).map(k=>({X:k[0]==='x'?k.slice(1):'-X'+(planOf(s).zl.findIndex(z=>String(z.id)===k.slice(1))+1)+'1',mm:(gm[k]||0)+KL.EH.mm+(g6.has(k)?KL.DPT6T.mm:KL.TP.mm),offen:!!gb[k]}));
+  const strips=[...grp].filter(k=>gm[k]||gb[k]).map(k=>({X:k[0]==='x'?k.slice(1):'-X'+(planOf(s).zl.findIndex(z=>String(z.id)===k.slice(1))+1)+'1',mm:(gm[k]||0)+KL.EH.mm+(g6.has(k)?KL.DPT6T.mm:KL.TP.mm),offen:!!gb[k],n:gn[k]||0,t6:g6.has(k)}));
   return {it,big:c.big,nb,strips,mm:it.reduce((a,x)=>a+x.mm*x.n,0),net:it.reduce((a,x)=>a+x.net*x.n,0),bru:it.reduce((a,x)=>a+x.bru*x.n,0)}}
 /* Klemmenbreite in TE (18 mm), immer aufgerundet */
 const klTE=mm=>Math.ceil(mm/18-1e-9);
@@ -2013,6 +2013,8 @@ function vPlan(){
     <div class="share" style="grid-template-columns:1fr">
       <label class="chk"><input type="checkbox" data-doc="deck" ${d.deck?'checked':''}${dis}> Deckblatt</label>
       <label class="chk"><input type="checkbox" data-doc="toc" ${d.toc?'checked':''}${dis}> Inhaltsverzeichnis</label>
+      <label class="chk"><input type="checkbox" data-doc="bau" ${d.bau!==false?'checked':''}${dis}> Infoseiten für den Verteilerbauer</label>
+      <p class="sub" style="margin:-4px 0 4px 30px">Wichtig für den externen Verteilerbauer: alle Angaben zum Bauen auf einen Blick, gleich am Anfang der Planmappe (Klemmleisten mit Anzahl und Breite, TE, Hutschienen, grosse Bauteile, Einbauhinweise). Empfohlen, immer angehakt lassen.</p>
       <label class="chk"><input type="checkbox" data-doc="klemmen" ${d.klemmen?'checked':''}${dis}> Klemmenliste</label>
     </div>`;
   }else if(k==='hersteller'){
@@ -2255,12 +2257,42 @@ function skDecor(){
   const si=$('#skInfo');if(si)si.textContent=skInfo(S.site);
   {const k=pl.step,M=stepMiss(S.site,k);if(S.missShow===k&&!M.length)S.missShow=null;const mb=$('#missBox');if(mb&&S.missShow===k&&!M.length)mb.remove()}
 }
+
+/* Tobi 24.11.: Infoseiten für den externen Verteilerbauer (am Anfang der Planmappe) */
+function bauData(s){const pl=planOf(s),hv=s.art==='HV',five=(pl.adern||'5')==='5',L=skLayout(s),sk=L.list,u=L.sum||{},ku=klUnten(s),SEC=[];
+  const vtArt=(()=>{try{if(!vtSelf(s))return '';const id=(pl.partSel||{})[vtKind(s)];const x=id&&vtParts(s).find(v=>v.id===id);return x?(x.art||''):''}catch(_){return ''}})();
+  const lox=loxOn(pl),loxTE=lox?LOX.reduce((a,o)=>a+((pl.sh.q||{})[o.id]||0)*(o.te||0),0):0;
+  const teSich=(u.sichTE||0)+(u.relTE||0),teRes=u.resTE||0,rails=(u.rails||0)+(ku.rails||0);
+  const ks=klStrips(s).filter(k=>k.mm||k.offen),kt=ks.reduce((a,k)=>a+k.mm,0),nZ=five?5:3;
+  const fig=[[String(rails||'–'),'Hutschienen à 12 TE'],[String(teSich+teRes),'TE Schutzgeräte inkl. Reserve'],[lox?String(loxTE):'–','TE Smart Home'],[ks.length?mmTxt(kt):'–','Klemmen gesamt ('+klTE(kt)+' TE)']];
+  SEC.push({h:'Verteiler',rows:[['Art',hv?'Hauptverteilung (HV)':'Unterverteilung (UV)'],['Gehäuse',pl.gehaeuse?(pl.gehaeuse==='alu'?'Alu-Verteiler (Schaltschrankbauer)':'Herstellerverteiler')+(pl.montage?' · '+(pl.montage==='AP'?'Aufputz':'Unterputz'):''):'offen'],...(vtArt?[['Verteiler',vtArt]]:[]),['Hersteller',pl.hersteller||'offen'],['Zuleitung',pl.qs?(five?'5×':'3×')+qsTxt(pl.qs)+' mm² Cu':'offen'],['Stromkreise',String(sk.length)],['Norm',s.norm==='VDE'?'DIN VDE 0100':'NIN SN 411000']]});
+  SEC.push({h:'Platzbedarf Hutschienen',rows:[['Schutzgeräte, Relais',teSich+' TE'],['Reserve',teRes+' TE'],...(ku.rails?[['Klemmen unten',ku.rails+' Hutschiene'+(ku.rails>1?'n':'')]]:[]),['Hutschienen',rails+' à 12 TE'],...(lox?[['Smart Home Loxone',loxTE+' TE zusätzlich (siehe unten)']]:[])]});
+  if(ks.length)SEC.push({h:'Klemmleisten (Phoenix Push-in)',table:{head:['Leiste','Lage','Klemmen','Breite','TE'],w:[.2,.2,.2,.24,.16],rows:ks.map(k=>[k.X,klPos(pl,k.X),String(k.X==='-X0'?nZ:(k.n||'–')),k.offen&&!k.mm?'folgt':mmTxt(k.mm),String(klTE(k.mm))]).concat([['Total','',String(ks.reduce((a,k)=>a+(k.X==='-X0'?nZ:(k.n||0)),0)),mmTxt(kt),String(klTE(kt))]])},note:'Breite inkl. Endhalter und Deckel bzw. Trennplatte. TE immer aufgerundet (1 TE = 18 mm).'});
+  if(lox){const R=[],ps=loxPs(pl),nP=fkPtrvN(pl),nT=tkList(pl).length;
+    if(ps)R.push(['-G1 '+ps.o.art,ps.o.te+' TE'+(ps.big?' · unten einbauen':'')]);loxPsx(pl).forEach(X=>R.push(['-G'+X.g+' '+X.o.art,X.o.te+' TE']));
+    LOX.filter(o=>((pl.sh.q||{})[o.id]||0)>0&&o.te>0&&!LOX_PS[o.id]).forEach(o=>R.push([((pl.sh.q||{})[o.id])+'× '+o.art,(o.te*((pl.sh.q||{})[o.id]))+' TE']));
+    if(nT){const mm=nT*2*KL.PTTBS15.mm+KL.ATPSTTB.mm;R.push(['-X11 Bus/24 V',nT*2+'× PTTBS 1,5/S + Abdeckplatte = '+mmTxt(mm)+' ('+klTE(mm)+' TE)'])}
+    if(nP)R.push(['-X10 Fensterkontakte',nP+'× PTRV 8 à 10,45 mm (86 mm hoch, 100 mm quer)']);
+    {const n=loxTermN(pl);if(n)R.push(['weitere Smart-Home-Klemmen',n+' Stück (Typ folgt)'])}
+    SEC.push({h:'Smart Home Loxone',rows:R})}
+  const H=[];
+  if(lox){const ps=loxPs(pl);if(ps&&ps.big)H.push('Power Supply & Backup: 18 TE, Einbau unten im Verteiler, oben und unten 50 mm frei, Verteiler mind. 100 l.');if(fkPtrvN(pl))H.push('Rangierverbinder PTRV 8 sind sehr gross (86 mm hoch, 100 mm quer zur Hutschiene): Platz einplanen.');H.push('Tree und Tree Turbo nie verbinden. GND aller Netzteile verbinden.')}
+  H.push('3- und 4-polige Sicherungen nie mit 1- und 2-poligen auf derselben Hutschiene, eigene Klemmleiste.');H.push('Max. 6 Sicherungen pro Klemmleiste, danach Endhalter + Deckel und nächste Leiste.');
+  if(pl.hs)H.push('Hauptschalter'+(hsTxt(pl)?' '+hsTxt(pl):'')+': Klemmenabdeckung mitliefern.');
+  H.push('Belegung, Querschnitte und Aderfarben: siehe Schema'+((pl.docs||{}).klemmen?' und Klemmenliste.':'.'));
+  SEC.push({h:'Hinweise zum Bau',list:H});
+  return {fig,SEC}}
+function bauPages(s){const {SEC}=bauData(s),hOf=x=>36+(x.rows?x.rows.length*18:0)+(x.table?22+x.table.rows.length*18:0)+(x.note?16:0)+(x.list?x.list.reduce((a,t)=>a+wrapTxt(t,80).length*14+4,0):0)+14;
+  const cap0=490,cap=578,P=[];let cur=[[],[]],hh=[0,0],first=true;
+  SEC.forEach(x=>{const h=hOf(x),c=first?cap0:cap;let i=hh[0]<=hh[1]?0:1;if(hh[i]+h-14>c){i=1-i;if(hh[i]+h-14>c){P.push(cur);cur=[[],[]];hh=[0,0];first=false;i=0}}cur[i].push(x);hh[i]+=h});
+  P.push(cur);return P}
 function pagesOf(s){
   const pl=planOf(s),d=pl.docs||{},five=(pl.adern||'5')==='5',hv=s.art==='HV';
   const qs=pl.qs?qsTxt(pl.qs)+' mm²':'Querschnitt offen';
   const a=[];
   if(d.deck)a.push({kind:'deck',title:'Deckblatt',sub:'Planmappe'});
   if(d.toc)a.push({kind:'toc',title:'Inhaltsverzeichnis',sub:'Übersicht der Blätter'});
+  if(d.bau!==false){const B=bauPages(s);B.forEach((cols,k)=>a.push({kind:'bau',k,cols,title:'Info Verteilerbauer',sub:B.length>1?'Teil '+(k+1)+' von '+B.length:'Klemmen, TE, Platz, Hinweise'}))}
   a.push({kind:'einspeisung',title:'Einspeisung',sub:(five?'5×':'3×')+qs+(hv?', Hausanschluss':(pl.spd?', SPD':'')+(pl.hs?', -Q1':'')+(pl.spd||pl.hs?'':', ohne Zähler'))});
   const L=skLayout(s),sk=L.list;
   if(hv){let cur=null;pl.zl.forEach((z,k)=>{if(!k)return;const n=z.res?0:Math.min(ZM_EXT_MAX,(L.ext[z.id]||[]).length),w=Math.max(5,Math.ceil(2+n*1.5));if(!cur||cur.used+w>10){cur={kind:'zm',title:'Messungen',bl:[],used:0};a.push(cur)}cur.bl.push({k,c0:cur.used,w});cur.used+=w});
@@ -2353,25 +2385,41 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
   L(X0,iy1,X1,iy1,'fr');L(X0,pk,X1,pk,'fr');
 
   if(pg.kind==='deck'){
-    const all=pagesOf(s),sk=skSorted(s),last=pl.revs[pl.revs.length-1];
-    const lx=ix0+44,rx=ix0+520,rw=ix1-44-rx;
-    o.push(`<image href="logo.png" x="${lx}" y="${iy0+40}" width="400" height="88" preserveAspectRatio="xMinYMid meet"/>`);
-    o.push(`<rect x="${lx}" y="${iy0+160}" width="64" height="6" fill="#ffed00"/>`);
-    T(lx,iy0+196,'ELEKTROSCHEMA · PLANMAPPE','tlab');
-    T(lx,iy0+238,hv?'Hauptverteilung':'Unterverteilung','tdeck');
-    T(lx,iy0+272,'+'+(s.art||'UV')+(s.kom?' · Kommission '+s.kom:''),'tdeck2');
-    T(lx,iy0+306,(s.bauherr||'Bauherrschaft offen').slice(0,44),'tdeck3');
-    T(lx,iy0+328,[s.adr,[s.plz,s.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ').slice(0,54)||'Adresse offen','tk4');
-    T(lx,iy0+346,[s.bereich,s.stock].filter(Boolean).join(' · ').slice(0,54),'tk4');
-    const box=(x,y,w,head,rows)=>{const rh2=21;Rc(x,y,w,30+rows.length*rh2,'dbox');o.push(`<rect x="${x}" y="${y}" width="${w}" height="24" fill="#111"/>`);o.push(`<rect x="${x}" y="${y+24}" width="${w}" height="2" fill="#ffed00"/>`);
-      o.push(`<text class="tbw" x="${x+10}" y="${y+16}">${esc(head)}</text>`);
-      rows.forEach((r,i)=>{const yy=y+26+(i+1)*rh2-6;T(x+10,yy,r[0],'tm2');T(x+150,yy,String(r[1]||'–').slice(0,Math.floor((w-160)/6.2)),'tk4');if(i<rows.length-1)L(x+10,yy+7,x+w-10,yy+7,'fr3')});
-      return y+30+rows.length*rh2};
-    let y=box(lx,iy0+380,rx-lx-40,'Planung',[['Planer',userName(s.owner)],['Erstellt',s.created?fmtDate(s.created).slice(0,10):''],['Stand',(last?'Index '+last.idx+' · ':'')+fmtDate(pl.changed||s.updated).slice(0,10)],['Geprüft','']]);
-    {const ks=klStrips(s).filter(k=>k.mm||k.offen),kt=ks.reduce((a,k)=>a+k.mm,0),kr=k=>k.offen&&!k.mm?'Klemmentyp folgt':mmTxt(k.mm)+(k.offen?' + Klemmen folgen':'');
-      if(ks.length)box(lx,y+18,rx-lx-40,'Klemmenleisten, Position und Breite',ks.length<=5?[...ks.map(k=>[k.X+' · '+klPos(pl,k.X),kr(k)]),['Total',mmTxt(kt)+' = '+klTE(kt)+' TE']]:[[ks[0].X+' bis '+ks[ks.length-1].X,ks.length+' Leisten, Breiten und Position siehe Klemmenliste'],['Total',mmTxt(kt)+' = '+klTE(kt)+' TE']])}
-    y=box(rx,iy0+40,rw,'Baustelle',[['Kommission',s.kom],['Bauherrschaft',s.bauherr],['Bereich',s.bereich],['Stockwerk',s.stock],['Strasse',s.adr],[s.land==='DE'?'PLZ / Stadt':'PLZ / Ort',[s.plz,s.ort].filter(Boolean).join(' ')],...(s.land==='CH'?[['Kanton',s.kanton?s.kanton+' · '+kantonName(s.kanton):'']]:[]),['Land',landName(s.land)]]);
-    box(rx,y+18,rw,'Verteilung',[['Art',hv?'Hauptverteilung (HV)':'Unterverteilung (UV)'],['Norm',s.norm==='VDE'?'DIN VDE 0100':'NIN SN 411000'],['Hersteller',pl.hersteller],['Gehäuse',pl.gehaeuse?(pl.gehaeuse==='alu'?'Alu-Verteiler':'Herstellerverteiler')+(pl.montage?' · '+(pl.montage==='AP'?'Aufputz':'Unterputz'):''):''],['Zuleitung',pl.qs?(five?'5×':'3×')+qsTxt(pl.qs)+' mm² Cu':''],...(hv?[['Gebäude',s.geb==='MFH'?'Mehrfamilienhaus':'Einfamilienhaus'],['Zähler',zlSum(s)],['Bezügersicherung',pl.zl.length===1?bezTxt(pl.zl[0]):'je Zähler, siehe Zählerschrank']]:[]),...(hv?[['Netzbetreiber',pl.nb]]:[]),['Stromkreise',sk.length?sk.length+' (Blätter '+all.filter(p=>p.kind==='sk').map(p=>p.no).join(', ')+')':''],...(sk.length?[['Platzbedarf',(()=>{const u=skLayout(s).sum;const ku=klUnten(s);return (u.sichTE+u.relTE)+' TE + '+u.resTE+' TE Reserve = '+(u.sichTE+u.relTE+u.resTE)+' TE → '+(u.rails+ku.rails)+' Hutschienen à 12 TE'+(ku.rails?' (inkl. '+ku.rails+' für Klemmen unten)':'')})()]]:[]),...(sk.some(r=>(r.relais||[]).length)?[['Relais',String(sk.reduce((a,r)=>a+(r.relais||[]).length,0))]]:[]),...((siemOn(pl)||(!hv&&(pl.spd||pl.hs)))?[['Extras',[siemOn(pl)?'FI/LS Siemens':'',!hv&&pl.spd?'Überspannungsschutz':'',!hv&&pl.hs?'Hauptschalter'+(hsTxt(pl)?' '+hsTxt(pl):''):''].filter(Boolean).join(', ')]]:[]),['Blätter',String(all.length)]]);
+    /* Tobi 24.11.: Deckblatt = Aushängeschild, ruhig und professionell; technische Infos auf die Infoseiten */
+    const all=pagesOf(s),sk=skSorted(s),last=pl.revs[pl.revs.length-1],lox=loxOn(pl);
+    const lx=ix0+50,px=ix0+650,pw=ix1-40-px,py=iy0+36,ph=iy1-36-py,cut=(t,n)=>{t=String(t||'');return t.length>n?t.slice(0,n-1)+'…':t};
+    o.push(`<image href="logo.png" x="${lx}" y="${iy0+40}" width="360" height="80" preserveAspectRatio="xMinYMid meet"/>`);
+    const y1=iy0+180;o.push(`<rect x="${lx}" y="${y1}" width="56" height="6" fill="#ffed00"/>`);
+    T(lx,y1+32,'ELEKTROSCHEMA · PLANMAPPE','tlab');
+    T(lx,y1+82,hv?'Hauptverteilung':'Unterverteilung','tcov');
+    T(lx,y1+114,cut('+'+(s.art||'UV')+(s.kom?' · Kommission '+s.kom:''),44),'tcov2');
+    T(lx,y1+158,cut(s.bauherr||'Bauherrschaft offen',52),'tdeck3');
+    T(lx,y1+178,cut([s.adr,[s.plz,s.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ')||'Adresse offen',70),'tcovs');
+    {const b=[s.bereich,s.stock].filter(Boolean).join(' · ');if(b)T(lx,y1+196,cut(b,70),'tcovs')}
+    /* Kennzahlen */
+    {const F=[[String(sk.length),'Stromkreise'],[String((skLayout(s).sum||{}).rails+(klUnten(s).rails||0)||'–'),'Hutschienen'],[String(all.length),'Blätter'],...(lox?[['Loxone','Smart Home']]:[])],gap=12,tw=(px-50-lx-gap*(F.length-1))/F.length,ty=iy0+440;
+      F.forEach((f,i)=>{const x=lx+i*(tw+gap);o.push(`<rect x="${x}" y="${ty}" width="${tw}" height="64" fill="#fff" stroke="#d8d8d4" stroke-width=".8"/><rect x="${x}" y="${ty+60}" width="${tw}" height="4" fill="#ffed00"/>`);T(x+14,ty+32,f[0],'tnum');T(x+14,ty+50,f[1].toUpperCase(),'tkv')})}
+    /* Planung */
+    {const R=[['PLANER',userName(s.owner)],['ERSTELLT',s.created?fmtDate(s.created).slice(0,10):'–'],['STAND'+(last?' · INDEX '+last.idx:''),fmtDate(pl.changed||s.updated).slice(0,10)],['GEPRÜFT','–']],yy=iy0+548,cw2=(px-50-lx)/R.length;
+      L(lx,yy-18,px-50,yy-18,'fr2');R.forEach((r,i)=>{const x=lx+i*cw2;if(i)L(x-10,yy-6,x-10,yy+22,'fr3');T(x,yy,r[0],'tkv');T(x,yy+18,cut(r[1],Math.floor((cw2-16)/7.6)),'tkvb')})}
+    /* rechte Spalte: Projekt und Verteilung */
+    o.push(`<rect x="${px}" y="${py}" width="${pw}" height="${ph}" fill="#f5f5f2"/><rect x="${px}" y="${py}" width="${pw}" height="6" fill="#ffed00"/>`);
+    {let y=py+44;const mx=Math.floor((pw-48)/6.9),sec=(h,R)=>{T(px+24,y,h,'tlab');L(px+24,y+9,px+pw-24,y+9,'fr2');y+=32;R.filter(r=>r[1]).forEach(r=>{T(px+24,y,r[0].toUpperCase(),'tkv');T(px+24,y+16,cut(r[1],mx),'tkvb');y+=36});y+=14};
+      sec('PROJEKT',[['Kommission',s.kom||'offen'],['Bauherrschaft',s.bauherr||'offen'],['Adresse',[s.adr,[s.plz,s.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ')],['Bereich · Stockwerk',[s.bereich,s.stock].filter(Boolean).join(' · ')],['Land',(s.land==='CH'&&s.kanton?s.kanton+' · ':'')+landName(s.land)]]);
+      sec('VERTEILUNG',[['Art',hv?'Hauptverteilung (HV)':'Unterverteilung (UV)'],['Norm',s.norm==='VDE'?'DIN VDE 0100':'NIN SN 411000'],['Hersteller',pl.hersteller||'offen'],['Gehäuse',pl.gehaeuse?(pl.gehaeuse==='alu'?'Alu-Verteiler':'Herstellerverteiler')+(pl.montage?' · '+(pl.montage==='AP'?'Aufputz':'Unterputz'):''):'offen'],['Zuleitung',pl.qs?(five?'5×':'3×')+qsTxt(pl.qs)+' mm² Cu':'offen']])}
+  }else if(pg.kind==='bau'){
+    const D=bauData(s),cols=pg.cols||[[],[]],k=pg.k||0,cx0=ix0+40,cW=(ix1-ix0-120)/2;
+    T(cx0,iy0+46,'Info für den Verteilerbauer','tdeck2');o.push(`<rect x="${cx0}" y="${iy0+56}" width="48" height="4" fill="#ffed00"/>`);
+    T(cx0,iy0+76,'Alle Angaben zum Bau dieses Verteilers auf einen Blick. Details stehen im Schema'+((pl.docs||{}).klemmen?' und in der Klemmenliste.':'.'),'tm2');
+    let y0=iy0+96;
+    if(k===0){const fw=(ix1-ix0-80-36)/4;D.fig.forEach((f,i)=>{const x=cx0+i*(fw+12);o.push(`<rect x="${x}" y="${y0}" width="${fw}" height="62" fill="#f5f5f2" stroke="#ddd" stroke-width=".8"/><rect x="${x}" y="${y0}" width="4" height="62" fill="#ffed00"/>`);T(x+16,y0+34,f[0],'tnum');T(x+16,y0+52,f[1],'tm2')});y0+=80}
+    cols.forEach((C,ci)=>{let y=y0;const x=cx0+ci*(cW+40),w=cW;
+      C.forEach(sec=>{T(x,y+14,sec.h.toUpperCase(),'tlab');L(x,y+21,x+w,y+21,'fr2');y+=36;
+        if(sec.rows){const kx=Math.min(w*.52,Math.max(130,Math.max(...sec.rows.map(r=>String(r[0]).length))*5.7+16));sec.rows.forEach(r=>{const mx=Math.floor((w-kx)/5.9);T(x,y,r[0],'tm2');T(x+kx,y,String(r[1]).length>mx?String(r[1]).slice(0,mx-1)+'…':String(r[1]),'tk4');L(x,y+6,x+w,y+6,'fr3');y+=18})}
+        if(sec.table){const tb=sec.table;let xx=x;const X=tb.w.map(f=>{const v=xx;xx+=f*w;return v});tb.head.forEach((h2,i)=>T(X[i],y,h2,'tb'));L(x,y+6,x+w,y+6,'fr2');y+=22;tb.rows.forEach((r,ri)=>{const last=ri===tb.rows.length-1;r.forEach((c,i)=>T(X[i],y,c,last?'tb':'tk4'));L(x,y+6,x+w,y+6,last?'fr2':'fr3');y+=18})}
+        if(sec.note){T(x,y+2,sec.note,'tk5');y+=16}
+        if(sec.list)sec.list.forEach(t=>{wrapTxt(t,80).forEach((ln,j)=>{if(!j)o.push(`<rect x="${x}" y="${y-6}" width="4" height="4" fill="#111"/>`);T(x+12,y,ln,'tk4');y+=14});y+=4});
+        y+=14})});
   }else if(pg.kind==='bus2d'){
     const R=bus2D(s,true),B=busPlan(s),aw=640,ah=iy1-iy0-80,sc=Math.min(aw/R.VW,ah/R.H,1.6);
     T(ix0+40,iy0+50,'Verteileransicht · Sammel- und Etagenschienen','tdeck2');
@@ -2929,7 +2977,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
   .fr{stroke:#111;stroke-width:1.2;fill:none}.fr2{stroke:#111;stroke-width:.6}.bx{stroke:#111;stroke-width:.8;fill:#fff}.bxw{stroke:#111;stroke-width:1;fill:#fff}
   .bxd{stroke:#111;stroke-width:.9;fill:none;stroke-dasharray:10 3 2 3}.note{stroke:#bbb;stroke-width:.8;fill:#fff}.term{fill:#fff;stroke:#111;stroke-width:1}
   text{font-family:"DejaVu Sans",Inter,Arial,sans-serif;fill:#111}.t{font-size:10px}.tb{font-size:10.5px;font-weight:700}.tm{font-size:8.5px;fill:#555}.ta{font-size:9.5px;fill:#1f4fa0}
-  .tg{font-size:10px}.tr{font-size:8px;font-family:"DejaVu Sans Mono",monospace}.tk{font-size:6.5px}.tk2{font-size:8.5px}.tk3{font-size:9.5px}.th{font-size:11px;font-weight:700;fill:#444}.tbig{font-size:20px;font-weight:700}.tdeck{font-size:34px;font-weight:700}.tdeck2{font-size:16px;font-weight:700}.tm2{font-size:10px;fill:#666}.tk4{font-size:10.5px}.fr3{stroke:#ccc;stroke-width:.6}.cp{stroke:#111;stroke-width:.8;stroke-dasharray:3 2}.dbox{stroke:#111;stroke-width:.9;fill:#fff}.tbw{font-size:11px;font-weight:700;fill:#ffed00;letter-spacing:.06em}.tlab{font-size:11px;font-weight:700;letter-spacing:.18em;fill:#555}.tdeck3{font-size:14px;font-weight:700}.tk5{font-size:5.5px;fill:#555}.cpl{stroke:#111;stroke-width:.7}.kb{stroke:#111;stroke-width:3.2}.kbn{stroke:#111;stroke-width:2.6;stroke-dasharray:8 4}.kbpe{stroke:#111;stroke-width:2.6;stroke-dasharray:14 3 3 3}.tred{font-size:9px;font-weight:700;fill:#b42318}.twarn{font-size:9.5px;font-weight:700;fill:#b42318;paint-order:stroke;stroke:#fff;stroke-width:3px}.tnm2{font-size:8.5px;font-weight:700}.wc{stroke:#111;stroke-width:1.1}.bxr{fill:none;stroke:#111;stroke-width:.7;stroke-dasharray:3 2}.trel{font-size:7.5px;fill:#444}.tbh{font-size:10px;font-weight:700;paint-order:stroke;stroke:#fff;stroke-width:3px}.tgn{font-size:8px;font-weight:700;fill:#2e7d32}.tnote{font-size:8px;font-style:italic;fill:#1f4fa0;paint-order:stroke;stroke:#fff;stroke-width:3px}.thalo{font-size:7.5px;fill:#555;paint-order:stroke;stroke:#fff;stroke-width:3px}.b2b{font-size:11px;font-weight:700}.b2s{font-size:10px}.b2t{font-size:8px;font-weight:700}
+  .tg{font-size:10px}.tr{font-size:8px;font-family:"DejaVu Sans Mono",monospace}.tk{font-size:6.5px}.tk2{font-size:8.5px}.tk3{font-size:9.5px}.th{font-size:11px;font-weight:700;fill:#444}.tbig{font-size:20px;font-weight:700}.tdeck{font-size:34px;font-weight:700}.tnum{font-size:24px;font-weight:700}.tcov{font-size:44px;font-weight:700;letter-spacing:-.01em}.tcov2{font-size:20px;font-weight:700}.tkv{font-size:9.5px;fill:#777;letter-spacing:.08em}.tkvb{font-size:12px;font-weight:700}.tcovs{font-size:13px;fill:#444}.tdeck2{font-size:16px;font-weight:700}.tm2{font-size:10px;fill:#666}.tk4{font-size:10.5px}.fr3{stroke:#ccc;stroke-width:.6}.cp{stroke:#111;stroke-width:.8;stroke-dasharray:3 2}.dbox{stroke:#111;stroke-width:.9;fill:#fff}.tbw{font-size:11px;font-weight:700;fill:#ffed00;letter-spacing:.06em}.tlab{font-size:11px;font-weight:700;letter-spacing:.18em;fill:#555}.tdeck3{font-size:14px;font-weight:700}.tk5{font-size:5.5px;fill:#555}.cpl{stroke:#111;stroke-width:.7}.kb{stroke:#111;stroke-width:3.2}.kbn{stroke:#111;stroke-width:2.6;stroke-dasharray:8 4}.kbpe{stroke:#111;stroke-width:2.6;stroke-dasharray:14 3 3 3}.tred{font-size:9px;font-weight:700;fill:#b42318}.twarn{font-size:9.5px;font-weight:700;fill:#b42318;paint-order:stroke;stroke:#fff;stroke-width:3px}.tnm2{font-size:8.5px;font-weight:700}.wc{stroke:#111;stroke-width:1.1}.bxr{fill:none;stroke:#111;stroke-width:.7;stroke-dasharray:3 2}.trel{font-size:7.5px;fill:#444}.tbh{font-size:10px;font-weight:700;paint-order:stroke;stroke:#fff;stroke-width:3px}.tgn{font-size:8px;font-weight:700;fill:#2e7d32}.tnote{font-size:8px;font-style:italic;fill:#1f4fa0;paint-order:stroke;stroke:#fff;stroke-width:3px}.thalo{font-size:7.5px;fill:#555;paint-order:stroke;stroke:#fff;stroke-width:3px}.b2b{font-size:11px;font-weight:700}.b2s{font-size:10px}.b2t{font-size:8px;font-weight:700}
   </style>${o.join('')}</svg>`;
 }
 
