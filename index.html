@@ -242,7 +242,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-24.0527';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-24.0534';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -2154,17 +2154,21 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     T(gx-8,gy+16,A,'tbig','end');T(gx-8,gy+32,'Loxone','t','end');T(gx-8,gy+44,'Relay Extension','t','end');T(gx-8,gy+58,'100038 · 9 TE','tm','end');T(gx-8,gy+70,'Hutschiene','tm','end');
     T(gx+20,gy+70,'Versorgung 18–28 VDC · typ. 0,7 W, max. 3,8 W','tm');T(gx+20,gy+84,'14 Relais potentialfrei, 250 VAC 16 A (cos φ = 1), gesamt max. 48 A','tm');T(gx+20,gy+98,'Ausgänge 0,05–2,5 mm², ab 12 A min. 2,5 mm²','tk5');
     /* oben: 14 Relais, je 2 Klemmen, auf -X9 */
-    const x0=gx+40,dq=56,yx=200;T(x0-24,yx+4,'-X9','tb','end');
+    const x0=gx+40,dq=56,yx=200;T(x0-28,yx+20,'-X9','tb','end');
     const FM={};skLayout(s).list.filter(r=>r.hz==='li').forEach(r=>(r.liSw||[]).forEach(w=>{let tg='';(r.grp||[]).forEach(gp=>{const j=(gp.cond||[]).indexOf(w.id);if(j>=0&&gp.kl)tg=(r.X||'-X1')+':'+(gp.kl+j)});FM[w.key]={f:r.f,sid:w.id,cab:w.cab,tg}}));
     const gLbl=g=>{const m=FM[g.rid+'|'+g.k+'|'+g.i];return g.room+' · '+(m?m.f:'-F?')+' · '+(g.k==='sp'?'Spots ':'')+'Gruppe '+(g.i+1)};
-    for(let q=0;q<14;q++){const x=x0+q*dq,g=G[q],n=off+q+1;[[x,1],[x+16,2]].forEach(([xx,j])=>{term(xx,gy,3);if(g){L(xx,gy-4,xx,yx,'w');term(xx,yx)}});if(g){Rc(x-7,yx-7,30,14,'bxd');T(x+8,yx+20,String(n),'tk','middle')}
+    for(let q=0;q<14;q++){const x=x0+q*dq,g=G[q],b=(off+q)*4;[x,x+16].forEach(xx=>{term(xx,gy,3);if(g)L(xx,gy-4,xx,yx+3,'w')});
       o.push(`<path d="M${x} ${gy+26} l0 -8 M${x+16} ${gy+26} l0 -8 M${x} ${gy+18} l14 -8" fill="none" stroke="#111" stroke-width="1"/>`);T(x+8,gy+40,'Q'+(q+1),'tk5','middle');
-      if(g){const lb=gLbl(g),m=FM[g.rid+'|'+g.k+'|'+g.i];o.push(`<text class="tk5" transform="translate(${x+12} ${yx-20}) rotate(-90)">${esc(lb.length>40?lb.slice(0,39)+'…':lb)}</text>`);
-        T(x-3,yx+34,'L','tk5','end');T(x+19,yx+34,m?m.sid:'S?','tk5');if(m&&m.tg)T(x+19,yx+44,'→ '+m.tg,'tk5');if(!m)T(x+8,yx+46,'keine Sicherung','tred','middle')}else T(x+8,gy-10,'frei','tk5','middle')}
-    /* gleiche Raum-Sicherung: L-Eingänge gebrückt, Einspeisung von dieser Sicherung */
+      if(g){const lb=gLbl(g),m=FM[g.rid+'|'+g.k+'|'+g.i],P={4:x-12,1:x,3:x+16,2:x+28};
+        Rc(x-18,yx-7,52,14,'bxd');o.push(`<path d="M${x-12} ${yx+3} V${yx+10} H${x} M${x+16} ${yx+10} H${x+28} V${yx+3}" fill="none" stroke="#111" stroke-width="0.8"/>`);
+        [4,1,3,2].forEach(k=>{term(P[k],yx,3);T(P[k],k===1||k===3?yx-9:yx+16,String(b+k),'tk5','middle')});
+        L(x+28,yx-3,x+28,yx-22,'w');o.push(`<path d="M${x+24} ${yx-16} l4 -6 l4 6" fill="none" stroke="#111" stroke-width="1"/>`);
+        const t2=(m&&m.tg?'→ '+m.tg+' · ':'')+lb;o.push(`<text class="tk5" transform="translate(${x+32} ${yx-26}) rotate(-90)">${esc(t2.length>46?t2.slice(0,45)+'…':t2)}</text>`);
+        if(!m)T(x+8,yx+32,'keine Sicherung','tred','middle')}else T(x+8,gy-10,'frei','tk5','middle')}
+    /* Einspeisung Nr.4: L1 von der Raum-Sicherung, gleiche Sicherung per Steckbrücke (rot) an den Klemmen */
     {let q=0;while(q<14){const g=G[q];if(!g){q++;continue}const m=FM[g.rid+'|'+g.k+'|'+g.i],f=m?m.f:null;let e=q;while(e+1<14&&G[e+1]&&f&&(FM[G[e+1].rid+'|'+G[e+1].k+'|'+G[e+1].i]||{}).f===f)e++;
-      const xa=x0+q*dq,xe=x0+e*dq,yy=yx-12;if(f){L(xa,yx-7,xa,yy,'w');L(xa,yy,xa-14,yy,'w');T(xa-16,yy+3,'L1 von '+f,'tk5','end');if(e>q){o.push(`<path d="M${xa} ${yy} H${xe}" fill="none" stroke="#c0392b" stroke-width="2.2"/>`);for(let j=q;j<=e;j++){const xj=x0+j*dq;L(xj,yx-7,xj,yy,'w');o.push(`<circle cx="${xj}" cy="${yy}" r="2.2" fill="#111"/>`)}}}q=e+1}}
-    T(gx+200,530,'-X9 PTTBS 2,5, 2 getrennte Kreise: Kreis 1 = L1 von der Sicherung (Zwillingshülse, weitere per Steckbrücke rot) → je Litze auf den Kontakt','tk5');T(gx+200,542,'Kreis 2 = Rückleitung vom Kontakt = Lampe geschaltet → Litze auf den Kabelanschlussblock (S1 schwarz, S2 grau …). Nie am Relais brücken.','tk5');
+      const xa=x0+q*dq-12,xe=x0+e*dq-12,yy=yx-14;if(f){L(xa,yx-3,xa,yy,'w');L(xa,yy,xa-10,yy,'w');T(xa-12,yy+3,'L1 von '+f,'tk5','end');if(e>q){o.push(`<path d="M${xa} ${yy} H${xe}" fill="none" stroke="#c0392b" stroke-width="2.2"/>`);for(let j=q;j<=e;j++){const xj=x0+j*dq-12;L(xj,yx-3,xj,yy,'w');o.push(`<circle cx="${xj}" cy="${yy}" r="2.2" fill="#111"/>`)}}}q=e+1}}
+    T(gx+200,530,'-X9 PTTBS 2,5 (4 Anschlüsse, von oben Nr. 1–4, Klemme 2 = 5–8 …): Nr. 4 L1 Einspeisung (Steckbrücke rot), Nr. 1 L1 zum Relais,','tk5');T(gx+200,542,'Nr. 3 Lampendraht vom Relais, Nr. 2 Lampendraht zur Kabelanschlussklemme (S1 schwarz, S2 grau …). Jede Litze einzeln, nie am Relais brücken.','tk5');
     /* unten: Versorgung, Link */
     const X={p:gx+40,g:gx+58,lb:gx+110,lw:gx+128};[['p','24V'],['g','GND'],['lb','BU'],['lw','WH']].forEach(([q,l])=>{term(X[q],yb);T(X[q],yb-8,l,'tk5','middle')});T((X.lb+X.lw)/2,yb-22,'Link','tk5','middle');
     const yv=yb+80;L(X.p,yb+4,X.p,yv,'pwo');L(X.g,yb+4,X.g,yv,'pww');arr(X.p,yb+12);arr(X.g,yb+12);T(X.p-4,yb+30,'or','tk5','end');T(X.g+4,yb+30,'ws','tk5');
@@ -2385,7 +2389,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
             if(gp.cabs.length>1){T(bx+wq/2,yy+2,'2 Kabel angeschlossen','tm','middle');nmBot=Math.max(nmBot,yy+2)}})}
         foot(it,G.get(it));return}
       const r=it,n=r.cond.length,hasRel=r.rel.length>0;
-      if(r.liSw&&r.liSw.length){const xL=xs[0],yJ=yK-120;o.push(`<circle cx="${xL}" cy="${yJ}" r="2" fill="#111"/>`);L(xL,yJ,xL-16,yJ,'w');T(xL-18,yJ-8,'Zwillingshülse: L → -X9:'+(r.liSw[0].ix+1)+' Kreis 1','tk5','end');T(xL-18,yJ+2,r.liSw.length>1?'weiter per Steckbrücke (-X9:'+r.liSw.map(w=>w.ix+1).join(', ')+')':'','tk5','end')}
+      if(r.liSw&&r.liSw.length){const xL=xs[0],yJ=yK-120;o.push(`<circle cx="${xL}" cy="${yJ}" r="2" fill="#111"/>`);L(xL,yJ,xL-16,yJ,'w');T(xL-18,yJ-8,'Zwillingshülse: L → -X9:'+(r.liSw[0].ix*4+4),'tk5','end');T(xL-18,yJ+2,r.liSw.length>1?'Steckbrücke -X9:'+r.liSw.map(w=>w.ix*4+4).join(', '):'','tk5','end')}
       r.cond.forEach((cn,k)=>{const x=xs[k],cls=bcls(cn),yb=busY[cn];
         if(/^(S\d|DA)/.test(cn))return;
         if(hasRel&&cn==='PE')return;
@@ -2407,7 +2411,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
       }else if(r.liC){const na=r.grp.length,off=r.gsp.map((_,q)=>r.gsp.slice(0,q).reduce((a,b)=>a+b,0)*cw),XQ=r.grp.map((gp,q)=>q?gp.cond.map((_,i)=>x0+off[q]+14+i*14):xs.slice(0,gp.cond.length));
         r.grp.forEach((gp,q)=>{const X=XQ[q];
           if(q)[...Array(r.liB||3).keys()].forEach(k=>{const cn=r.cond[k],cls=bcls(cn),yb=yK-72+k*8,xa=XQ[q-1][k];o.push(`<circle cx="${xa}" cy="${yb}" r="2" fill="#111"/>`);L(xa,yb,X[k],yb,cls);L(X[k],yb,X[k],yK,cls)});
-          gp.cond.forEach((cn,j)=>{if(j<(r.liB||3))return;const x=X[j],sw=r.liSw.find(v=>v.id===cn);if(/^DA/.test(cn)){L(x,yF+24,x,yK,'w');o.push(`<path d="M${x-4} ${yF+32} l4 -8 l4 8" fill="none" stroke="#111" stroke-width="1"/>`);o.push(`<text class="tk5" transform="translate(${x+8} ${busY.PE-6}) rotate(-90)">${esc((r.liDa||'DALI')+' '+cn+' · '+(gp.cols[j]||''))}</text>`);return}if(!sw)return;L(x,yF+24,x,yK,'w');o.push(`<path d="M${x-4} ${yF+32} l4 -8 l4 8" fill="none" stroke="#111" stroke-width="1"/>`);o.push(`<text class="tk5" transform="translate(${x+8} ${busY.PE-6}) rotate(-90)">${esc('von -X9:'+(sw.ix+1)+' Kreis 2 ('+sw.A+' '+sw.Q+') · '+sw.ck+' → '+sw.lbl)}</text>`)});
+          gp.cond.forEach((cn,j)=>{if(j<(r.liB||3))return;const x=X[j],sw=r.liSw.find(v=>v.id===cn);if(/^DA/.test(cn)){L(x,yF+24,x,yK,'w');o.push(`<path d="M${x-4} ${yF+32} l4 -8 l4 8" fill="none" stroke="#111" stroke-width="1"/>`);o.push(`<text class="tk5" transform="translate(${x+8} ${busY.PE-6}) rotate(-90)">${esc((r.liDa||'DALI')+' '+cn+' · '+(gp.cols[j]||''))}</text>`);return}if(!sw)return;L(x,yF+24,x,yK,'w');o.push(`<path d="M${x-4} ${yF+32} l4 -8 l4 8" fill="none" stroke="#111" stroke-width="1"/>`);o.push(`<text class="tk5" transform="translate(${x+8} ${busY.PE-6}) rotate(-90)">${esc('von -X9:'+(sw.ix*4+2)+' ('+sw.A+' '+sw.Q+') · '+sw.ck+' → '+sw.lbl)}</text>`)});
           foot({...r,cond:gp.cond,kl:gp.kl,w:gp.w,adern:gp.adern,qs:gp.qs,res:gp.res,cabs:gp.cabs,name:na>1?(q?'Kabel '+(q+1)+(gp.nm?': '+gp.nm:' Reserve'):r.name+' · Kabel 1'+(gp.nm?': '+gp.nm:'')):r.name},{...g,x0:g.x0+off[q],w:cw*r.gsp[q],xs:X,c:(X[0]+X[X.length-1]+(gp.res||0)*14)/2})});
         if(na>1)T((xs[0]+XQ[1][0])/2+20,yK-30,'Steckbrücke','tm','middle');
       }else{const na=r.grp.length;
