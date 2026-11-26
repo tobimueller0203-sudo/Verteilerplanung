@@ -246,7 +246,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-26.1228';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-26.1245';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -1089,6 +1089,8 @@ function printSheet(){
 /* ---------- Planung ---------- */
 const QS=['1.5','2.5','4','6','10','16','25','35','50','70','95','120','150','185','240'];
 const QS_MAX=16;
+/* Tobi 26.11.: die Bezügersicherung gibt den Querschnitt vor, er gilt ab der Bezügersicherung (auch bis zum Zähler). Vorschlag, änderbar. 25 A -> 6 mm² von Tobi bestätigt, Rest zur Prüfung */
+const BEZ_QS={'16':'4','20':'4','25':'6','32':'10','35':'10','40':'10','50':'16','63':'16'};
 const NB_LIST=['IWB Industrielle Werke Basel','Primeo Energie','EBL Genossenschaft Elektra Baselland','AEW Energie AG','BKW Energie AG','CKW AG','EKZ Elektrizitätswerke des Kantons Zürich','Netze BW GmbH','ED Netze GmbH','bnNETZE GmbH'];
 const qsNum=q=>parseFloat(String(q).replace(',','.'))||0;
 const qsTxt=q=>String(q).replace('.',',');
@@ -2380,9 +2382,9 @@ function zlFields(p,z,j,dis){const five=(planOf(p).adern||'5')==='5';
       <select data-zl="bez" data-zi="${j}"${dis}><option value="">wählen …</option>${opt(bezTypes(p),z.bez||'')}</select></label>
     <label class="f c3">Bemessungsstrom
       <select data-zl="bezA" data-zi="${j}"${z.bez?dis:' disabled'}><option value="">wählen …</option>${opt((BEZ_A[z.bez]||[]).map(a=>[a,a+' A']),z.bezA||'')}</select></label>
-    <label class="f c3">${j===0?'Querschnitt nach Zähler':'Abgang Querschnitt'}
-      <select data-zl="qs" data-zi="${j}"${dis}><option value="">wählen …</option>${opt(QS.filter(q=>qsNum(q)<=QS_MAX).map(q=>[q,qsTxt(q)+' mm²']),z.qs||'')}</select></label>
-    <label class="f c3">${j===0?'Adern nach Zähler':'Abgang Adern'}
+    <label class="f c3">${j===0?'Querschnitt ab Bezügersicherung':'Abgang Querschnitt'}
+      <select data-zl="qs" data-zi="${j}"${dis}><option value="">wählen …</option>${opt(QS.filter(q=>qsNum(q)<=QS_MAX).map(q=>[q,qsTxt(q)+' mm²']),z.qs||'')}</select>${z.bezA&&BEZ_QS[z.bezA]?`<span class="sub" style="font-size:13px">Standard bei ${z.bezA} A: ${qsTxt(BEZ_QS[z.bezA])} mm² (gilt ab Bezügersicherung)</span>`:''}</label>
+    <label class="f c3">${j===0?'Adern ab Bezügersicherung':'Abgang Adern'}
       <select data-zl="adern" data-zi="${j}"${dis}>${opt(five?[['5','5-adrig · L1 L2 L3 N PE'],['3','3-adrig · L N PE']]:[['3','3-adrig · L N PE']],five?(z.adern||'5'):'3')}</select></label>`}
 /* Materialliste (Tobi 23.11.): letzter Schritt. Pro Bauteil der günstigste Grosshändler (Netto), Liste nach Grosshändler, E-Nummer zum Kopieren.
    Selbstbau (Herstellerverteiler, UV): zuerst Verteiler wählen oder hinterlegen (mit Bild, Cloud) */
@@ -3132,6 +3134,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     o.push(`<rect x="${x0}" y="${yM1}" width="${x1-x0}" height="${yM2-yM1}" fill="#fff"/>`);Rc(x0,yM1,x1-x0,yM2-yM1,z.res?'bxd':'bxw');L(x0,yM1+10,x1,yM1+10,'fr2');L(x0,yM2-10,x1,yM2-10,'fr2');
     zc.forEach((cn,i)=>{T(xs[i]+2,yM1+8,cn==='N'?'N':zf?cn:'L','tk');T(xs[i]+2,yM2-3,cn==='N'?'N':(zf?cn:'L')+'1','tk')});
     T(x0+3,yM1+26,z.res?'Reserve':'kWh','tk');
+    if(!z.res&&z.qs)T(x1+6,(yF2+yM1)/2+4,(zf?'5×':'3×')+qsTxt(z.qs)+' mm²','tk3');
     T(tx,yM1+10,'-P'+(k+1),'tb','end');T(tx,yM1+22,z.res?'Reserveplatz':zlLbl(s,k),'t','end');if(!z.res)T(tx,yM1+33,(z.name||'').slice(0,22),'tk3','end');T(tx,yM1+44,z.res?'kein Zähler montiert':'Netzbetreiber '+(pl.nb||'').split(' ')[0],'tm','end')};
   [...busN,'PE'].forEach(b=>{T(ix0+10,busY[b]-3,(pg.no-1)+'.9 '+b,'tr');if(cont)T(ix1-10,busY[b]-3,(pg.no+1)+'.0 '+b,'tr','end')});
   L(ix0+8,busY.PE,ix1-8,busY.PE,'wpe');
@@ -3171,7 +3174,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     meter(z,0,xs,zc,zf);
     const xR=i=>xs[n-1]+70+(n-1-i)*14,yO=i=>yM2+20+(n-1-i)*10;
     zc.forEach((cn,i)=>{const cl=bc(cn),ob=outN[i]||cn;L(xs[i],yM2,xs[i],yO(i),cl);L(xs[i],yO(i),xR(i),yO(i),cl);L(xR(i),yO(i),xR(i),busY[ob],cl);L(xR(i),busY[ob],ix1-8,busY[ob],cl)});
-    T(xR(0)+10,yO(0)-4,'nach Zähler '+(zf?'5×':'3×')+(z.qs?qsTxt(z.qs)+' mm²':'Querschnitt offen'),'tk3');
+    T(xR(0)+10,yO(0)-4,'ab Bezügersicherung '+(zf?'5×':'3×')+(z.qs?qsTxt(z.qs)+' mm²':'Querschnitt offen'),'tk3');
     T(xR(0)+10,yO(0)+8,cont&&nxt.kind==='sk'?'Stromkreise '+zlLbl(s,0)+' ab Seite '+nxt.no:'Stromkreise folgen','tm');
   }
   }else{
@@ -3375,7 +3378,7 @@ document.addEventListener('change',e=>{
   if(t.dataset.zl&&S.site&&canEdit(S.site)){const z=zlOfEl(t),k=t.dataset.zl,pl=planOf(S.site);if(!z)return;const nm='-P'+(pl.zl.indexOf(z)+1);
     if(k==='name'||k==='ziel'){touchPlan('Zähler '+nm+' angepasst');return}
     if(k==='res'){if(pl.zl.indexOf(z)===0){t.checked=false;return}z.res=t.checked;touchPlan('Zähler '+nm+(z.res?' als Reserveplatz':' wieder mit Zähler'))}
-    else{z[k]=t.value;if(k==='bez'&&!(BEZ_A[z.bez]||[]).includes(z.bezA))z.bezA='';touchPlan('Zähler '+nm+': '+(k==='bez'||k==='bezA'?'Bezügersicherung '+bezTxt(z):'Abgang '+(z.adern==='3'?'3×':'5×')+(z.qs?qsTxt(z.qs)+' mm²':'')))}
+    else{z[k]=t.value;if(k==='bez'&&!(BEZ_A[z.bez]||[]).includes(z.bezA))z.bezA='';if(k==='bezA'&&BEZ_QS[z.bezA])z.qs=BEZ_QS[z.bezA];touchPlan('Zähler '+nm+': '+(k==='bez'||k==='bezA'?'Bezügersicherung '+bezTxt(z):'Abgang '+(z.adern==='3'?'3×':'5×')+(z.qs?qsTxt(z.qs)+' mm²':'')))}
     S.prevSel=null;render();return}
   if(t.dataset.rladd!=null&&t.value&&S.site&&canEdit(S.site)){const pl=planOf(S.site),r=pl.sk[+t.dataset.rladd];if(r){r.relais=r.relais||[];r.relais.push(t.value);touchPlan('Relais '+relInfo(t.value)[1]+' bei '+(r.name||'Stromkreis'));render()}return}
   if(t.dataset.klpos&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.klPos=pl.klPos||{};if(t.dataset.klpos==='-X0'&&((pl.klPos['-X0']==='u')!==(t.value==='u')))(pl.busSeen&&(pl.x0Moved=true));if(t.value==='u')pl.klPos[t.dataset.klpos]='u';else delete pl.klPos[t.dataset.klpos];touchPlan('Klemmen '+t.dataset.klpos+' '+(t.value==='u'?'unten':'oben'));render();return}
