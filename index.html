@@ -249,7 +249,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-26.1441';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-26.1604';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -445,8 +445,16 @@ const bsSep=pl=>{const h=(pl&&pl.sh)||{},G=bsGroups(pl).filter(g=>g.sep),RL=relL
   bsRooms(pl).forEach(({f,r})=>{const gs=G.filter(g=>g.rid===r.id);if(!gs.length)return;const c=bsOf(h,r.id),X=LX(pl).bs[out.length]||'-X?',rq=g=>{const ix=RL.findIndex(x=>x.k==='bs'&&x.rid===g.rid&&x.i===g.i),d=RD[Math.floor(ix/14)];return {ix,A:d?d.name.split(' ')[0]:'-A?',Q:'Q'+(ix%14+1),kl:rk(pl,ix,2)}};
     const D=gs.filter(g=>g.d==='hoch').map((g,j)=>{const dn=gs.find(z=>z.t===g.t&&z.u===g.u&&z.d==='runter');return {g,dn,j,up:rq(g),down:rq(dn),k0:j*4,lbl:g.tn+(g.cnt>1?' '+(g.u+1):'')}});
     out.push({rid:r.id,fid:f.id,room:r.name,floor:f.name,X,td:bsTd(c),D})});return out};
-/* Seiten: max. 8 Storen pro Blatt, Räume nicht trennen wenn möglich */
-const bsSepPages=pl=>{const B=bsSep(pl),P=[];let cur=null;B.forEach(b=>{b.D.forEach((d,j)=>{if(!cur||cur.n>=8||(j===0&&cur.n+b.D.length>8&&b.D.length<=8)){cur={n:0,I:[]};P.push(cur)}cur.I.push({b,d,first:j===0||cur.I.length===0});cur.n++})});P.forEach(q=>{const xs=[...new Set(q.I.map(z=>z.b.X))];q.X=xs.length>1?xs[0]+' bis '+xs[xs.length-1]:xs[0]});return P};
+/* Seiten: max. 6 Storen pro Blatt (Tobi 26.11.: lesbar), Räume nicht trennen wenn möglich */
+const bsSepPages=pl=>{const B=bsSep(pl),P=[];let cur=null;B.forEach(b=>{b.D.forEach((d,j)=>{if(!cur||cur.n>=BSPP||(j===0&&cur.n+b.D.length>BSPP&&b.D.length<=BSPP)){cur={n:0,I:[]};P.push(cur)}cur.I.push({b,d,first:j===0||cur.I.length===0});cur.n++})});P.forEach(q=>{const xs=[...new Set(q.I.map(z=>z.b.X))];q.X=xs.length>1?xs[0]+' bis '+xs[xs.length-1]:xs[0]});return P};
+/* Tobi 26.11.: Storen-Seite eindeutig: Layout-Masse (auch für Querverweise) und Speisung N/PE vom EIGENEN Stammkabel des Raums */
+const BSW=140,BSG=30,BSX0=120,BSPP=6;
+const bsLayX=q=>{let x=BSX0,last='';return q.I.map(z=>{if(z.b.X!==last){if(last)x+=BSG;last=z.b.X}const r=x;x+=BSW;return r})};
+const pgCol=x=>Math.max(0,Math.min(9,Math.floor((x-68)/105.4)));
+const bsFeed=(s,rid)=>{let r=null;skLayout(s).list.filter(x=>x.hz==='li').forEach(x=>{if((x.liR||[]).includes(rid))r=x});if(!r||!r.grp||!r.grp.length)return null;
+  const g=r.grp.find(g=>(g.rr||[]).includes(rid))||r.grp[0],X=r.X||'-X1',k=cn=>{const j=(g.cond||[]).indexOf(cn);return j<0?null:X+':'+(g.kl+j)};
+  const PG=pagesOf(s),pp=PG.find(q=>q.kind==='sk'&&q.dp&&q.dp.items.some(it=>it.f===r.f));
+  return {f:r.f,amp:r.amp,w:g.w,nm:g.nm||'',L:k('L')||k('L1'),N:k('N'),PE:k('PE'),pg:pp?pp.no:null}};
 const bsSepKl=pl=>{const M={};bsSep(pl).forEach(b=>b.D.forEach(d=>{M[d.g.rid+'|bs|'+d.g.i]=b.X+':'+(d.k0+1);M[d.dn.rid+'|bs|'+d.dn.i]=b.X+':'+(d.k0+2)}));return M};
 /* Tobi 26.11. OBERSTES GEBOT: jeder Klemmblock-Name nur EINMAL im Plan. Stromkreise und Zähler zuerst,
    Smart Home fortlaufend dahinter (Tree, Relais, Fenster, Bus, Beschattung pro Raum), nur was es braucht. */
@@ -502,7 +510,8 @@ const rfList=pl=>{const h=(pl&&pl.sh)||{},M=h.rf||{},R=rfRooms(pl),N=[...new Set
     let sn=0;const sw=[];
     cabs.forEach((c,q)=>{const o0=c.da?2:0;c.S=c.S.map((g,j)=>{const ix=RG.findIndex(x=>x.rid===g.rid&&x.k===g.k&&x.i===g.i),d=RD[Math.floor(ix/14)],cl=rfColB(c.ad,B+o0+j,B),o={id:'S'+(++sn),g,ix,key:g.rid+'|'+g.k+'|'+g.i,room:g.room,lbl:rfGLbl(g,G),A:d?d.name.split(' ')[0]:'-A?',Q:'Q'+(ix%14+1),cab:q,col:cl[0],ck:cl[1]};sw.push(o);return o});
       c.res=Math.max(0,c.ad-B-o0-c.S.length);c.daBad=c.da&&c.ad<B+2;c.cond=(B===5?['L1','L2','L3','N','PE']:['L','N','PE']).concat(c.da?['DA+','DA-']:[],c.S.map(x=>x.id));c.cols=c.cond.map((_,j)=>rfColB(c.ad,j,B)[1]);c.txt='FE0 '+c.ad+'×1,5';
-      c.rooms=RMODE?rs.filter(r=>c.rids.includes(r.rid)).map(r=>r.name.split(' · ').pop()):[...new Set((c.da?DR.map(r=>r.name):[]).concat(c.S.map(x=>x.room)))]});
+      c.rooms=RMODE?rs.filter(r=>c.rids.includes(r.rid)).map(r=>r.name.split(' · ').pop()):[...new Set((c.da?DR.map(r=>r.name):[]).concat(c.S.map(x=>x.room)))];
+      c.rr=RMODE?c.rids.slice():[...new Set((c.da?DR.map(r=>r.rid):[]).concat(c.S.map(x=>x.g.rid)))]});
     const daMiss=da&&!cabs.some(c=>c.da&&c.ad>=B+2);
     return {n,P,B,rooms:rs,G,cabs,sw,miss,da,DR,daMiss,rmode:RMODE,daSrc:rfDaSrc(pl),ok:!miss.length&&!daMiss,man:!!man.length,ad:cabs.reduce((a,c)=>a+c.ad,0),cab:cabs.map(c=>c.txt).join(' + ')}})};
 /* Tobi 26.11.: DALI-Klemmblock (eigene X-Nr.): pro DALI-Abgang (Raum/Kabel) 1 Doppelstockklemme PTTBS 2,5, oben DA+, unten DA-, durchgebrückt, Litze intern zur Abgangsklemme */
@@ -1634,7 +1643,7 @@ function skLayout(s){
       it.res=it.k===n-1?Math.max(...P[0].map(c=>c.res)):0;it.kl=kl;kl+=it.cond.length+it.res;
       if(it.k===n-1){it.xgrp=[];const allC=par.rel.flatMap(x=>x.cond||[]);P.slice(1).forEach(pp=>{const res=Math.max(...pp.map(c=>c.res));it.xgrp.push({kl,cabs:pp,w:pp[0].w,cab:pp[0].cab,qs:pp[0].qs,cond:allC,res});kl+=allC.length+res});
         it.dgrp=sp.DP.map(pp=>{const res=Math.max(...pp.map(c=>c.res)),cond=[par.cond[0],'N','PE'],g={kl,cabs:pp,w:pp[0].w,cab:pp[0].cab,qs:pp[0].qs,cond,res};kl+=cond.length+res;return g})}}
-    else if(!it.rel.length&&it.liC){it.grp=it.liC.map(c=>{const g={kl,res:c.res,cond:c.cond,cols:c.cols,cabs:[{w:'-W'+w++,adern:String(c.ad),qs:'1.5'}],adern:String(c.ad),qs:'1.5',nm:c.nm};g.w=g.cabs[0].w;kl+=c.cond.length+c.res;return g});it.kl=it.grp[0].kl;it.w=it.grp[0].w;it.res=it.grp[0].res}
+    else if(!it.rel.length&&it.liC){it.grp=it.liC.map(c=>{const g={kl,res:c.res,cond:c.cond,cols:c.cols,cabs:[{w:'-W'+w++,adern:String(c.ad),qs:'1.5'}],adern:String(c.ad),qs:'1.5',nm:c.nm,rr:c.rr||[]};g.w=g.cabs[0].w;kl+=c.cond.length+c.res;return g});it.kl=it.grp[0].kl;it.w=it.grp[0].w;it.res=it.grp[0].res}
     else if(!it.rel.length){const nC=it.cond.length,cabs=[...Array(it.abgN)].map((_,q)=>{const kb=q?((it.kab||[])[q]||{}):{},ad=kb.adern||it.adern,qs=kb.qs||it.qs;return {w:'-W'+w++,adern:ad,qs,res:Math.max(0,(+ad||0)-nC)}});
       /* zwei Kabel auf derselben Klemme (Doppelstock), ab dem 3. Kabel ein weiterer Klemmensatz mit Steckbrücke */
       it.grp=pairs(cabs).map(pp=>{const res=Math.max(...pp.map(c=>c.res)),g={kl,res,cabs:pp,w:pp[0].w,adern:pp[0].adern,qs:pp[0].qs};kl+=nC+res;return g});it.kl=it.grp[0].kl;it.w=it.grp[0].w;it.res=it.grp[0].res}}));
@@ -1725,7 +1734,7 @@ const hkvN=h=>Math.max(1,Math.min(12,+h.hkvN||1)),hkvF=h=>{const n=hkvN(h),d=Mat
 /* Stromkreise aus dem Heizsystem, erscheinen automatisch im Schema */
 /* Licht-Sicherungen aus Smart Home -> Stromkreise (ausgegraut wie Heizsystem, Tobi 23.11.); Standard FI/LS 2-polig C13, Kabel aus Schaltdrähten */
 function liSk(s){const pl=planOf(s);if(!loxOn(pl))return [];return rfList(pl).map(x=>{const nm=x.rooms.map(r=>r.name.split(' · ').pop()).join(' + '),fl=[...new Set(x.rooms.map(r=>r.name.split(' · ')[0]))].join(' + ');
-  return {name:fl+' '+nm,pol:String(x.P),char:'C',amp:'13',typ:x.P===3?'LS':'FILS',liB:x.B,adern:String(x.cabs[0].ad),qs:'1.5',kabAuto:false,relais:[],hz:'li',liN:x.n,liR:x.rooms.map(r=>r.rid),liSw:x.sw,liDa:x.daSrc,liC:x.cabs.map(c=>({ad:c.ad,cond:c.cond,cols:c.cols,res:c.res,nm:c.rooms.join(' + ')})),note:''}}).concat(wbSk(pl),kaSk(pl),tbSk(pl))}
+  return {name:fl+' '+nm,pol:String(x.P),char:'C',amp:'13',typ:x.P===3?'LS':'FILS',liB:x.B,adern:String(x.cabs[0].ad),qs:'1.5',kabAuto:false,relais:[],hz:'li',liN:x.n,liR:x.rooms.map(r=>r.rid),liSw:x.sw,liDa:x.daSrc,liC:x.cabs.map(c=>({ad:c.ad,cond:c.cond,cols:c.cols,res:c.res,nm:c.rooms.join(' + '),rr:c.rr||[]})),note:''}}).concat(wbSk(pl),kaSk(pl),tbSk(pl))}
 function ezSk(pl){const h=pl.sh||{};return ezList(h).filter(e=>(e.name||'').trim()&&e.amp).map(e=>{const p4=+(e.pol||'2')>=3;return {name:e.name.trim(),pol:p4?String(e.pol):'2',char:e.char||'C',amp:e.amp,typ:e.typ||'FILS',adern:p4?'5':'3',qs:e.qs||'1.5',kabAuto:false,relais:[],hz:'ez',ezId:e.id,note:''}})}
 function wbSk(pl){const h=pl.sh||{},d=WB_STD[h.spzwbT];if(h.spzwb!=='ja'||!d||!h.wbLoc)return ezSk(pl);const typ=h.wbTyp||'FILS';return [{name:'Wallbox '+wbLocTxt(h),pol:'4',char:h.wbChar||'C',amp:h.wbAmp||d.amp,typ,adern:'5',qs:h.wbQs||d.qs,kabAuto:false,relais:[],hz:'wb',note:'Wallbox '+d.kw+' kW'+(typ==='LS'?' · RCD Typ A vorschalten':'')}].concat(ezSk(pl))}
 function hzSk(s){const pl=planOf(s),h=pl.hz||{};if(!hzWP(pl))return [];const out=[];
@@ -2756,21 +2765,26 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     T(80,618,'Klemmleiste '+LX(pl).bus+' gesamt: '+nAll+' Abgänge × 2 PTTBS 1,5/S à '+String(KL.PTTBS15.mm).replace('.',',')+' mm + Abdeckplatte '+KL.ATPSTTB.mm+' mm = '+mm.toFixed(1).replace('.',',')+' mm ('+Math.ceil(mm/18)+' TE).','tk5');
     T(80,632,'Tree und Tree Turbo nie verbinden. GND aller Netzteile verbinden.','tred');
   }else if(pg.kind==='loxbs'){
-    /* Tobi 26.11.: separate Storen-Abgänge, pro Raum eigener Klemmblock; L1 (Relais) und N von der Stammkabel-Klemme der Raum-Sicherung */
-    const q=bsSepPages(pl)[pg.k||0]||{I:[]},term=(x,y)=>o.push(`<circle class="term" cx="${x}" cy="${y}" r="4"/>`),TV=(x,y,t,c)=>o.push(`<text class="${c||'tk5'}" transform="translate(${x} ${y}) rotate(-90)">${esc(t)}</text>`);
+    /* Tobi 26.11.: separate Storen-Abgänge, pro Raum eigener Klemmblock. Für Fremde eindeutig: an jeder Ader steht woher sie kommt (Klemme), darunter Gerät und Seite.
+       N und PE kommen vom EIGENEN Stammkabel des Raums (Klemme an der Raum-Sicherung), L1 für die Relais von der Sicherung (Zwillingshülse). */
+    const q=bsSepPages(pl)[pg.k||0]||{I:[]},term=(x,y)=>o.push(`<circle class="term" cx="${x}" cy="${y}" r="4.5"/>`),TV=(x,y,t,c)=>o.push(`<text class="${c||'trel'}" transform="translate(${x} ${y}) rotate(-90)">${esc(t)}</text>`),PG=pagesOf(s);
     T(80,112,'Beschattung separat · eigene Kabel direkt ab Verteiler · pro Raum ein Klemmblock (Phoenix Push-In 0,14–4 mm², am Ende Trennplatte ATP-ST 4)','tnm2');
-    T(80,126,'Pro Storen 4 Klemmen: 1 hoch, 2 runter (grau, von der Relay Extension), 3 N (blau), 4 PE (grün/gelb). L1 für die Relais und N kommen von der Stammkabel-Klemme der Raum-Sicherung (Zwillingshülse an der Sicherung).','tk5');
-    const LR={};skLayout(s).list.filter(r=>r.hz==='li').forEach(r=>(r.liR||[]).forEach(rid=>LR[rid]=r));
-    const ref=(rid,cn)=>{const r=LR[rid];if(!r||!r.grp||!r.grp[0])return null;const j=(r.grp[0].cond||r.cond||[]).indexOf(cn);return j<0?null:{kl:(r.X||'-X1')+':'+(r.grp[0].kl+j),f:r.f}};
-    let x=120,lastX='';const yt=360,yb=470,BX={};
-    const nCab=Math.max(1,...q.I.map(z=>[z.b.td,'→ '+z.d.lbl,z.b.floor+' · '+z.b.room].reduce((a,t)=>a+wrapTxt(t,18).filter(Boolean).length,0))),yBl=yb+20+nCab*10+10;
-    q.I.forEach((z,n)=>{const {b,d}=z;if(b.X!==lastX){if(lastX)x+=34;BX[b.X]={x0:x,b};lastX=b.X}const xs=[x,x+22,x+44,x+66],nr=d.k0,rN=ref(b.rid,'N'),rP=ref(b.rid,'PE');
-      [['w','hoch','von '+d.up.kl+' ('+d.up.A+' '+d.up.Q+')'],['w','runter','von '+d.down.kl+' ('+d.down.A+' '+d.down.Q+')'],['wn','N',rN?'N von '+rN.kl+' (Stammkabel '+rN.f+')':'N von der Raum-Sicherung'],['wpe','PE',rP?'PE von '+rP.kl+' (Stammkabel)':'PE von der PE-Schiene']].forEach(([cl,l,src],i)=>{const xx=xs[i];term(xx,yt);L(xx,yt-4,xx,190,cl);L(xx,yt+4,xx,yb,cl);T(xx+3,yt+18,String(nr+i+1),'tk');T(xx+3,yt+28,l,'tk5');TV(xx+5,yt-40,src,'tk5')});
-      o.push(`<path d="M${x-6} ${yb-14} l84 -10 M${x-6} ${yb-8} l84 -10" fill="none" stroke="#111" stroke-width="0.8"/>`);
-      const D=[[b.td,'tk2b'],['→ '+d.lbl,'tk5'],[b.floor+' · '+b.room,'tk5']];let yy=yb+16;D.forEach(([t,c])=>wrapTxt(t,18).filter(Boolean).forEach(ln=>{T(x-6,yy,ln,c==='tk2b'?'tk2b':'tk5');yy+=10}));
-      x+=96});
-    Object.keys(BX).forEach(X=>{const {x0,b}=BX[X],n=q.I.filter(z=>z.b.X===X).length,x1=x0+(n-1)*96+66,mx=Math.max(14,Math.floor((x1-x0+12)/5.2));o.push(`<rect x="${x0-12}" y="${yt-14}" width="${x1-x0+24}" height="58" fill="none" stroke="#111" stroke-width="1" stroke-dasharray="6 3"/>`);let yy=yBl;T(x0-6,yy,X,'tk2b');yy+=11;wrapTxt(b.floor+' · '+b.room,mx).filter(Boolean).forEach(ln=>{T(x0-6,yy,ln,'tk5');yy+=8.5});T(x0-6,yy,b.D.length*4+' Klemmen + Trennplatte ATP-ST 4','tk5')});
-    {const B=bsSep(pl),n=B.reduce((a,b)=>a+b.D.length,0),mm=n*4*KL.PT25.mm+B.length*KL.ATPST4.mm;T(80,640,'Beschattung separat gesamt: '+n+' Storen × 4 Klemmen à '+String(KL.PT25.mm).replace('.',',')+' mm + '+B.length+' Trennplatte'+(B.length>1?'n':'')+' à 2 mm = '+mmTxt(mm)+' ('+klTE(mm)+' TE).','tk5')}
+    T(80,128,'So lesen: Jede senkrechte Linie ist eine Ader. Oben an der Linie steht, von welcher Klemme im Verteiler sie kommt. Unten geht das Kabel zum Storen.','trel');
+    T(80,140,'Pro Storen 4 Klemmen: 1 hoch und 2 runter (grau, vom Relais der Relay Extension), 3 N (blau) und 4 PE (grün/gelb) vom Stammkabel des Raums an der Raum-Sicherung.','trel');
+    const XS=bsLayX(q),FD={};q.I.forEach(z=>{if(!(z.b.rid in FD))FD[z.b.rid]=bsFeed(s,z.b.rid)});
+    const relPg=ix=>{const pr=PG.find(v=>v.kind==='loxrel'&&(v.k||0)===Math.floor(ix/14));return pr?pr.no+'.'+pgCol(290+(ix%14)*56):'?'};
+    const yt=380,yb=480,BX={};let maxY=0;
+    q.I.forEach((z,n)=>{const {b,d}=z,x=XS[n];if(!BX[b.X])BX[b.X]={x0:x,b,n:0};BX[b.X].n++;const xs=[x,x+30,x+60,x+90],nr=d.k0,fd=FD[b.rid];
+      [['w','hoch','hoch von '+d.up.kl],['w','runter','runter von '+d.down.kl],['wn','N',fd&&fd.N?'N von '+fd.N:'N von der Raum-Sicherung'],['wpe','PE',fd&&fd.PE?'PE von '+fd.PE:'PE von der PE-Schiene']].forEach(([cl,l,src],i)=>{const xx=xs[i];term(xx,yt);L(xx,yt-4.5,xx,200,cl);L(xx,yt+4.5,xx,yb,cl);T(xx+4,yt+19,String(nr+i+1),'tk2');T(xx+4,yt+30,l,'tk');TV(xx-4,yt-40,src,'trel')});
+      o.push(`<path d="M${x-8} ${yb-14} l106 -12 M${x-8} ${yb-7} l106 -12" fill="none" stroke="#111" stroke-width="0.8"/>`);
+      const D=[[b.td,'tk2b'],['→ '+d.lbl,'trel'],[b.floor+' · '+b.room,'trel'],['hoch: '+d.up.A+' '+d.up.Q+' (Seite '+relPg(d.up.ix)+')','tk5b'],['runter: '+d.down.A+' '+d.down.Q+' (Seite '+relPg(d.down.ix)+')','tk5b']];
+      let yy=yb+16;D.forEach(([t,c])=>wrapTxt(t,c==='tk2b'?24:32).filter(Boolean).forEach(ln=>{T(x-8,yy,ln,c==='tk5b'?'trel':c);yy+=c==='tk2b'?11:9.5}));maxY=Math.max(maxY,yy)});
+    const yBl=maxY+14;
+    Object.keys(BX).forEach(X=>{const {x0,b,n}=BX[X],x1=x0+(n-1)*BSW+90,fd=FD[b.rid],mx=Math.max(26,Math.floor((x1-x0+16)/4.1));o.push(`<rect x="${x0-14}" y="${yt-16}" width="${x1-x0+28}" height="60" fill="none" stroke="#111" stroke-width="1" stroke-dasharray="6 3"/>`);
+      let yy=yBl;T(x0-8,yy,X+' · '+b.floor+' · '+b.room,'tk2b');yy+=12;
+      const F=fd?['Speisung: '+fd.f+(fd.amp?' '+fd.amp+' A':'')+', Stammkabel '+fd.w+(fd.nm?' ('+fd.nm+')':''),'N an '+(fd.N||'?')+', PE an '+(fd.PE||'?')+(fd.pg?' (Seite '+fd.pg+')':''),'L1 für die Relais: an '+fd.f+' (Zwillingshülse)']:['Speisung: Raum-Sicherung noch offen'];
+      F.concat([b.D.length*4+' Klemmen + Trennplatte ATP-ST 4']).forEach(t=>wrapTxt(t,mx).filter(Boolean).forEach(ln=>{T(x0-8,yy,ln,'trel');yy+=9.5}))});
+    {const B=bsSep(pl),n=B.reduce((a,b)=>a+b.D.length,0),mm=n*4*KL.PT25.mm+B.length*KL.ATPST4.mm;T(80,690,'Beschattung separat gesamt: '+n+' Storen × 4 Klemmen à '+String(KL.PT25.mm).replace('.',',')+' mm + '+B.length+' Trennplatte'+(B.length>1?'n':'')+' à 2 mm = '+mmTxt(mm)+' ('+klTE(mm)+' TE).','trel')}
   }else if(pg.kind==='loxdi'){
     const W=fkSlots(pl),ms=loxMs(pl),nMs=ms?ms.di||0:0,DV=loxDev(pl).filter(v=>v.t==='diex'),k=pg.k||0,P=W.slice(k*16,k*16+16),term=(x,y,r)=>o.push(`<circle class="term" cx="${x}" cy="${y}" r="${r||4}"/>`);
     const tgt=j=>j<nMs?'-A1 I'+(j+1):((DV[Math.floor((j-nMs)/20)]||{name:'-A? DI Extension'}).name.split(' ')[0]+' I'+((j-nMs)%20+1));
@@ -3086,8 +3100,8 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
         /* Tobi 26.11.: Querverweis-Merker wie bei den Phasen: kurzer Strich, darauf «L → Seite.Spalte Klemme» */
         const PG=pagesOf(s),cwP=(ix1-ix0)/10,col=x=>Math.max(0,Math.min(9,Math.floor((x-ix0)/cwP))),M=[];
         if(ixs.length){const ix=Math.min(...ixs),pr=PG.find(q=>q.kind==='loxrel'&&(q.k||0)===Math.floor(ix/14));M.push({c:0,t:'L → '+(pr?pr.no+'.'+col(290+(ix%14)*56):'')+' '+rk(pl,ix,4)})}
-        if(SB.length){const SP=bsSepPages(pl);SB.forEach(b=>{let pi=-1,xb=0;SP.forEach((q,k)=>{let x=120,last='';q.I.forEach(z=>{if(z.b.X!==last){if(last)x+=34;last=z.b.X}if(z.b===b||z.b.X===b.X){if(pi<0){pi=k;xb=x}}x+=96})});const pb=PG.find(q=>q.kind==='loxbs'&&(q.k||0)===pi);M.push({c:1,t:'N → '+(pb?pb.no+'.'+col(xb+44):'')+' '+b.X+':3'})})}
-        M.forEach((m,k)=>{const y=yK-118-k*14,x1=xs[m.c],xe=xs[0]-62;o.push(`<circle cx="${x1}" cy="${y}" r="2" fill="#111"/>`);L(x1,y,xe,y,m.c?'wn':'w');o.push(`<path d="M${xe} ${y} l5 -2.5 m-5 2.5 l5 2.5" fill="none" stroke="#111" stroke-width="0.8"/>`);T(xe+7,y-2.5,m.t,'tk5')})}
+        if(SB.length){const SP=bsSepPages(pl);SB.forEach(b=>{let pi=-1,xb=0;SP.forEach((q,k)=>{const XS=bsLayX(q);q.I.forEach((z,n)=>{if((z.b===b||z.b.X===b.X)&&pi<0){pi=k;xb=XS[n]}})});const pb=PG.find(q=>q.kind==='loxbs'&&(q.k||0)===pi),fd=bsFeed(s,b.rid);M.push({c:1,w:112,t:'N/PE '+(fd&&fd.N?fd.N+'/'+String(fd.PE||'').split(':').pop():'')+' → '+(pb?pb.no+'.'+pgCol(xb+60):'')+' '+b.X})})}
+        M.forEach((m,k)=>{const y=yK-118-k*14,x1=xs[m.c],xe=Math.max(ix0+6,xs[0]-(m.w||62));o.push(`<circle cx="${x1}" cy="${y}" r="2" fill="#111"/>`);L(x1,y,xe,y,m.c?'wn':'w');o.push(`<path d="M${xe} ${y} l5 -2.5 m-5 2.5 l5 2.5" fill="none" stroke="#111" stroke-width="0.8"/>`);T(xe+7,y-2.5,m.t,'tk5')})}
       r.cond.forEach((cn,k)=>{const x=xs[k],cls=bcls(cn),yb=busY[cn];
         if(/^(S\d|DA)/.test(cn))return;
         if(hasRel&&cn==='PE')return;
