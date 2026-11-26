@@ -109,6 +109,7 @@ input:disabled,select:disabled{opacity:1;background:var(--bg);color:var(--ink);-
 @keyframes zlflow{to{stroke-dashoffset:-14}}
 .zlmove{animation:zlmove .9s ease-in-out both}
 @keyframes zlmove{from{transform:translate(var(--dx),var(--dy))}to{transform:none}}
+.zlsum{border-collapse:collapse;width:100%;font-size:14px;margin-top:6px}.zlsum th{text-align:left;font-weight:600;color:var(--muted,#666);padding:6px 10px 6px 0;vertical-align:top;width:40%}.zlsum td{padding:6px 0;border-bottom:1px solid var(--line,#eee)}
 .zlnav{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 12px}
 .zlnav button{font:inherit;font-size:13px;font-weight:600;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);cursor:pointer;display:flex;gap:6px;align-items:center}
 .zlnav button b{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:#e9e9e4;font-size:11px}
@@ -274,7 +275,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-26.2231';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-26.2247';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -1189,7 +1190,7 @@ const SEITEN=[['N','Nord'],['O','Ost'],['S','Süd'],['W','West'],['U','Unbekannt
 const hakOk=pl=>pl.zlHerk==='saeule'||(pl.zlHerk==='hak_ext'&&!!pl.hakSeite)||(pl.zlHerk==='hak_in'&&!!pl.hakStock&&!!(pl.hakRaum||'').trim());
 const hakPos=pl=>pl.zlHerk==='hak_in'?[pl.hakStock,(pl.hakRaum||'').trim()].filter(Boolean).join(' · '):pl.zlHerk==='hak_ext'?'Aussenbereich'+(pl.hakSeite?' · Hausseite '+(pl.hakSeite==='U'?'unbekannt':(SEITEN.find(x=>x[0]===pl.hakSeite)||['',''])[1]):''):pl.zlHerk==='saeule'?'Aussenbereich':'';
 const hakTxt=pl=>pl.zlHerk?ZL_HERK[pl.zlHerk][0]+(hakPos(pl)?' · '+hakPos(pl):''):'Herkunft offen';
-const ZLP=[['herk','Einspeisung'],['vt','Standort Verteiler'],['sich','Sicherung'],['kab','Leitung'],['zz','Zähler']];
+const ZLP=[['herk','Einspeisung'],['vt','Standort Verteiler'],['sich','Sicherung'],['kab','Leitung'],['ok','Bestätigen']];
 /* Tobi 26.11.: Sicherungsart im HAK / in der Säule, danach Bemessungsstrom (übliche Grössen, zur Prüfung) */
 const HAK_T=[['DZ','Diazed','D II / D III'],['LS','LS','Leitungsschutzschalter'],['NH00','NH00','bis 160 A'],['NH01','NH01','bis 250 A'],['NH02','NH02','bis 400 A'],['NH03','NH03','bis 630 A'],['NH04','NH04','bis 1250 A']];
 const HAK_A={DZ:[16,20,25,35,40,50,63],LS:[13,16,20,25,32,40,50,63],NH00:[16,20,25,32,35,40,50,63,80,100,125,160],NH01:[63,80,100,125,160,200,224,250],NH02:[125,160,200,224,250,300,315,355,400],NH03:[250,315,355,400,425,500,630],NH04:[500,630,800,1000,1250]};
@@ -1197,8 +1198,10 @@ const hakTypTxt=t=>(HAK_T.find(x=>x[0]===t)||['',''])[1];
 const hakSichTxt=pl=>pl.hakTyp?hakTypTxt(pl.hakTyp)+(pl.hakA?' '+pl.hakA+' A':''):'Sicherung offen';
 const KAB_T=['GKN','TT','FE0','FE05C (halogenfrei)','XKT','anderer Typ'];
 const kabTypTxt=pl=>pl.kabTyp==='anderer Typ'?(pl.kabTypTxt||'').trim():(pl.kabTyp||'');
-const zlpOk=(pl,k)=>({herk:hakOk(pl),vt:!!pl.hvStock&&!!(pl.hvRaum||'').trim(),sich:!!pl.hakTyp&&!!pl.hakA,kab:!!pl.qs&&qsNum(pl.qs)<=QS_MAX&&!!kabTypTxt(pl),zz:true})[k];
-const zlpMsg={herk:'Bitte zuerst wählen, woher die Zuleitung kommt, und die Position des HAK angeben.',vt:'Bitte Stockwerk und Raum des Verteilers angeben.',sich:'Bitte Sicherungsart und Bemessungsstrom wählen.',kab:'Bitte Querschnitt und Leitungstyp wählen.'};
+const zlpOk=(pl,k)=>({herk:hakOk(pl),vt:!!pl.hvStock&&!!(pl.hvRaum||'').trim(),sich:!!pl.hakTyp&&!!pl.hakA&&+pl.hakA<=80,kab:!!pl.qs&&qsNum(pl.qs)<=QS_MAX&&!!kabTypTxt(pl),ok:!!pl.zlConf&&pl.zlConf===zlSig(pl)})[k];
+/* Tobi 26.11.: Einspeisung am Schluss bestätigen; ändert sich danach etwas, muss neu bestätigt werden */
+const zlSig=pl=>[pl.zlHerk,pl.hakStock,pl.hakRaum,pl.hakSeite,pl.hvStock,pl.hvRaum,pl.hakTyp,pl.hakA,pl.qs,pl.adern,pl.kabTyp,pl.kabTypTxt].map(x=>x||'').join('|');
+const zlpMsg={herk:'Bitte zuerst wählen, woher die Zuleitung kommt, und die Position des HAK angeben.',vt:'Bitte Stockwerk und Raum des Verteilers angeben.',sich:'Bitte Sicherungsart und Bemessungsstrom wählen.',kab:'Bitte Querschnitt und Leitungstyp wählen.',ok:'Bitte die Einspeisung bestätigen.'};
 const zlpCur=pl=>{let z=S.zlp==null?0:S.zlp;z=Math.max(0,Math.min(ZLP.length-1,z));for(let j=0;j<z;j++)if(!zlpOk(pl,ZLP[j][0]))return j;return z};
 const flList=pl=>[...new Set([...((pl.sh||{}).fl||[]).map(f=>f.name).filter(Boolean),...STOCK])];
 const rmSugg=(pl,fl)=>[...new Set([...(((pl.sh||{}).fl||[]).find(f=>f.name===fl)||{rooms:[]}).rooms.map(r=>r.name),'Technikraum','Elektroraum','Keller','Waschküche','Garage','Hauswirtschaftsraum'])].slice(0,10);
@@ -1207,7 +1210,16 @@ const flLvl=(n,top)=>{n=String(n||'');let m=n.match(/(\d+)\.?\s*UG/i);if(m)retur
 const hvMaxTxt=pl=>{const u=pl.hvMaxU||'mm',f=v=>String(v).trim()?String(v).trim().replace('.',','):'offen';return [pl.hvMaxB,pl.hvMaxH,pl.hvMaxT].some(v=>String(v||'').trim())?'B '+f(pl.hvMaxB||'')+' × H '+f(pl.hvMaxH||'')+' × T '+f(pl.hvMaxT||'')+' '+u:''};
 /* Tobi 26.11.: WV-CH 2025 Kap. 7.9 (1): Vorsicherung > 80 A oder Messverdrahtung > 25 mm² -> Messung über Stromwandler (indirekt). Nur bei Norm NIN */
 const WANDLER_TXT='Wandlermessung nötig (WV-CH 2025, Kap. 7.9): Bei einer Vorsicherung über 80 A wird der Zähler über Stromwandler angeschlossen. Regionale Werkvorschriften (z. B. IWB, Primeo Netz, EBL) beachten.';
+const ZU_GROSS_TXT='Über 80 A gesperrt: Hier braucht es eine Wandlermessung (WV-CH 2025, Kap. 7.9). Das ist keine Wohnhaus-Planung mehr, sondern eine Gewerbe-/Industrieplanung. Diese folgt in der App. Bitte einen Wert bis 80 A wählen.';
 const wandlerNoetig=(p,a,qs)=>(p.norm||'NIN')==='NIN'&&(+a>80||(qs!=null&&qsNum(qs)>25));
+/* Tobi 26.11.: grobe Prüfung Sicherung gegen Querschnitt. Richtwerte Strombelastbarkeit Cu, PVC 70 °C, Verlegeart C, 3 belastete Leiter, ohne Häufung (IEC 60364-5-52 / NIN, zur Prüfung).
+   Nur grobe Plausibilität: Länge, Verlegeart, Häufung und Temperatur fehlen. Roter Hinweis, quittierbar, sperrt nicht */
+const IZ_CU={'1.5':19.5,'2.5':27,'4':36,'6':46,'10':63,'16':85,'25':112,'35':138,'50':168,'70':213,'95':258,'120':299,'150':344,'185':392,'240':461};
+const izMinQs=a=>QS.find(q=>IZ_CU[q]>=+a);
+const izBad=(a,qs)=>!!(+a&&qs&&IZ_CU[qs]&&+a>IZ_CU[qs]);
+const izWarn=(pl,key,a,qs,was,dis)=>{if(!izBad(a,qs))return '';const sig=a+'|'+qs,ok=(pl.izAck||{})[key]===sig,mq=izMinQs(a);
+  return `<div class="c6 msg ${ok?'info':'err'}" style="margin-top:8px"><b>${ok?'Quittiert: ':''}Passt das? ${esc(was)} ${a} A auf ${qsTxt(qs)} mm² Cu</b><br>Grobe Prüfung: ${qsTxt(qs)} mm² Kupfer trägt etwa ${String(IZ_CU[qs]).replace('.',',')} A (Richtwert NIN, PVC, Verlegeart C, ohne Häufung). Die Sicherung muss das Kabel schützen. Für ${a} A braucht es grob ${mq?'mindestens '+qsTxt(mq)+' mm²':'mehr als 240 mm² oder parallele Leiter'}. Länge, Verlegeart und Häufung sind hier nicht berücksichtigt.
+  <label class="chk" style="margin-top:8px"><input type="checkbox" data-izack="${key}" data-izsig="${sig}" ${ok?'checked':''}${dis}> Ich habe es geprüft, die Angaben stimmen so.</label></div>`};
 const hvPos=pl=>[pl.hvStock,(pl.hvRaum||'').trim()].filter(Boolean).join(' · ');
 function zlAnim(s,pl){return zlAnim2(s,pl)}
 function zlAnimOld(s,pl){const g=s.geb,hk=pl.zlHerk,K=hk||'none';
@@ -1277,7 +1289,7 @@ const zlLbl=(s,k)=>k===0?(s.geb==='MFH'?'Allgemeinzähler':'Hauptzähler'):'Zäh
 function zlSelId(s){const act=zlAct(s),z=act.find(z=>z.id===S.zlSel)||act[0];return z?z.id:''}
 const rowZid=(s,r)=>{const act=zlAct(s),z=act.find(z=>String(z.id)===String(r.zl))||act[0];return z?z.id:''};
 /* Tobi 26.11.: HV (EFH und MFH): Smart Home erst nach Unterlagen, Hersteller, Gehäuse, Zuleitung und Zähler */
-const stepsOf=s=>{const b=s&&s.art==='HV'?[...STEPS.slice(1,5),['zaehler','Zähler'],STEPS[0],...STEPS.slice(5)]:[...STEPS.slice(1,5),STEPS[0],['klemmen','Klemmen'],...STEPS.slice(5)];if(s&&busOn(s))b.splice(b.findIndex(x=>x[0]==='extras'),0,['schienen','Schienen']);return b};
+const stepsOf=s=>{const b=s&&s.art==='HV'?[...STEPS.slice(1,4),['hvart','Zählerschrank'],STEPS[4],...((s.plan||{}).zs==='nein'?[]:[['zaehler','Zähler']]),STEPS[0],...STEPS.slice(5)]:[...STEPS.slice(1,5),STEPS[0],['klemmen','Klemmen'],...STEPS.slice(5)];if(s&&busOn(s))b.splice(b.findIndex(x=>x[0]==='extras'),0,['schienen','Schienen']);return b};
 /* UV ohne Abgangsklemmen: Kabel direkt an der Sicherung, -X0 bleibt immer */
 const noKl=s=>!!s&&s.art!=='HV'&&planOf(s).klAbg==='nein';
 /* harte Sperre ohne Abgangsklemmen: höchstens 2 Kabel pro Sicherung, alle mit gleichem Querschnitt */
@@ -1286,7 +1298,8 @@ function klBlock(s){if(!noKl(s))return [];const out=[];(planOf(s).sk||[]).forEac
   const nr=(r.relais||[]).length,q0=nr&&!r.relMan?'1.5':(r.qs||''),qs=[q0,...[...Array(Math.max(0,ab-1))].map((_,q)=>{const kb=(r.kab||[])[q+1]||{};return kb.qs||(kb.dir?'1.5':r.qs)||''})];
   if(ab>1&&new Set(qs.filter(Boolean)).size>1)out.push(nm+': unterschiedliche Querschnitte ('+[...new Set(qs.filter(Boolean))].map(q=>qsTxt(q)+' mm²').join(', ')+') an einer Sicherung sind ohne Klemmen nicht erlaubt.')});return out}
 const blockHTML=s=>{const b=klBlock(s);return b.length?`<div class="msg err"><b>Plan gesperrt (ohne Abgangsklemmen):</b> ${b.map(esc).join(' ')} Zuerst korrigieren, vorher kann nicht weitergeplant, gespeichert oder gedruckt werden.</div>`:''};
-const zlSkip=s=>s.geb!=='MFH'&&planOf(s).zl.length<2;
+/* Tobi 26.11.: bei Zählerschrank immer Schritt Zähler (Unterpunkt Zähler in der Zuleitung ist weg); kein Zählerschrank -> keine Zähler */
+const zlSkip=s=>s.art==='HV'&&planOf(s).zs==='ja'?false:s.art==='HV'&&planOf(s).zs==='nein'?true:s.geb!=='MFH'&&planOf(s).zl.length<2;
 function stepNext(s,k){const ST=stepsOf(s),i=ST.findIndex(x=>x[0]===k);let j=Math.min(i+1,ST.length-1);if(ST[j][0]==='zaehler'&&zlSkip(s))j=Math.min(j+1,ST.length-1);return ST[j][0]}
 function stepPrev(s,k){const ST=stepsOf(s),i=ST.findIndex(x=>x[0]===k);if(i<=0)return null;let j=i-1;if(ST[j][0]==='zaehler'&&zlSkip(s))j--;return j>=0?ST[j][0]:null}
 const STEPS=[['smarthome','Smart Home'],['unterlagen','Unterlagen'],['hersteller','Hersteller Schutzgeräte'],['gehaeuse','Gehäuse'],['zuleitung','Zuleitung'],['heizung','Heizsystem'],['stromkreise','Stromkreise'],['extras','Extras'],['matliste','Materialliste']];
@@ -1780,7 +1793,7 @@ function skLayout(s){
 const skSorted=s=>skLayout(s).list;
 const stepIdx=k=>stepsOf(S.site).findIndex(x=>x[0]===k);
 /* Zurücksetzen einzelner Planungsschritte (Baustellendaten bleiben) */
-const RS_KEYS={smarthome:['sh'],unterlagen:['docs'],hersteller:['hersteller','herstellerFrei'],gehaeuse:['gehaeuse','montage','vtSer'],zuleitung:['qs','adern','nb','nbAuto','bez','bezA','x0Side'],zaehler:['zl'],klemmen:['klAbg','klPos'],heizung:['hz','hzAck'],stromkreise:['sk','relSame','resPct','resOff'],schienen:['bus','etag','big4','x0Moved','busSeen'],matliste:[],extras:['spd','hs','hsA','hsE','siem','siemOk','preise','litzeMag','material']};
+const RS_KEYS={hvart:['zs','hvArt'],smarthome:['sh'],unterlagen:['docs'],hersteller:['hersteller','herstellerFrei'],gehaeuse:['gehaeuse','montage','vtSer'],zuleitung:['qs','adern','nb','nbAuto','bez','bezA','x0Side'],zaehler:['zl'],klemmen:['klAbg','klPos'],heizung:['hz','hzAck'],stromkreise:['sk','relSame','resPct','resOff'],schienen:['bus','etag','big4','x0Moved','busSeen'],matliste:[],extras:['spd','hs','hsA','hsE','siem','siemOk','preise','litzeMag','material']};
 function rsPanel(p){const ST=stepsOf(p),sel=S.rsSel||new Set(),ci=ST.findIndex(x=>x[0]===planOf(p).step),cur=ST[ci],all=sel.size===ST.length,only=cur&&sel.size===1&&sel.has(cur[0]);
   const q=only?'Nur Schritt '+(ci+1)+' «'+esc(cur[1])+'» zurücksetzen?':all?'Alles zurücksetzen (alle Schritte der Planung)?':'Diese Schritte zurücksetzen?';
   return `<div class="msg err" style="margin-top:14px"><b>${q}</b><p style="margin:6px 0">Sie können weitere Schritte ankreuzen oder alles zurücksetzen. Die Baustellendaten bleiben immer unverändert (die gehen nur beim Löschen der ganzen Baustelle weg).</p>
@@ -1819,7 +1832,9 @@ function stepMiss(s,k){const pl=planOf(s),M=[];
   if(k==='smarthome'){const h=pl.sh||{};if(!h.on)M.push('Smart Home Ja/Nein');else if(h.on==='ja'&&!h.sys)M.push('Smart-Home-System');else shMissing(pl).forEach(t=>M.push(t))}
   if(k==='hersteller'&&!pl.hersteller)M.push('Hersteller');
   if(k==='gehaeuse'){if(!pl.montage)M.push('Montage (AP/UP)');if(!pl.gehaeuse)M.push('Gehäuse')}
+  if(k==='hvart'){if(!pl.zs)M.push('Zählerschrank Ja/Nein');else if(pl.zs==='nein'&&!String(pl.hvArt||'').trim())M.push('Art der Hauptverteilung')}
   if(k==='zuleitung'&&!(pl.qs&&qsNum(pl.qs)<=QS_MAX))M.push('Zuleitung (Querschnitt)');
+  if(k==='zuleitung'&&s.art==='HV'&&pl.qs&&!zlpOk(pl,'ok'))M.push('Einspeisung bestätigen');
   if(k==='stromkreise'&&!stepOk(pl,k))M.push('Mindestens ein Stromkreis');
   if(k==='zaehler'&&!stepOk(pl,k))M.push('Mindestens ein Zähler');
   if(k==='stromkreise'&&s.art==='HV'){const act=zlAct(s);act.slice(1).forEach(z=>{if((pl.sk||[]).filter(r=>(r.name||'').trim()&&rowZid(s,r)===z.id).length>ZM_EXT_MAX)M.push('Fehler: zu viele Sicherungen beim Zähler -P'+(pl.zl.indexOf(z)+1))})}
@@ -1840,7 +1855,9 @@ function missGo(t,smooth){document.querySelectorAll('.missHl').forEach(e=>e.clas
   const e=missEl(t);if(!e)return false;e.classList.add('missHl');const tag=document.createElement('div');tag.className='missTag';tag.textContent=/^Fehler: /.test(t)?'Gesperrt: '+t.slice(8)+' – zuerst beheben':'Achtung: '+t+' noch auswählen';e.parentNode.insertBefore(tag,e);
   if(smooth!==false)tag.scrollIntoView({block:'center',behavior:'smooth'});return true}
 const missBox=(items,st)=>`<div class="msg err" id="missBox">${items.some(t=>/^Fehler: /.test(t))?'<b>Gesperrt, zuerst beheben:</b>':''}${items.filter(t=>/^Fehler: /.test(t)).map(t=>`<div class="missRow"><span>${esc(t.slice(8))}</span><button type="button" class="btn small" data-goto="${esc(st+'|'+t)}">Hinführen</button></div>`).join('')}${items.some(t=>!/^Fehler: /.test(t))?'<b>Achtung, noch auswählen:</b>':''}${items.filter(t=>!/^Fehler: /.test(t)).map(t=>`<div class="missRow"><span>${esc(t)}</span><button type="button" class="btn small" data-goto="${esc(st+'|'+t)}">Hinführen</button></div>`).join('')}</div>`;
-function stepOk(pl,k){return {smarthome:!!(pl.sh&&(pl.sh.on==='nein'||(pl.sh.on==='ja'&&pl.sh.sys))),matliste:true,heizung:true,verteiler:true,schienen:true,klemmen:true,unterlagen:true,hersteller:!!pl.hersteller,gehaeuse:!!pl.gehaeuse&&!!pl.montage&&(!(plSite(pl)||{}).art||plSite(pl).art!=='HV'||!!pl.hvBau),zuleitung:!!pl.qs&&qsNum(pl.qs)<=QS_MAX&&(!(plSite(pl)||{}).art||plSite(pl).art!=='HV'||ZLP.every(x=>zlpOk(pl,x[0]))),stromkreise:(pl.sk||[]).some(r=>(r.name||'').trim())||(pl.zl||[]).length>1,zaehler:(pl.zl||[]).some(z=>!z.res),extras:true}[k]}
+/* Tobi 26.11.: bei Weiter/Zurück nicht ganz nach oben springen, sondern auf den Kopf des Schritts (Titel, Unterpunkte, Animation sichtbar) */
+function toStepTop(){const e=document.getElementById('stepTop');if(!e){window.scrollTo(0,0);return}const y=e.getBoundingClientRect().top+window.scrollY-8;window.scrollTo(0,Math.max(0,y))}
+function stepOk(pl,k){return {smarthome:!!(pl.sh&&(pl.sh.on==='nein'||(pl.sh.on==='ja'&&pl.sh.sys))),matliste:true,heizung:true,verteiler:true,schienen:true,klemmen:true,unterlagen:true,hersteller:!!pl.hersteller,gehaeuse:!!pl.gehaeuse&&!!pl.montage&&(!(plSite(pl)||{}).art||plSite(pl).art!=='HV'||!!pl.hvBau),zuleitung:!!pl.qs&&qsNum(pl.qs)<=QS_MAX&&(!(plSite(pl)||{}).art||plSite(pl).art!=='HV'||ZLP.every(x=>zlpOk(pl,x[0]))),stromkreise:(pl.sk||[]).some(r=>(r.name||'').trim())||(pl.zl||[]).length>1,hvart:pl.zs==='ja'||(pl.zs==='nein'&&!!String(pl.hvArt||'').trim()),zaehler:(pl.zl||[]).some(z=>!z.res)&&!(pl.zl||[]).some(z=>+z.bezA>80),extras:true}[k]}
 /* Heizsystem (Tobi 23.11.): Fragen; Sicherungen der Wärmepumpe kommen automatisch ins Schema (Schütz-Steuerung folgt) */
 const HZ_ART=[['wp-fbh','Wärmepumpe','über Fussbodenheizung'],['wp-hk','Wärmepumpe','über Heizkörper'],['gas','Gasheizung',''],['andere','Anderes','']];
 const hzOf=pl=>pl.hz||(pl.hz={});
@@ -2387,6 +2404,15 @@ function vPlan(){
     <div class="tiles">${HERSTELLER.map(h=>h==='Hager'?tile('hersteller',h,h):`<button type="button" class="tile" aria-pressed="${pl.hersteller===h}" disabled style="opacity:.45;cursor:not-allowed"><b>${esc(h)}</b><span>Hersteller folgen</span></button>`).join('')}</div>
     <p class="sub">Aktuell ist nur Hager hinterlegt. Die anderen Hersteller folgen.</p>
     <label class="f" style="opacity:.45">Anderer Hersteller <span class="hint">folgt</span><input id="p-hother" value="${other?esc(pl.hersteller):''}" placeholder="Hersteller folgen" autocomplete="off" disabled></label>`;
+  }else if(k==='hvart'){
+    /* Tobi 26.11.: ist die HV ein Zählerschrank? Sonst Art der HV (Pflicht, kommt aufs Deckblatt) und keine Zähler */
+    const HVA=['Etagenhauptverteiler','Gebäudehauptverteiler','Bürohauptverteiler'];
+    body=`<h2>Zählerschrank</h2><p class="sub">Ist diese Hauptverteilung ein Zählerschrank (mit Zählern vom Netzbetreiber)?</p>
+      <div class="tiles two-col">${tile('zs','ja','Ja, Zählerschrank','Zähler werden später gewählt')}${tile('zs','nein','Nein','z. B. Etagen- oder Gebäudehauptverteiler, ohne Zähler')}</div>
+      ${pl.zs==='nein'?`<div class="grid" style="margin-top:12px"><label class="f c6">Was für eine Hauptverteilung ist es? <span class="hint">Pflicht · steht so auf dem Deckblatt</span>
+        <input data-pl="hvArt" value="${esc(pl.hvArt||'')}" placeholder="z. B. Etagenhauptverteiler" maxlength="40" autocomplete="off"${dis}></label>
+        ${ed?`<div class="c6 sugg" style="margin-top:-4px">${HVA.map(r=>`<button type="button" data-plv="hvArt" data-v="${r}">${r}</button>`).join('')}</div>`:''}</div>
+        <p class="sub">Ohne Zählerschrank entfällt der Schritt Zähler.</p>`:''}`;
   }else if(k==='gehaeuse'){
     if(hv){
       body=`<h2>Gehäuse</h2><p class="sub">Eine Hauptverteilung ist immer ein Alu-Verteiler vom Verteilerbauer. Wie wird sie aufgestellt?</p>
@@ -2441,14 +2467,16 @@ function vPlan(){
         <label class="f c3">Raum des Verteilers<input data-pl="hvRaum" value="${esc(pl.hvRaum||'')}" placeholder="z. B. Technikraum" maxlength="40" autocomplete="off"${dis}></label>${chips('hvRaum',pl.hvStock)}</div>`}
       else if(pg==='sich'){const T=pl.hakTyp,AA=HAK_A[T]||[];inner=`${zlAnim(p,pl)}<div class="legend">Sicherung ${pl.zlHerk==='saeule'?'in der Energiesäule':'im HAK'}: welche Sicherungsart?</div>
       <div class="seg wrap" role="group">${HAK_T.map(([v,t,su])=>`<button type="button" data-plv="hakTyp" data-v="${v}" aria-pressed="${T===v}"${dis}><b>${t}</b><span>${su}</span></button>`).join('')}</div>
-      ${T?`<div class="grid" style="margin-top:10px"><label class="f c3">Bemessungsstrom ${esc(hakTypTxt(T))}<select data-pl="hakA"${dis}><option value="">wählen …</option>${opt(AA.map(a=>[String(a),a+' A']),pl.hakA||'')}</select></label></div><p class="sub">Die Stromwerte sind ein Vorschlag mit den üblichen Grössen. Bitte prüfen.</p>`:''}${wandlerNoetig(p,pl.hakA)?`<div class="msg warn" style="margin-top:8px">${esc(WANDLER_TXT)}</div>`:''}`}
+      ${T?`<div class="grid" style="margin-top:10px"><label class="f c3">Bemessungsstrom ${esc(hakTypTxt(T))}<select data-pl="hakA"${dis}><option value="">wählen …</option>${opt(AA.map(a=>[String(a),a+' A']),pl.hakA||'')}</select></label></div><p class="sub">Die Stromwerte sind ein Vorschlag mit den üblichen Grössen. Bitte prüfen.</p>`:''}${+pl.hakA>80?`<div class="msg err" style="margin-top:8px"><b>${esc(ZU_GROSS_TXT)}</b></div>`:wandlerNoetig(p,pl.hakA)?`<div class="msg warn" style="margin-top:8px">${esc(WANDLER_TXT)}</div>`:''}${izWarn(pl,'hak',pl.hakA,pl.qs,'Sicherung '+(pl.zlHerk==='saeule'?'Energiesäule':'HAK'),dis)}`}
       else if(pg==='kab'){inner=`${zlAnim(p,pl)}<div class="legend">Leitung vom ${pl.zlHerk==='saeule'?'der Energiesäule':'HAK'} in den Verteiler</div>
       <div class="grid">${qsF}<label class="f c3">Leitungstyp<select data-pl="kabTyp"${dis}><option value="">wählen …</option>${opt(KAB_T.map(x=>[x,x]),pl.kabTyp||'')}</select></label>
-      ${pl.kabTyp==='anderer Typ'?`<label class="f c3">Welcher Typ?<input data-pl="kabTypTxt" value="${esc(pl.kabTypTxt||'')}" maxlength="30" autocomplete="off"${dis}></label>`:''}</div>`}
-      else{inner=`<div class="grid">${zlSkip(p)?`<div class="c6 legend">Zähler -P1 <span class="hint">${esc(gebName(p))}, ein Zähler</span></div>${zlFields(p,pl.zl[0],0,dis)}
-      ${ed?`<div class="c6"><button type="button" class="btn" data-act="zlAdd">+ Weiteren Zähler hinzufügen</button></div>`:''}`:`<div class="c6 msg info">${p.geb==='MFH'?'Mehrfamilienhaus':'Mehrere Zähler'}: ${zlSum(p)}. Im nächsten Schritt legst du alle Zähler mit Bezügersicherung und Abgang fest.</div>`}
-      <label class="f c6">Netzbetreiber <span class="hint">${pl.nbAuto&&g?'automatisch: '+esc(g.src):'wird für diese PLZ gemerkt'}</span>
-        <input id="p-nb" data-pl="nb" list="dlNB" value="${esc(pl.nb)}" placeholder="z. B. IWB Industrielle Werke Basel" autocomplete="off"${dis}></label></div>`}
+      ${pl.kabTyp==='anderer Typ'?`<label class="f c3">Welcher Typ?<input data-pl="kabTypTxt" value="${esc(pl.kabTypTxt||'')}" maxlength="30" autocomplete="off"${dis}></label>`:''}${izWarn(pl,'hak',pl.hakA,pl.qs,'Sicherung '+(pl.zlHerk==='saeule'?'Energiesäule':'HAK'),dis)}</div>`}
+      else{const conf=zlpOk(pl,'ok'),R=(l,v)=>`<tr><th>${l}</th><td>${esc(v||'offen')}</td></tr>`,nm=pl.zlHerk==='saeule'?'Energiesäule':'HAK';
+      inner=`${zlAnim(p,pl)}<div class="legend">Einspeisung bestätigen</div>
+      <table class="zlsum">${R('Einspeisung',pl.zlHerk?ZL_HERK[pl.zlHerk][0]+(hakPos(pl)?' · '+hakPos(pl):''):'')}${R('Verteiler steht',hvPos(pl))}${R('Sicherung '+nm,pl.hakTyp?hakSichTxt(pl):'')}${R('Leitung '+nm+' → Verteiler',pl.qs?((pl.adern||'5')==='5'?'5×':'3×')+qsTxt(pl.qs)+' mm² Cu'+(kabTypTxt(pl)?' · '+kabTypTxt(pl):''):'')}</table>
+      <div class="grid" style="margin-top:10px"><label class="f c6">Netzbetreiber <span class="hint">${pl.nbAuto&&g?'automatisch: '+esc(g.src):'wird für diese PLZ gemerkt'}</span>
+        <input id="p-nb" data-pl="nb" value="${esc(pl.nb)}" placeholder="z. B. IWB Industrielle Werke Basel" autocomplete="off"${dis}></label></div>
+      ${conf?`<div class="msg ok" style="margin-top:10px">Einspeisung bestätigt. Mit «Weiter» geht es ${pl.zs==='nein'?'weiter':'zu den Zählern'}.</div>`:ed?`<div style="margin-top:12px"><button type="button" class="btn primary" data-act="zlConf">Bestätigen</button></div>`:''}`}
       body=`<div class="row between"><h2>Zuleitung und Einspeisung</h2><span class="tag y">HV · ${esc(gebName(p))}</span></div>${nav}${S.zlMsg?`<div class="msg err">${esc(S.zlMsg)}</div>`:''}${inner}`;S.zlMsg=null}
   }else if(k==='zaehler'){
     const pgs=pagesOf(p),L=skLayout(p),act=pl.zl.filter(z=>!z.res).length,mfh=p.geb==='MFH';
@@ -2530,7 +2558,7 @@ function vPlan(){
   return `<div class="plangrid">
   <section class="card">
     ${stepper(pl)}
-    ${body}
+    <div id="stepTop"></div>${body}
     ${ed&&S.rsOpen?rsPanel(p):''}
     ${!last&&k!=='smarthome'&&shGated(p,stepNext(p,k))&&!shGated(p,k)?`<div class="msg err"><b>Zuerst Smart Home fertig erfassen</b>, erst dann geht es zu ${esc(ST.find(x=>x[0]===stepNext(p,k))[1])} und den Stromkreisen.</div>${missBox(shMissing(pl),'smarthome')}`:''}
     ${!last&&S.missShow===k&&stepMiss(p,k).length?missBox(stepMiss(p,k),k):''}
@@ -2549,7 +2577,7 @@ function zlFields(p,z,j,dis){const five=(planOf(p).adern||'5')==='5';
     <label class="f c3">Bemessungsstrom
       <select data-zl="bezA" data-zi="${j}"${z.bez?dis:' disabled'}><option value="">wählen …</option>${opt((BEZ_A[z.bez]||[]).map(a=>[a,a+' A']),z.bezA||'')}</select></label>
     <label class="f c3">${j===0?'Querschnitt ab Bezügersicherung':'Abgang Querschnitt'}
-      <select data-zl="qs" data-zi="${j}"${dis}><option value="">wählen …</option>${opt(QS.filter(q=>qsNum(q)<=QS_MAX).map(q=>[q,qsTxt(q)+' mm²']),z.qs||'')}</select>${z.bezA&&BEZ_QS[z.bezA]?`<span class="sub" style="font-size:13px">Standard bei ${z.bezA} A: ${qsTxt(BEZ_QS[z.bezA])} mm² (gilt ab Bezügersicherung)</span>`:''}</label>${wandlerNoetig(p,z.bezA,z.qs)?`<div class="c6 msg warn">${esc(WANDLER_TXT)}</div>`:''}
+      <select data-zl="qs" data-zi="${j}"${dis}><option value="">wählen …</option>${opt(QS.filter(q=>qsNum(q)<=QS_MAX).map(q=>[q,qsTxt(q)+' mm²']),z.qs||'')}</select>${z.bezA&&BEZ_QS[z.bezA]?`<span class="sub" style="font-size:13px">Standard bei ${z.bezA} A: ${qsTxt(BEZ_QS[z.bezA])} mm² (gilt ab Bezügersicherung)</span>`:''}</label>${+z.bezA>80?`<div class="c6 msg err"><b>${esc(ZU_GROSS_TXT)}</b></div>`:wandlerNoetig(p,z.bezA,z.qs)?`<div class="c6 msg warn">${esc(WANDLER_TXT)}</div>`:''}${izWarn(planOf(p),'z'+(z.id||j),z.bezA,z.qs,'Bezügersicherung',dis)}
     <label class="f c3">${j===0?'Adern ab Bezügersicherung':'Abgang Adern'}
       <select data-zl="adern" data-zi="${j}"${dis}>${opt(five?[['5','5-adrig · L1 L2 L3 N PE'],['3','3-adrig · L N PE']]:[['3','3-adrig · L N PE']],five?(z.adern||'5'):'3')}</select></label>`}
 /* Materialliste (Tobi 23.11.): letzter Schritt. Pro Bauteil der günstigste Grosshändler (Netto), Liste nach Grosshändler, E-Nummer zum Kopieren.
@@ -2689,10 +2717,10 @@ function pagesOf(s){
   if(d.bau!==false){const B=bauPages(s);B.forEach((cols,k)=>a.push({kind:'bau',k,cols,title:'Info Verteilerbauer',sub:B.length>1?'Teil '+(k+1)+' von '+B.length:'Klemmen, TE, Platz, Hinweise'}))}
   a.push({kind:'einspeisung',title:'Einspeisung',sub:(five?'5×':'3×')+qs+(hv?', Hausanschluss':(pl.spd?', SPD':'')+(pl.hs?', -Q1':'')+(pl.spd||pl.hs?'':', ohne Zähler'))});
   const L=skLayout(s),sk=L.list;
-  if(hv){let cur=null;pl.zl.forEach((z,k)=>{if(!k)return;const n=z.res?0:Math.min(ZM_EXT_MAX,(L.ext[z.id]||[]).length),w=Math.max(5,Math.ceil(2+n*1.5));if(!cur||cur.used+w>10){cur={kind:'zm',title:'Messungen',bl:[],used:0};a.push(cur)}cur.bl.push({k,c0:cur.used,w});cur.used+=w});
+  if(hv&&pl.zs!=='nein'){let cur=null;pl.zl.forEach((z,k)=>{if(!k)return;const n=z.res?0:Math.min(ZM_EXT_MAX,(L.ext[z.id]||[]).length),w=Math.max(5,Math.ceil(2+n*1.5));if(!cur||cur.used+w>10){cur={kind:'zm',title:'Messungen',bl:[],used:0};a.push(cur)}cur.bl.push({k,c0:cur.used,w});cur.used+=w});
     a.filter(q=>q.kind==='zm').forEach(q=>{const f=q.bl[0].k+1,l=q.bl[q.bl.length-1].k+1;q.sub=(f===l?'Zähler -P'+f+' '+(pl.zl[f-1].name||''):'Zähler -P'+f+' bis -P'+l).trim()});
     a.push({kind:'za',title:s.geb==='MFH'?'Messung Allgemein':'Messung',sub:'-P1 '+(pl.zl[0].name||zlLbl(s,0))})}
-  L.pages.forEach(q=>{const fs=q.items.filter(it=>!it.sk).map(it=>it.f),zk=hv?pl.zl.findIndex(z=>z.id===q.zid):-1,zt=zk>=0?'-P'+(zk+1)+(pl.zl[zk].name?' '+pl.zl[zk].name:'')+' · ':'';a.push({kind:'sk',title:'Stromkreise',sub:zt+(fs.length?fs[0]+(fs.length>1?' bis '+fs[fs.length-1]:''):'Relais'),dp:q,zid:q.zid})});
+  L.pages.forEach(q=>{const fs=q.items.filter(it=>!it.sk).map(it=>it.f),zk=hv&&pl.zs!=='nein'?pl.zl.findIndex(z=>z.id===q.zid):-1,zt=zk>=0?'-P'+(zk+1)+(pl.zl[zk].name?' '+pl.zl[zk].name:'')+' · ':'';a.push({kind:'sk',title:'Stromkreise',sub:zt+(fs.length?fs[0]+(fs.length>1?' bis '+fs[fs.length-1]:''):'Relais'),dp:q,zid:q.zid})});
   {loxSyncTe(pl);const ps=loxPs(pl);if(ps)a.push({kind:'loxps',title:'Smart Home Loxone',sub:'-G1 '+ps.o.art});loxPsx(pl).forEach(X=>a.push({kind:'loxps',g:X.g,title:'Smart Home Loxone',sub:'-G'+X.g+' '+X.o.art}));const ms=loxMs(pl);if(ms)a.push({kind:'loxms',title:'Smart Home Loxone',sub:'-A1 '+ms.art});for(let k=0;k<loxAs(pl);k++)a.push({kind:'loxas',k,title:'Smart Home Loxone',sub:'-A'+(k+2)+' Audioserver'});for(let k=0;k<loxTeN(pl);k++)a.push({kind:'loxte',k,title:'Smart Home Loxone',sub:'-A'+(k+2+loxAs(pl))+' Tree Extension'});loxDaliExt(pl).forEach((x,k)=>a.push({kind:'loxdali',k,title:'Smart Home Loxone',sub:'-A'+(2+loxAs(pl)+loxTeN(pl)+k)+' DALI Extension '+(x.id==='100200'?64:10)}));{const DK=daliKl(s);for(let i=0;i<Math.ceil(DK.length/10);i++)a.push({kind:'loxdalikl',k:i,title:'Smart Home Loxone',sub:'DALI-Klemmen '+LX(pl).dali+(DK.length>10?' ('+(i+1)+')':'')})}if(loxKnxN(pl))a.push({kind:'loxknx',title:'Smart Home Loxone',sub:'-A'+(2+loxAs(pl)+loxTeN(pl)+loxDaliExt(pl).length)+' KNX Extension · KNX-DALI'});loxDev(pl).filter(v=>v.t==='rel').forEach(v=>a.push({kind:'loxrel',k:v.i,title:'Smart Home Loxone',sub:v.name}));loxDev(pl).filter(v=>v.t==='diex').forEach(v=>a.push({kind:'loxdiex',k:v.i,title:'Smart Home Loxone',sub:v.name}));loxDev(pl).filter(v=>v.t==='mbex').forEach(v=>a.push({kind:'loxmb',k:v.i,title:'Smart Home Loxone',sub:v.name}));{const nW=fkSlots(pl).length;for(let i=0;i<Math.ceil(nW/16);i++)a.push({kind:'loxdi',k:i,title:'Smart Home Loxone',sub:'Fensterkontakte '+LX(pl).fk+(nW>16?' ('+(i+1)+')':'')})}{const nK=busGrp(pl).length;for(let i=0;i<Math.ceil(nK/6);i++)a.push({kind:'loxtk',k:i,title:'Smart Home Loxone',sub:'Bus- und 24-V-Abgänge '+LX(pl).bus+(nK>6?' ('+(i+1)+')':'')})}{const P=bsSepPages(pl);P.forEach((q,i)=>a.push({kind:'loxbs',k:i,title:'Smart Home Loxone',sub:'Beschattung separat '+q.X}))}}
   if(busOn(s)&&L.list.length&&!shSel(planOf(s)))a.push({kind:'bus2d',title:'Verteileransicht',sub:'Sammel- und Etagenschienen'});
   {const m=hzWP(pl)&&pl.hz.wpPdf;if(m)for(let k=0;k<m.n;k++)a.push({kind:'wpdoc',key:m.key,k,title:'Wärmepumpe',sub:'Schema Hersteller'+(m.n>1?', Seite '+(k+1):'')})}
@@ -2786,7 +2814,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     o.push(`<image href="logo.png" x="${lx}" y="${iy0+40}" width="360" height="80" preserveAspectRatio="xMinYMid meet"/>`);
     const y1=iy0+180;o.push(`<rect x="${lx}" y="${y1}" width="56" height="6" fill="#ffed00"/>`);
     T(lx,y1+32,'ELEKTROSCHEMA · PLANMAPPE','tlab');
-    T(lx,y1+82,hv?'Hauptverteilung':'Unterverteilung','tcov');
+    T(lx,y1+82,hv?(pl.zs==='nein'&&String(pl.hvArt||'').trim()?String(pl.hvArt).trim():'Hauptverteilung'):'Unterverteilung','tcov');
     T(lx,y1+114,cut('+'+(s.art||'UV')+(s.kom?' · Kommission '+s.kom:''),44),'tcov2');
     T(lx,y1+158,cut(s.bauherr||'Bauherrschaft offen',52),'tdeck3');
     T(lx,y1+178,cut([s.adr,[s.plz,s.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ')||'Adresse offen',70),'tcovs');
@@ -3414,7 +3442,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     else{lv.forEach((c,i)=>{if(c[0]!=='N')CTsym(xs[i],y0+26)});const mx0=112,mx1=172;o.push(`<rect x="${mx0}" y="${y0}" width="${mx1-mx0}" height="${y1-y0}" rx="3" fill="#fff" stroke="#111" stroke-width="1.4"/><rect x="${mx0+4}" y="${y0+6}" width="${mx1-mx0-8}" height="14" rx="1.5" fill="#eaf5e7" stroke="#111" stroke-width=".7"/><rect x="${mx0+4}" y="${y1-8}" width="${mx1-mx0-8}" height="3.5" rx="1" fill="#3fa34d"/>`);T((mx0+mx1)/2,y0+16.5,'kWh','tb','middle');o.push(`<line x1="${mx1}" y1="${y0+26}" x2="${xs[0]-6}" y2="${y0+26}" class="cp"/>`);o.push(`<path d="M${(mx0+mx1)/2-1.3} ${y1} V${y1+20} M${(mx0+mx1)/2+1.3} ${y1} V${y1+20}" fill="none" stroke="#3fa34d" stroke-width="1"/>`);T(mx0-6,y1+16,'Tree → '+ref,'tgn','end')}
     /* Tobi 24.11.: Beschriftung nie auf Leitungen → rechts unter der PE-Leitung */const tx=xs[xs.length-1]+24;T(tx,y0+31,z.P,'tb');T(tx,y0+42,'Energiezähler '+ezLbl(s)+' · '+((LOX.find(o=>o.id===z.id)||{}).art||''),'tm');T(tx,y0+52,z.id+(z.w?' + Stromwandler '+z.w:'')+' · '+(z.dir?'Direktanschluss':'Messwandler')+' · vor Hauptschalter','tm')}}
   // Zähler nur HV
-  if(hv){T(xs[0]+90,250,'Hauptverteilung: Zähler folgen ab Seite '+nx,'tm');
+  if(hv){T(xs[0]+90,250,(pl.zs==='nein'?(String(pl.hvArt||'').trim()||'Hauptverteilung')+': ohne Zähler, Stromkreise folgen ab Seite ':'Hauptverteilung: Zähler folgen ab Seite ')+nx,'tm');
   }else{
     const spdOn=!!pl.spd,hsOn=!!pl.hs,live=cond.filter(c=>c[0]!=='PE');
     if(!spdOn&&!hsOn)T(xs[0]+90,330,'Unterverteilung ohne Zähler','tm');
@@ -3660,6 +3688,7 @@ document.addEventListener('change',e=>{
   if((t.dataset.ex==='spd'||t.dataset.ex==='hs')&&S.site&&canEdit(S.site)&&S.site.art!=='HV'){const pl=planOf(S.site);pl[t.dataset.ex]=t.checked;S.prevSel={step:pl.step,idx:pagesOf(S.site).findIndex(q=>q.kind==='einspeisung')};touchPlan((t.dataset.ex==='spd'?'Überspannungsschutz':'Hauptschalter')+(t.checked?' ergänzt':' entfernt'));render();return}
   if(t.dataset.wpfile&&t.files&&t.files[0]&&S.site&&canEdit(S.site)){const st=$('#wpStat'),site=S.site;if(st)st.innerHTML='<div class="msg info">PDF wird eingelesen …</div>';
     wpUpload(t.files[0]).then(m=>{hzOf(planOf(site)).wpPdf=m;touchPlan('Wärmepumpen-Schema eingefügt');persistSite();render()}).catch(err=>{const st2=$('#wpStat');if(st2)st2.innerHTML='<div class="msg err">Das PDF konnte nicht gelesen werden ('+esc(err.message||String(err))+').</div>'});return}
+  if(t.dataset.izack&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.izAck=pl.izAck||{};pl.izAck[t.dataset.izack]=t.checked?t.dataset.izsig:'';touchPlan(t.checked?'Sicherung/Querschnitt quittiert':'Quittung Sicherung/Querschnitt aufgehoben');render();return}
   if(t.dataset.hzack&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.hzAck=t.checked?hzSig(S.site):'';touchPlan(t.checked?'Offene Heizsystem-Angaben quittiert':'Quittung Heizsystem aufgehoben');render();return}
   if(t.dataset.ex==='siem'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.siem=t.checked;pl.siemOk=null;touchPlan(t.checked?'Extras: Siemens FI/LS gewählt':'Extras: Siemens FI/LS entfernt');render();return}
   if(t.dataset.hz&&t.dataset.v==null&&S.site&&canEdit(S.site)){const h=hzOf(planOf(S.site));h[t.dataset.hz]=t.value.trim();if(t.dataset.hz==='hkvN')delete h.hkvF;touchPlan('Heizsystem angepasst');persistSite();if(t.tagName==='SELECT')render();else refreshPreview();return}
@@ -3798,16 +3827,17 @@ document.addEventListener('click',e=>{
   if(act==='toPlan'){if(canEdit(S.site))persistSite();planOf(S.site);return go('plan')}
   if(act==='toSite'){return go('baustelle')}
   if(t.dataset.goto&&S.site){const [st,lbl]=t.dataset.goto.split('|'),pl=planOf(S.site);S.hl=lbl;if(st==='smarthome'&&SH_MISS_PT[lbl]&&S.shp!==SH_MISS_PT[lbl]){S.shp=SH_MISS_PT[lbl];pl.step=st;S.missShow=st;S._hlShown=null;render();return}if(pl.step!==st){pl.step=st;S.missShow=st;render()}else missGo(lbl);return}
-  if(act==='planNext'&&S.site.art==='HV'&&planOf(S.site).step==='zuleitung'){const pl=planOf(S.site),z=zlpCur(pl);if(z<ZLP.length-1){if(!zlpOk(pl,ZLP[z][0])){S.zlMsg=zlpMsg[ZLP[z][0]];render();return}S.zlp=z+1;if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}}
-  if(act==='planPrev'&&S.site.art==='HV'&&planOf(S.site).step==='zuleitung'&&zlpCur(planOf(S.site))>0){S.zlp=zlpCur(planOf(S.site))-1;render();window.scrollTo(0,0);return}
+  if(act==='planNext'&&S.site.art==='HV'&&planOf(S.site).step==='zuleitung'){const pl=planOf(S.site),z=zlpCur(pl);if(z<ZLP.length-1){if(!zlpOk(pl,ZLP[z][0])){S.zlMsg=ZLP[z][0]==='sich'&&+pl.hakA>80?ZU_GROSS_TXT:zlpMsg[ZLP[z][0]];render();return}S.zlp=z+1;if(canEdit(S.site))persistSite();render();toStepTop();return}}
+  if(act==='zlConf'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);if(!ZLP.slice(0,-1).every(x=>zlpOk(pl,x[0])))return;pl.zlConf=zlSig(pl);if(pl.nb&&S.site.plz){D.nbMap=D.nbMap||{};D.nbMap[S.site.land+':'+S.site.plz.trim()]=pl.nb}touchPlan('Einspeisung bestätigt');pl.step=stepNext(S.site,'zuleitung');S.zlp=0;if(pl.step==='zaehler'&&S.site.geb==='MFH'&&pl.zl.length<2)pl.zl.push(zlNew(S.site));persistSite();render();toStepTop();return}
+  if(act==='planPrev'&&S.site.art==='HV'&&planOf(S.site).step==='zuleitung'&&zlpCur(planOf(S.site))>0){S.zlp=zlpCur(planOf(S.site))-1;render();toStepTop();return}
   if(t.dataset.zlp!=null){S.zlp=+t.dataset.zlp;render();return}
   if(act==='planNext'){const pl=planOf(S.site),i=stepIdx(pl.step),M=stepMiss(S.site,pl.step);
     if(pl.step==='smarthome'&&loxOn(pl)){const ci=shPtCur(pl);if(ci<SH_PTS.length-1){const m=shPtMiss(pl,SH_PTS[ci][0]);if(m.length){S.missShow='smarthome';S.hl=m[0];S._hlShown=null;render();return}S.shp=SH_PTS[ci+1][0];S.hl=null;render();const e=document.querySelector('.shnav');if(e)e.scrollIntoView({block:'start',behavior:'smooth'});return}}
     if(M.length){S.missShow=pl.step;S.hl=M[0];S._hlShown=null;if(pl.step==='smarthome'&&SH_MISS_PT[M[0]])S.shp=SH_MISS_PT[M[0]];render();return}
     if(shGated(S.site,stepNext(S.site,pl.step))){const M2=shMissing(pl);S.hl=M2[0]||null;S._hlShown=null;if(M2[0]&&SH_MISS_PT[M2[0]])S.shp=SH_MISS_PT[M2[0]];pl.step='smarthome';S.missShow='smarthome';render();return}
-    S.missShow=null;S.hl=null;if(canEdit(S.site)){if(pl.step==='zuleitung'&&S.site.art==='HV'&&pl.nb&&S.site.plz){D.nbMap=D.nbMap||{};D.nbMap[S.site.land+':'+S.site.plz.trim()]=pl.nb}}pl.step=stepNext(S.site,pl.step);if(pl.step==='zuleitung')S.zlp=0;if(pl.step==='zaehler'&&S.site.geb==='MFH'&&pl.zl.length<2&&canEdit(S.site))pl.zl.push(zlNew(S.site));if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
-  if(act==='planPrev'){const pl=planOf(S.site),pv=stepPrev(S.site,pl.step);if(!pv)return go('baustelle');pl.step=pv;if(pv==='zuleitung')S.zlp=ZLP.length-1;if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
-  if(t.dataset.step){const pl=planOf(S.site);pl.step=t.dataset.step;S.zlp=0;if(canEdit(S.site))persistSite();render();window.scrollTo(0,0);return}
+    S.missShow=null;S.hl=null;if(canEdit(S.site)){if(pl.step==='zuleitung'&&S.site.art==='HV'&&pl.nb&&S.site.plz){D.nbMap=D.nbMap||{};D.nbMap[S.site.land+':'+S.site.plz.trim()]=pl.nb}}pl.step=stepNext(S.site,pl.step);if(pl.step==='zuleitung')S.zlp=0;if(pl.step==='zaehler'&&S.site.geb==='MFH'&&pl.zl.length<2&&canEdit(S.site))pl.zl.push(zlNew(S.site));if(canEdit(S.site))persistSite();render();toStepTop();return}
+  if(act==='planPrev'){const pl=planOf(S.site),pv=stepPrev(S.site,pl.step);if(!pv)return go('baustelle');pl.step=pv;if(pv==='zuleitung')S.zlp=ZLP.length-1;if(canEdit(S.site))persistSite();render();toStepTop();return}
+  if(t.dataset.step){const pl=planOf(S.site);pl.step=t.dataset.step;S.zlp=0;if(canEdit(S.site))persistSite();render();toStepTop();return}
   if(t.dataset.hz&&t.dataset.v!=null&&S.site&&canEdit(S.site)){const h=hzOf(planOf(S.site));h[t.dataset.hz]=t.dataset.v;touchPlan('Heizsystem angepasst');persistSite();render();return}
   if(t.dataset.plv&&S.site&&canEdit(S.site)){const pl=planOf(S.site),k=t.dataset.plv;pl[k]=t.dataset.v;if(k==='montage'&&t.dataset.v==='UP')pl.gehaeuse='hersteller';touchPlan(k==='vtMM'?(t.dataset.v==='ja'?'Mit':'Ohne')+' Multimedia-Feld':k==='vtSer'?'Verteiler-Serie '+t.dataset.v:k==='etag'?'Etagenschienen '+t.dataset.v:k==='big4'?'4-polige '+(t.dataset.v==='u'?'unten':'oben'):k==='x0Side'?'-X0 '+(t.dataset.v==='r'?'rechts':'links'):k==='klAbg'?(t.dataset.v==='nein'?'Ohne Abgangsklemmen':'Mit Abgangsklemmen'):({hersteller:'Hersteller ',gehaeuse:'Gehäuse ',montage:'Montage ',hvBau:'Verteiler ',zlHerk:'Zuleitung von ',hakSeite:'HAK Hausseite ',hakRaum:'HAK Raum ',hvRaum:'Verteiler Raum ',hakTyp:'HAK-Sicherung ',hvMaxU:'Masse in '}[k]||'')+(k==='gehaeuse'?(t.dataset.v==='alu'?'Alu':'Hersteller'):k==='hvBau'?(t.dataset.v==='stand'?'Standverteiler':'Wandverteiler hängend'):k==='zlHerk'?(ZL_HERK[t.dataset.v]||[''])[0]:t.dataset.v));render();return}
   if(t.dataset.page){S.pageIdx=+t.dataset.page;render();return}
