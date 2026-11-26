@@ -79,6 +79,9 @@ input:disabled,select:disabled{opacity:1;background:var(--bg);color:var(--ink);-
 .btn.danger{color:var(--err)}
 .exd{border:1px solid var(--line);border-radius:4px;margin:10px 0;background:var(--surface)}.exd>summary{cursor:pointer;padding:10px 12px;font-weight:700;list-style-position:inside}.exd[open]>summary{border-bottom:1px solid var(--line)}.exd-b{padding:4px 12px 10px}
 .msg{border-radius:4px;padding:10px 12px;font-size:14px}
+.sugg{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.sugg:empty{display:none}
+.sugg button{font:inherit;font-size:14px;font-weight:500;padding:6px 10px;min-height:34px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);cursor:pointer}
+.sugg button:hover{border-color:var(--ink)}
 .msg.err{background:var(--err-soft);color:var(--err)}
 .msg.ok{background:var(--ok-soft);color:var(--ok)}
 .msg.info{background:var(--info-soft);color:var(--info)}
@@ -246,7 +249,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-26.1415';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-26.1441';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -821,7 +824,16 @@ const complete=s=>!!(s.kom&&s.adr&&s.plz&&s.ort&&(s.land!=='CH'||s.kanton));
 const nrm=x=>String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ß/g,'ss');
 const cpt=x=>nrm(x).replace(/[\s\-\/.,_]/g,'');
 function matches(hayParts,query){const words=nrm(query).split(/\s+/).filter(Boolean);if(!words.length)return true;const hay=nrm(hayParts.join(' ')),hayC=cpt(hay);return words.every(w=>hay.includes(w)||hayC.includes(cpt(w)))}
-const fillDl=(id,vals)=>{$('#'+id).innerHTML=vals.map(v=>`<option value="${esc(v)}"></option>`).join('')};
+const fillDl=(id,vals)=>{$('#'+id).innerHTML=vals.map(v=>`<option value="${esc(v)}"></option>`).join('');const f=SG_DL[id];if(f)sgShow(f,vals)};
+/* Tobi 26.11.: Vorschläge nur als Unterstützung. Keine Auswahlliste, die beim Tippen aufgeht, sondern kleine Knöpfe unter dem Feld, nur solange man im Feld ist. */
+const SG_DL={dlPlz:'plz',dlOrt:'ort',dlBereich:'bereich'};
+function sgShow(f,vals){const box=$('#sg-'+f),inp=$('#b-'+f);if(!box)return;if(!inp||document.activeElement!==inp){box.innerHTML='';return}
+  const cur=(inp.value||'').trim().toLowerCase();let L=vals.filter(v=>String(v).toLowerCase()!==cur);
+  if(f==='bereich')L=L.filter(v=>!cur||String(v).toLowerCase().includes(cur));
+  L=L.slice(0,f==='ort'?8:6);
+  const lab=v=>{if(f!=='plz')return v;const P=PLZ[(S.site||{}).land],h=P&&P.byZip.get(v);return h?v+' '+h[0].o:v};
+  box.innerHTML=L.length?L.map(v=>`<button type="button" data-sg="${f}" data-v="${esc(v)}">${esc(lab(v))}</button>`).join(''):''}
+function sgBereich(){fillDl('dlBereich',[...new Set([...BEREICHE,...D.sites.map(s=>s.bereich).filter(Boolean)])])}
 const LV={start:0,adminLogin:0,admin:0,liste:0,baustelle:1,plan:2,schema:3};
 function go(screen,msg){
   const cur=LV[S.screen]||0,nx=LV[screen]||0;
@@ -942,7 +954,8 @@ function siteListHTML(){
   const list=visibleSites();
   if(!D.sites.length) return `<div class="empty">Noch keine Baustellen gespeichert.<br>Lege mit «Neue Baustelle» die erste an.</div>`;
   if(!list.length) return `<div class="empty">Keine Baustelle passt zur Suche oder zum Filter.</div>`;
-  return `<div class="sites">${list.map(s=>{const ed=canEdit(s);return `<div class="site">
+  const kc={};D.sites.forEach(s=>{const k=(s.kom||'').trim().toLowerCase();if(k)kc[k]=(kc[k]||0)+1});
+  return `<div class="sites">${list.map(s=>{const ed=canEdit(s),dup=kc[(s.kom||'').trim().toLowerCase()]>1;return `<div class="site">
     <div>
       <div class="t">${s.kom?esc(s.kom):'<span class="muted">ohne Kommissionsnummer</span>'}${s.bereich||s.stock?`<span style="font-weight:600">· ${esc([s.bereich,s.stock].filter(Boolean).join(' · '))}</span>`:''}${s.bauherr?`<span style="font-weight:500" class="muted">· ${esc(s.bauherr)}</span>`:''}</div>
       <div class="d">${esc([s.adr,[s.plz,s.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ')||'Adresse fehlt')}</div>
@@ -952,7 +965,7 @@ function siteListHTML(){
         ${complete(s)?'':'<span class="tag">angefangen</span>'}
         <span class="tag">${esc(userName(s.owner))}</span>
         ${ed?'':'<span class="tag lock">nur ansehen</span>'}
-        <span class="tag" title="zuletzt geändert">${fmtDate(s.updated)}</span>
+        ${dup?`<span class="tag" title="Kommission gibt es mehrmals">erstellt ${fmtDate(s.created)}</span>`:''}<span class="tag" title="zuletzt geändert">${dup?'geändert ':''}${fmtDate(s.updated)}</span>
       </div>
     </div>
     <div class="acts">
@@ -986,13 +999,11 @@ function vListe(){
 
 /* ---------- Baustelle ---------- */
 /* Gleiche Kommission: Adresse der bestehenden übernehmen, wenn die Felder noch leer sind */
+/* Tobi 26.11.: neue Baustelle heisst neue Baustelle. Nie Daten von einer anderen Baustelle übernehmen, auch bei gleicher Kommission. Nur ein Hinweis. */
 function adoptKom(){
-  const p=S.site,k=(p.kom||'').trim().toLowerCase();if(!k)return;
-  if(p.bauherr||p.adr||p.plz||p.ort)return;
-  const h=D.sites.find(s=>s.id!==p.id&&(s.kom||'').trim().toLowerCase()===k);if(!h)return;
-  ['bauherr','adr','land','plz','ort','kanton','norm'].forEach(f=>{p[f]=h[f]||''});
-  const pos=$('#b-kom').selectionStart;render();const el=$('#b-kom');if(el){el.focus();try{el.setSelectionRange(pos,pos)}catch(e){}}
-  S.msg={t:'ok',m:'Adresse von Kommission '+h.kom+' übernommen. Wähle jetzt Bereich und Stockwerk.'};$('#bMsg').innerHTML=msgHTML();
+  const p=S.site,k=(p.kom||'').trim().toLowerCase(),el=$('#bMsg');if(!el)return;
+  const n=k?D.sites.filter(s=>s.id!==p.id&&(s.kom||'').trim().toLowerCase()===k).length:0;
+  S.msg=n?{t:'info',m:'Die Kommission '+p.kom.trim()+' gibt es schon '+(n>1?n+'-mal':'einmal')+' als eigene Baustelle. Diese hier ist neu und bleibt leer. Fülle Bereich und Stockwerk aus, damit du sie in der Liste unterscheiden kannst.'}:null;el.innerHTML=msgHTML();
 }
 function vBaustelle(){
   const p=S.site, ed=canEdit(p), dis=ed?'':' disabled';
@@ -1004,14 +1015,14 @@ function vBaustelle(){
     <div class="row between"><h2>Baustellendaten</h2><div class="row"><span class="tag">Erstellt von ${esc(userName(p.owner))}</span><button type="button" class="btn small" data-act="print">Drucken</button></div></div>
     ${ed?'':`<div class="msg info">Nur ansehen. Diese Baustelle gehört ${esc(userName(p.owner))}. Ändern kannst du sie erst, wenn ${esc(userName(p.owner))} sie für dich freigibt.</div>`}
     <form id="bForm" class="grid" novalidate>
-      <label class="f c2">Kommissionsnummer<input id="b-kom" data-b="kom" value="${esc(p.kom)}" placeholder="z. B. 24-0815" list="dlKom" autocomplete="off"${ed&&S.isNew?' autofocus':''}${dis}></label>
+      <label class="f c2">Kommissionsnummer<input id="b-kom" data-b="kom" value="${esc(p.kom)}" placeholder="z. B. 24-0815" autocomplete="off"${ed&&S.isNew?' autofocus':''}${dis}></label>
       <label class="f c4">Bauherrschaft<input id="b-bauherr" data-b="bauherr" value="${esc(p.bauherr)}" placeholder="Name oder Firma"${dis}></label>
-      <label class="f c3">Bereich<input id="b-bereich" data-b="bereich" value="${esc(p.bereich)}" list="dlBereich" autocomplete="off" placeholder="z. B. Allgemeinbereich"${dis}></label>
+      <label class="f c3">Bereich<input id="b-bereich" data-b="bereich" value="${esc(p.bereich)}" autocomplete="off" placeholder="z. B. Allgemeinbereich"${dis}><span class="sugg" id="sg-bereich"></span></label>
       <label class="f c3">Stockwerk<select id="b-stock" data-b="stock"${dis}><option value="">wählen …</option>${opt(STOCK.map(x=>[x,x]),p.stock||'')}</select></label>
       <label class="f c4">Strasse und Nummer<input id="b-adr" data-b="adr" value="${esc(p.adr)}" autocomplete="off"${dis}></label>
       <label class="f c2">Land<select id="b-land" data-b="land"${dis}>${LAENDER.map(([k,l])=>`<option value="${k}"${k===p.land?' selected':''}${['CH','LI'].includes(k)||k===p.land?'':' disabled'}>${esc(l)}${['CH','LI'].includes(k)?'':' (folgt)'}</option>`).join('')}</select></label>
-      <label class="f c2">PLZ<input id="b-plz" data-b="plz" value="${esc(p.plz)}" inputmode="numeric" list="dlPlz" autocomplete="off" placeholder="${p.land==='DE'||p.land==='FR'?'79539':'4051'}"${dis}></label>
-      <label class="f ${ch?'c2':'c4'}">${p.land==='DE'?'Stadt':'Ort'}<input id="b-ort" data-b="ort" value="${esc(p.ort)}" list="dlOrt" autocomplete="off" placeholder="${p.land==='DE'?'Lörrach':'Basel'}"${dis}></label>
+      <label class="f c2">PLZ<input id="b-plz" data-b="plz" value="${esc(p.plz)}" inputmode="numeric" autocomplete="off" placeholder="${p.land==='DE'||p.land==='FR'?'79539':'4051'}"${dis}><span class="sugg" id="sg-plz"></span></label>
+      <label class="f ${ch?'c2':'c4'}">${p.land==='DE'?'Stadt':'Ort'}<input id="b-ort" data-b="ort" value="${esc(p.ort)}" autocomplete="off" placeholder="${p.land==='DE'?'Lörrach':'Basel'}"${dis}><span class="sugg" id="sg-ort"></span></label>
       ${ch?`<label class="f c2">Kanton<select id="b-kanton" data-b="kanton"${dis}><option value="">wählen …</option>${opt(KANTONE.map(([k,n])=>[k,k+' · '+n]),p.kanton)}</select></label>`:''}
       <div class="c3"><div class="legend">Zu behandelnde Norm</div>${seg('norm',[['NIN','NIN','Schweiz, SN 411000 (Standard)'],['VDE','VDE','folgt (DIN VDE 0100)',1]])}</div>
       <div class="c3"><div class="legend">Art der Verteilung</div>${seg('art',[['UV','UV','Unterverteilung'],['HV','HV','Hauptverteilung']])}</div>
@@ -3358,6 +3369,7 @@ document.addEventListener('input',e=>{
     if(t.dataset.b==='kom'){adoptKom();$('#pagehead').innerHTML=`<h1>${esc(headTitle())}</h1>`}
     if(t.dataset.b==='plz')onPlz();
     if(t.dataset.b==='ort')onOrtTyping();
+    if(t.dataset.b==='bereich')sgBereich();
     persistSoon();
   }
   if(t.dataset.pl==='nb'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.nb=t.value;pl.nbAuto=false;refreshPreview();persistSoon()}
@@ -3543,8 +3555,14 @@ document.addEventListener('submit',async e=>{
   }
 });
 
+/* Vorschlags-Knöpfe: Fokus im Feld lassen, nur zeigen solange man im Feld ist */
+document.addEventListener('pointerdown',e=>{if(e.target.closest&&e.target.closest('[data-sg]'))e.preventDefault()});
+document.addEventListener('focusin',e=>{const t=e.target;if(!t||!t.dataset||!S.site||!canEdit(S.site))return;
+  if(t.dataset.b==='bereich')sgBereich();else if(t.dataset.b==='plz')onPlz();else if(t.dataset.b==='ort')onOrtTyping()});
+document.addEventListener('focusout',e=>{const t=e.target;if(!t||!t.dataset||!['bereich','plz','ort'].includes(t.dataset.b))return;const f=t.dataset.b;setTimeout(()=>{const b=$('#sg-'+f),i=$('#b-'+f);if(b&&document.activeElement!==i)b.innerHTML=''},250)});
 document.addEventListener('click',e=>{
   const t=e.target.closest('button,g[data-act]');if(!t)return;
+  if(t.dataset.sg&&S.site&&canEdit(S.site)){const f=t.dataset.sg,v=t.dataset.v;setField(f,v);if(f==='plz')onPlz();if(f==='ort')onOrtDone();const b=$('#sg-'+f);if(b)b.innerHTML='';persistSoon();return}
   if(t.dataset.ezint!=null&&S.site&&canEdit(S.site)){const pl=planOf(S.site),h=shOf(pl);h.ezInt=t.dataset.ezint==='1';if(h.ntMode!=='man')h.out={};loxSyncTe(pl);touchPlan('Energiezähler 24 V '+(h.ezInt?'verteilerintern':'eigener Abgang'));persistSite();render();return}
   if(t.dataset.ezmode&&S.site&&canEdit(S.site)){const pl=planOf(S.site),h=shOf(pl),[key,m]=t.dataset.ezmode.split('|');h.ezTrM=h.ezTrM||{};if(m==='own')h.ezTrM[key]='';else if(!ezTrOf(pl,key))h.ezTrM[key]='?';if(h.ntMode!=='man')h.out={};touchPlan('Tree Energiezähler');persistSite();render();return}
   if(t.dataset.trreset&&S.site&&canEdit(S.site)){const v=t.dataset.trreset;if(v==='ask'){S.trRsAsk=!S.trRsAsk;render();return}S.trRsAsk=false;if(v==='ja'){const h=shOf(planOf(S.site));(h.fl||[]).forEach(f=>{f.nt=1;f.rt={};f.tf={}});delete h.devTr;S.rtAsk=null;touchPlan('Trees zurückgesetzt');persistSite()}render();return}
