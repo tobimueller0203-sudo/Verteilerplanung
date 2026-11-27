@@ -281,7 +281,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-27.1048';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-27.1115';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -2671,10 +2671,8 @@ function vPlan(){
         <select id="p-qs" data-pl="qs"${dis}><option value="">wählen …</option>${opt(QS.map(q=>[q,qsTxt(q)+' mm²'+(qsNum(q)>QS_MAX?' (folgt)':'')]),pl.qs)}</select></label>
       <label class="f c3">Adern
         ${hv?`<select id="p-adern" disabled>${opt([['5','5-adrig · L1 L2 L3 N PE']],'5')}</select><span class="sub" style="font-size:13px">HV immer 5-adrig</span>`:`<select id="p-adern" data-pl="adern"${dis}>${opt([['5','5-adrig · L1 L2 L3 N PE'],['3','3-adrig · L N PE']],pl.adern||'5')}</select>`}</label>
-      ${busOn(p)?`<label class="f c3">Zuleitungsblock -X0 <span class="hint">Seite der Etagenschienen</span>
-        <select data-pl="x0Side"${dis}>${opt([['l','links'],['r','rechts']],x0Side(pl))}</select></label>
-      <label class="f c3">Zuleitungsblock -X0 Höhe <span class="hint">Etagenschienen starten dort</span>
-        <select data-klpos="-X0"${dis}>${opt([['o','oben'],['u','unten']],klPos(pl,'-X0')==='unten'?'u':'o')}</select></label>`:''}
+      ${busOn(p)?(()=>{/* Tobi 27.11.: -X0-Lage gross und übersichtlich als eigener Abschnitt */const sd=x0Side(pl),hu=klPos(pl,'-X0')==='unten'?'u':'o',pic=(a,b)=>`<svg viewBox="0 0 60 70" width="54" height="63" aria-hidden="true"><rect x="3" y="3" width="54" height="64" rx="3" fill="#fff" stroke="#111" stroke-width="2"/>${[20,35,50].map(y=>`<line x1="10" y1="${y}" x2="50" y2="${y}" stroke="#999" stroke-width="2"/>`).join('')}<rect x="${a==='l'?7:37}" y="${b==='o'?7:53}" width="16" height="10" rx="2" fill="#ffed00" stroke="#111" stroke-width="1.5"/></svg>`;
+        return `<div class="c6" style="margin-top:14px;padding:14px;border:2px solid var(--line);border-radius:12px"><div class="legend" style="font-size:18px;font-weight:800;margin:0 0 2px">Wo sitzt der Zuleitungsblock <span style="white-space:nowrap">-X0</span> im Verteiler?</div><p class="sub" style="margin:0 0 10px">Hier kommt die Zuleitung an. Die Etagenschienen starten auf dieser Seite.</p><div class="tiles" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${[['l','o','Oben links'],['r','o','Oben rechts'],['l','u','Unten links'],['r','u','Unten rechts']].map(([a,b,t])=>{const on=sd===a&&hu===b;return `<button type="button" class="tile" data-x0pos="${a}|${b}" aria-pressed="${on}"${dis} style="display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:12px 6px">${pic(a,b)}<b style="font-size:18px">${t}</b></button>`}).join('')}</div></div>`})():''}
       ${pl.qs&&qsNum(pl.qs)>16&&!klZulTyp(p)?`<div class="c6 msg err"><b>Klemmen für ${qsTxt(pl.qs)} mm² noch nicht eingefügt.</b> Für -X0 sind bisher nur Klemmen bis 16 mm² sowie für 70 und 95 mm² hinterlegt. Im Plan steht «Klemmentyp folgt», die Breite von -X0 bleibt offen.</div>`:''}`;
     {const uv=!hv;
 
@@ -2722,7 +2720,7 @@ function vPlan(){
       inner=`<div class="legend">Erdung: welcher Erder ist vorhanden?</div>
       <div class="seg wrap" role="group">${ERD_T.map(([v,t,su])=>`<button type="button" data-erdv="typ" data-v="${v}" aria-pressed="${e.typ===v}"${dis}><b>${t}</b><span>${su}</span></button>`).join('')}</div>
       ${e.typ==='wasser'?`<div class="msg warn" style="margin-top:8px">${esc(ERD_WASSER_TXT)}</div>`:''}
-      ${(()=>{const PN=ERD_PT[e.typ]||'Erdungspunkt',P=erdPts(e);let k=0;return `<div class="legend" style="margin-top:14px">Erdungspunkte${e.typ?' ('+esc(PN)+')':''}</div>
+      ${(()=>{const PN=ERD_PT[e.typ]||'Erdungspunkt',P=erdPts(e);let k=0;return `<div class="legend" style="margin-top:18px;font-size:20px;font-weight:800">Erdungspunkte${e.typ?' ('+esc(PN)+')':''}</div>
       <p class="sub" style="margin-top:0">${e.typ==='fund'?'Fundamenterder: Anschlussplatten im Beton («Fünfliber»), dort wird der Erdungsleiter mit einer Schraube angeschlossen.':e.typ==='tief'||e.typ==='ring'?'Der Erder wird ins Gebäude eingeführt, dort ist der Anschlusspunkt für den Erdungsleiter.':'Anschlusspunkte des Erders im Gebäude.'} Pro Standort die Anzahl angeben, jeder Punkt bekommt eine eigene Nummer.</p>
       <div class="erdl">${e.pts.map((g,j)=>{const n=Math.max(0,+g.n||0),a=k+1;k+=n;return `<div class="sk erdp"><div class="row between" style="gap:6px"><b>${n>1?'Erdungspunkte '+a+'–'+k:'Erdungspunkt '+a}</b>${ed&&j?`<button type="button" class="btn x" data-erdpdel="${g.id}" aria-label="Standort löschen" title="Standort löschen">✕</button>`:''}</div>
         <div class="grid"><label class="f c3">Stockwerk<select data-erdp="${g.id}" data-f="stock"${dis}><option value="">wählen …</option>${opt(FL.map(y=>[y,y]),g.stock||'')}</select></label>
@@ -2731,7 +2729,7 @@ function vPlan(){
         <label class="f c3">Anzahl ${esc(PN)}<select data-erdp="${g.id}" data-f="n"${dis}>${opt([1,2,3,4,5,6].map(v=>[String(v),String(v)]),String(g.n||'1'))}</select></label></div></div>`}).join('')}</div>
       ${P.length>ERD_PMAX?`<div class="msg err">Höchstens ${ERD_PMAX} Erdungspunkte.</div>`:''}
       ${ed&&P.length<ERD_PMAX?`<div><button type="button" class="btn" data-act="erdPAdd">+ Standort</button></div>`:''}`})()}
-      <div class="legend" style="margin-top:14px">PA-Schienen (Potentialausgleich)</div>
+      <div class="legend" style="margin-top:18px;font-size:20px;font-weight:800">Potentialausgleichsschienen</div>
       <p class="sub" style="margin-top:0">Schiene 1 ist die Haupt-PA-Schiene. Jede Schiene hängt an einem Erdungspunkt oder an einer anderen Schiene. Weitere Schienen mit «+ Schiene».</p>
       <div class="erdl">${e.sch.map((x,j)=>`<div class="sk erds"><div class="row between" style="gap:6px"><b>Schiene ${j+1}${j?'':' · Haupt-PA-Schiene'}</b>${ed&&j?`<button type="button" class="btn x" data-erddel="${x.id}" aria-label="Schiene ${j+1} löschen" title="Schiene löschen">✕</button>`:''}</div>
         <div class="grid"><label class="f c3">Stockwerk<select data-erds="${x.id}" data-f="stock"${dis}><option value="">wählen …</option>${opt(FL.map(y=>[y,y]),x.stock||'')}</select></label>
@@ -3757,6 +3755,12 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     const EP=PG0.find(q=>q.kind==='erd'),ER=EP&&erdLay(pl),EQ=ER&&ER.S.find(q=>q.x.id===+ER.e.hak);
     if(EQ){const ye=yH0+30;L(xp,ye,ix1-8,ye,'wpe');T(ix1-10,ye-3,EP.no+'.'+pgCol(EQ.xHak)+' PEN → PA-Schiene '+(EQ.j+1),'tr','end');T(ix1-10,ye+11,(pl.qs?'Cu '+qsTxt(String(erdQs(pl).pa))+' mm²':'Querschnitt offen')+' · Erdung','tk','end')}}
   /* Beschriftung links im Kasten */
+  /* Tobi 27.11.: Zähler extern: Zähler zwischen HAK/Säule und -W1, gestrichelte Linie ums externe Gehäuse */
+  if(!ev&&zExt(pl)){const lv=cond.filter(c=>c[0]!=='PE'),mx0=xs[0]-8,mx1=xs[lv.length-1]+8,ym0=yBot+48,ym1=yH0-8;
+    o.push(`<rect x="${mx0}" y="${ym0}" width="${mx1-mx0}" height="${ym1-ym0}" fill="#fff" stroke="#111" stroke-width="1.4"/>`);L(mx0,ym0+9,mx1,ym0+9,'fr2');L(mx0,ym1-9,mx1,ym1-9,'fr2');T((mx0+mx1)/2,(ym0+ym1)/2+3,'kWh','tk','middle');
+    T(xs[0]-12,ym0+24,'-P1','tb','end');T(xs[0]-12,ym0+34,'Zähler Netzbetreiber','tk','end');
+    const ex0=bx0-10,ex1=bx1+(sae?6:5),ey0=yBot+38,ey1=yH1+(sae?14:5);o.push(`<rect x="${ex0}" y="${ey0}" width="${ex1-ex0}" height="${ey1-ey0}" fill="none" stroke="#111" stroke-width="1" stroke-dasharray="6 3"/>`);
+    T(xs[0]-12,ey0+11,(sae?'Energiesäule':'HAK')+' + Zähler','tk2','end');T(xs[0]-12,ey0+21,'eigenes Gehäuse','tk','end')}
   T(xs[0]-10,yH0+16,nm,'tb','end');T(xs[0]-10,yH0+28,pl.hakTyp?hakTypTxt(pl.hakTyp):'Typ offen','tk','end');T(xs[0]-10,yH0+38,pl.hakA?pl.hakA+' A':'Strom offen','tk','end');T(xs[0]-10,yH0+48,pl.hakA?(five?'3× ':'1× ')+pl.hakA+' A':'','tk','end');
   /* Trichter zur Einspeisung */
   const yA=Math.min(iy1-44,yH1+34);if(sae){o.push(`<path d="M${mx} ${yH1+8} V${yA+10}" stroke="#111" stroke-width="2.2"/>`);o.push(`<circle cx="${mx}" cy="${yA+10}" r="2.5" fill="#111"/>`)}else{o.push(`<path d="M${bx0} ${yH1} L${mx} ${yA} L${bx1} ${yH1}" fill="none" stroke="#111" stroke-width="1.6"/>`);L(mx,yA,mx,yA+10,'w')}
@@ -4207,6 +4211,7 @@ document.addEventListener('click',e=>{
   if(act==='planPrev'){const pl=planOf(S.site),pv=stepPrev(S.site,pl.step);if(!pv)return go('baustelle');pl.step=pv;if(pv==='zuleitung')S.zlp=zlpL(pl).length-1;if(pv==='zaehler')S.zaI=99;if(pv==='stromkreise'&&S.site.art==='HV'){const A=zlAct(S.site);if(A.length)S.zlSel=A[A.length-1].id}if(canEdit(S.site))persistSite();render();toStepTop();return}
   if(t.dataset.step){const pl=planOf(S.site);pl.step=t.dataset.step;S.zlp=0;if(canEdit(S.site))persistSite();render();toStepTop();return}
   if(t.dataset.hz&&t.dataset.v!=null&&S.site&&canEdit(S.site)){const h=hzOf(planOf(S.site));h[t.dataset.hz]=t.dataset.v;touchPlan('Heizsystem angepasst');persistSite();render();return}
+  if(t.dataset.x0pos&&S.site&&canEdit(S.site)){const pl=planOf(S.site),[a,b]=t.dataset.x0pos.split('|');pl.klPos=pl.klPos||{};if(((pl.klPos['-X0']==='u')!==(b==='u'))&&pl.busSeen)pl.x0Moved=true;if(b==='u')pl.klPos['-X0']='u';else delete pl.klPos['-X0'];pl.x0Side=a;touchPlan('-X0 '+(b==='u'?'unten':'oben')+' '+(a==='r'?'rechts':'links'));render();return}
   if(t.dataset.plv&&S.site&&canEdit(S.site)){const pl=planOf(S.site),k=t.dataset.plv;pl[k]=t.dataset.v;if(k==='hakTyp'&&!(HAK_A[pl.hakTyp]||[]).map(String).includes(String(pl.hakA||'')))pl.hakA='';if(k==='montage'&&t.dataset.v==='UP')pl.gehaeuse='hersteller';if((k==='gehaeuse'&&t.dataset.v==='alu')||(k==='hvSelbst'&&t.dataset.v==='nein')){pl.docs=pl.docs||{};pl.docs.bau=true}touchPlan(k==='vtMM'?(t.dataset.v==='ja'?'Mit':'Ohne')+' Multimedia-Feld':k==='vtSer'?'Verteiler-Serie '+t.dataset.v:k==='etag'?'Etagenschienen '+t.dataset.v:k==='big4'?'4-polige '+(t.dataset.v==='u'?'unten':'oben'):k==='x0Side'?'-X0 '+(t.dataset.v==='r'?'rechts':'links'):k==='klAbg'?(t.dataset.v==='nein'?'Ohne Abgangsklemmen':'Mit Abgangsklemmen'):({hersteller:'Hersteller ',gehaeuse:'Gehäuse ',montage:'Montage ',hvBau:'Verteiler ',zlHerk:'Zuleitung von ',hakSeite:'HAK Hausseite ',hakRaum:'HAK Raum ',hvRaum:'Verteiler Raum ',hakTyp:'HAK-Sicherung ',hvMaxU:'Masse in '}[k]||'')+(k==='gehaeuse'?(t.dataset.v==='alu'?'Schaltschrankbauer':'Selbstbau'):k==='hvBau'?(t.dataset.v==='stand'?'Standverteiler':'Wandverteiler hängend'):k==='zlHerk'?(ZL_HERK[t.dataset.v]||[''])[0]:k==='hakTyp'?hakTypTxt(t.dataset.v):t.dataset.v));render();return}
   if(t.dataset.page){S.pageIdx=+t.dataset.page;render();return}
   if(t.dataset.pv){S.prevSel={step:planOf(S.site).step,idx:+t.dataset.pv};refreshPreview();return}
