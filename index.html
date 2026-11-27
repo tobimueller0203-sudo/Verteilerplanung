@@ -279,7 +279,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-27.0653';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-27.0658';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -1195,7 +1195,7 @@ const ZL_HERK={hak_in:['HAK im Haus','Hausanschlusskasten im Gebäude'],hak_ext:
 const SEITEN=[['N','Nord'],['O','Ost'],['S','Süd'],['W','West'],['U','Unbekannt']];
 /* Tobi 27.11.: HV ohne Zählerschrank (z. B. Etagenhauptverteiler) wird von einer anderen Verteilung eingespeist (NSHV, anderer Etagenverteiler ...), nicht vom HAK */
 const zlEv=pl=>pl.zs==='nein';
-const zlSrc=pl=>zlEv(pl)?(String(pl.evName||'').trim()||'Einspeise-Verteilung'):pl.zlHerk==='saeule'?'Energiesäule':'HAK';
+const zlSrc=pl=>zlEv(pl)?(String(pl.evName||'').trim()||'Einspeise-Verteilung')+(String(pl.evNr||'').trim()?' '+String(pl.evNr).trim():''):pl.zlHerk==='saeule'?'Energiesäule':'HAK';
 const zlSrcIn=pl=>zlEv(pl)?'in '+zlSrc(pl):pl.zlHerk==='saeule'?'in der Energiesäule':'im HAK';
 const zlSrcVon=pl=>zlEv(pl)?'von '+zlSrc(pl):pl.zlHerk==='saeule'?'von der Energiesäule':'vom HAK';
 const zlShort=(t,n)=>{t=String(t||'');return t.length>n?t.slice(0,n-1).trim()+'.':t};
@@ -1213,7 +1213,7 @@ const KAB_T=['GKN','TT','FE0','FE05C (halogenfrei)','XKT','anderer Typ'];
 const kabTypTxt=pl=>pl.kabTyp==='anderer Typ'?(pl.kabTypTxt||'').trim():(pl.kabTyp||'');
 const zlpOk=(pl,k)=>({herk:hakOk(pl),vt:!!pl.hvStock&&!!(pl.hvRaum||'').trim(),sich:!!pl.hakTyp&&!!pl.hakA,kab:!!pl.qs&&qsNum(pl.qs)<=QS_MAX&&!!kabTypTxt(pl),ok:!!pl.zlConf&&pl.zlConf===zlSig(pl)})[k];
 /* Tobi 26.11.: Einspeisung am Schluss bestätigen; ändert sich danach etwas, muss neu bestätigt werden */
-const zlSig=pl=>[pl.zs,pl.evName,pl.evStock,pl.evRaum,pl.zlHerk,pl.hakStock,pl.hakRaum,pl.hakSeite,pl.hvStock,pl.hvRaum,pl.hakTyp,pl.hakA,pl.qs,pl.adern,pl.kabTyp,pl.kabTypTxt].map(x=>x||'').join('|');
+const zlSig=pl=>[pl.zs,pl.evName,pl.evNr,pl.evStock,pl.evRaum,pl.zlHerk,pl.hakStock,pl.hakRaum,pl.hakSeite,pl.hvStock,pl.hvRaum,pl.hakTyp,pl.hakA,pl.qs,pl.adern,pl.kabTyp,pl.kabTypTxt].map(x=>x||'').join('|');
 const zlpMsg={herk:'Bitte zuerst angeben, woher die Zuleitung kommt, und wo diese Einspeisung steht.',vt:'Bitte Stockwerk und Raum des Verteilers angeben.',sich:'Bitte Sicherungsart und Bemessungsstrom wählen.',kab:'Bitte Querschnitt und Leitungstyp wählen.',ok:'Bitte die Einspeisung bestätigen.'};
 const zlpCur=pl=>{let z=S.zlp==null?0:S.zlp;z=Math.max(0,Math.min(ZLP.length-1,z));for(let j=0;j<z;j++)if(!zlpOk(pl,ZLP[j][0]))return j;return z};
 const flList=pl=>[...new Set([...((pl.sh||{}).fl||[]).map(f=>f.name).filter(Boolean),...STOCK])];
@@ -2586,6 +2586,7 @@ function vPlan(){
       if(pg==='herk'&&zlEv(pl)){inner=`<div class="legend">Von welcher Verteilung wird ${esc(String(pl.hvArt||'').trim()||'dieser Verteiler')} eingespeist?</div>${zlAnim(p,pl)}
       <div class="grid" style="margin-top:6px"><label class="f c6">Einspeisende Verteilung <span class="hint">Begriff frei, z. B. NSHV</span><input data-pl="evName" value="${esc(pl.evName||'')}" placeholder="z. B. NSHV" maxlength="30" autocomplete="off"${dis}></label>
       ${ed?`<div class="c6 sugg" style="margin-top:-4px">${['NSHV','Hauptverteilung','Etagenverteiler','Gebäudehauptverteiler'].map(r=>`<button type="button" data-plv="evName" data-v="${r}">${r}</button>`).join('')}</div>`:''}
+      <label class="f c6">Bezeichnung / Nummer <span class="hint">freiwillig · z. B. UV 2.1 oder EV-OG2 · steht im Schema</span><input data-pl="evNr" value="${esc(pl.evNr||'')}" placeholder="z. B. UV 2.1" maxlength="20" autocomplete="off"${dis}></label>
       <label class="f c3">Stockwerk der ${esc(zlSrc(pl))}<select data-pl="evStock"${dis}><option value="">wählen …</option>${opt(FL.map(x=>[x,x]),pl.evStock||'')}</select></label>
       <label class="f c3">Raum<input data-pl="evRaum" value="${esc(pl.evRaum||'')}" placeholder="z. B. Technikraum" maxlength="40" autocomplete="off"${dis}></label>${chips('evRaum',pl.evStock)}</div>
       <p class="sub" style="margin-top:6px">Danach legst du fest, wo der neue Verteiler steht.</p>`}
@@ -3532,7 +3533,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
   });
   T(ix1-12,yTop[cond.length-2]+24,toSk?'Sammelschiene · weiter auf Seite '+nx:'Sammelschiene · Stromkreise folgen','tm','end');
   // Klemmenbeschriftung unten
-  cond.forEach((c,i)=>{o.push(`<circle class="term" cx="${xs[i]}" cy="${yBot+3.4}" r="3.4"/>`);T(xs[i],yBot+15,c[0],'tk','middle')});
+  cond.forEach((c,i)=>{o.push(`<circle class="term" cx="${xs[i]}" cy="${yBot+3.4}" r="3.4"/>`)});
   // Kabelmarkierung und Text
   const cx=xs[Math.floor(cond.length/2)];
   for(let k=0;k<3;k++)L(cx-7,yBot+26+k*4,cx+7,yBot+20+k*4,'w');
@@ -3547,6 +3548,10 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
   const sae=pl.zlHerk==='saeule',tx=xs[xs.length-1]+(sae?48:42),ev=zlEv(pl),nm=ev?zlShort(zlSrc(pl),8):sae?'Energiesäule':'HAK',yH0=yBot+92,yH1=yH0+58,bx0=xs[0]-(sae?98:74),bx1=xs[xs.length-1]+(sae?36:30),mx=sae?xs[Math.floor((xs.length-1)/2)]:(bx0+bx1)/2;
   T(tx,yBot+24,'Zuleitung '+zlSrcVon(pl)+' zum Verteiler','tb');
   T(tx,yBot+37,(five?'5×':'3×')+qs+' Cu'+(kabTypTxt(pl)?' · '+kabTypTxt(pl):' · Leitungstyp offen'),'t');
+  if(ev){/* Tobi 27.11.: Einspeisung von anderer Verteilung = normale Klemmübergänge (Punkte), darunter Beschriftung. HAK-Symbol nur für HAK */
+    const yP=yH0+8;cond.forEach((c,i)=>{L(xs[i],yBot+7,xs[i],yP,c[1]);o.push(`<circle cx="${xs[i]}" cy="${yP}" r="2.6" fill="#111"/>`)});
+    const ex=xs[0]+(xs[xs.length-1]-xs[0])/2;T(ex,yP+18,zlSrc(pl),'tb','middle');T(ex,yP+31,hakPos(pl)||'Standort offen','t','middle');T(ex,yP+43,'Abgangssicherung: '+(pl.hakTyp?hakSichTxt(pl)+(pl.hakA?' ('+(five?'3×':'1×')+' '+pl.hakA+' A)':''):'offen'),'tk','middle');
+  }else{
   /* Leiter von -W1 hinunter in den HAK */
   cond.forEach((c,i)=>L(xs[i],yBot+7,xs[i],yH0+(c[0]==='PE'||c[0]==='N'?30:14),c[1]));
   /* Tobi 27.11.: Energiesäule eigenes Symbol (Säule mit gewölbtem Dach, Sockel, Erdreich, Blitz), HAK bleibt Kasten mit Trichter */
@@ -3569,10 +3574,13 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
   /* Trichter zur Einspeisung */
   const yA=Math.min(iy1-44,yH1+34);if(sae){o.push(`<path d="M${mx} ${yH1+8} V${yA+10}" stroke="#111" stroke-width="2.2"/>`);o.push(`<circle cx="${mx}" cy="${yA+10}" r="2.5" fill="#111"/>`)}else{o.push(`<path d="M${bx0} ${yH1} L${mx} ${yA} L${bx1} ${yH1}" fill="none" stroke="#111" stroke-width="1.6"/>`);L(mx,yA,mx,yA+10,'w')}
   if(ev){T(mx,yA+21,'Einspeisung '+zlSrcVon(pl),'tk2','middle');T(mx,yA+31,hakPos(pl)?'Standort: '+hakPos(pl):'Standort offen','tk','middle')}else{T(mx,yA+21,'Einspeisung '+(pl.nb?pl.nb.split(' ')[0]:'Netzbetreiber'),'tk2','middle');T(mx,yA+31,'Netzkabel des Netzbetreibers','tk','middle')}
+  }
   /* Bemerkung Standort und Form */
   const rem=ev?['Einspeisung '+zlSrcVon(pl)+' (ohne Zähler)','Standort '+zlSrc(pl)+': '+(hakPos(pl)||'offen'),hvPos(pl)?'Verteiler: '+hvPos(pl):''].filter(Boolean):[(sae?'Energiesäule im Aussenbereich':pl.zlHerk==='hak_ext'?'HAK aussen am Gebäude':pl.zlHerk==='hak_in'?'HAK im Gebäude (intern)':'Form offen'),pl.zlHerk==='hak_ext'?'Hausseite: '+(pl.hakSeite==='U'?'unbekannt':pl.hakSeite?(SEITEN.find(x=>x[0]===pl.hakSeite)||['',''])[1]:'offen'):pl.zlHerk==='hak_in'?'Standort: '+(hakPos(pl)||'offen'):'',hvPos(pl)?'Verteiler: '+hvPos(pl):''].filter(Boolean);
-  let yy=yBot+60;T(tx,yy,'Bemerkung','tk2b');yy+=11;rem.forEach(t=>{T(tx,yy,t,'t');yy+=11});
+  let yy=yBot+60;T(tx,yy,'Bemerkung','tk2b');yy+=11;rem.forEach(t=>{T(tx,yy,t,'t');yy+=12.5});
   }
+  /* Tobi 27.11.: Aderbeschriftung -W1 genau unter dem Punkt, Linie dahinter weiss unterbrochen (lesbar) */
+  cond.forEach((c,i)=>{const w=c[0].length*4+3;o.push(`<rect x="${xs[i]-w/2}" y="${yBot+8.5}" width="${w}" height="8.5" fill="#fff"/>`);T(xs[i],yBot+15,c[0],'tk','middle')});
   // Einspeiseblock -X0
   const bx=xs[0]-22,bw=xs[xs.length-1]-xs[0]+44;
   o.push(`<rect class="bxd" x="${bx}" y="${yBot-70}" width="${bw}" height="44"/>`);
