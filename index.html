@@ -279,7 +279,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-27.0732';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-27.0739';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -1213,12 +1213,18 @@ const zlpL=pl=>pl.isUV?ZLP_UV:erdOn(pl)?[...ZLP0.slice(0,-1),['erd','Erdung'],ZL
 const ERD_T=[['fund','Fundamenterder','im Betonfundament'],['ring','Ringerder','ums Gebäude im Erdreich'],['tief','Tiefenerder','Staberder senkrecht'],['wasser','Wasserleitung','metallene Wasserleitung']];
 const ERD_WASSER_TXT='Achtung: Die Wasserleitung ist nach NIN bei Neubauten als Erder nicht zulässig, nur in bestehenden Anlagen (Bestand). Bitte prüfen (zur Prüfung).';
 const ERD_MAX=6;
-const erdOf=pl=>{if(!pl.erd||typeof pl.erd!=='object')pl.erd={typ:'',sch:[],hak:'',hv:''};const e=pl.erd;if(!Array.isArray(e.sch))e.sch=[];if(!e.sch.length)e.sch.push({id:1,stock:'',raum:'',fahnen:'',con:''});return e};
+const erdOf=pl=>{if(!pl.erd||typeof pl.erd!=='object')pl.erd={typ:'',sch:[],pts:[],hak:'',hv:''};const e=pl.erd;if(!Array.isArray(e.sch))e.sch=[];if(!e.sch.length)e.sch.push({id:1,stock:'',raum:'',con:''});if(!Array.isArray(e.pts))e.pts=[];if(!e.pts.length)e.pts.push({id:1,stock:'',raum:'',n:'1'});e.sch.forEach(x=>{if(typeof x.con==='number')x.con='S'+x.con});return e};
+/* Tobi 27.11.: Erdungspunkte statt Anschlussfahnen. Fundamenterder: Anschlussplatten im Beton («Fünfliber», Schraube ca. M8), Tiefen-/Ringerder: Anschlusspunkt nach der Einführung ins Gebäude. Pro Standort Anzahl, fortlaufend nummeriert */
+const ERD_PT={fund:'Fünfliber',ring:'Anschlusspunkt Ringerder',tief:'Anschlusspunkt Tiefenerder',wasser:'Anschluss Wasserleitung'};
+const ERD_PMAX=12;
+const erdFix=e=>{const n=erdPts(e).length;e.sch.forEach(x=>{if(String(x.con||'')[0]==='P'&&+x.con.slice(1)>n)x.con=''})};
+const erdPts=e=>{const P=[];let k=0;(e.pts||[]).forEach(g=>{for(let i=0;i<Math.max(0,+g.n||0);i++){k++;P.push({no:k,g})}});return P};
+const erdConTxt=(e,c)=>{c=String(c||'');if(c[0]==='P')return 'Erdungspunkt '+c.slice(1);if(c[0]==='S')return erdNm(e,+c.slice(1));return ''};
 const erdNm=(e,id)=>{const j=e.sch.findIndex(x=>x.id===id);return j<0?'':'PA-Schiene '+(j+1)};
 const erdSch=(e,id)=>e.sch.find(x=>x.id===id);
 /* Querschnitte nach NIN 5.4 (zur Prüfung): PE der Zuleitung (≤16: gleich; ≤35: 16; sonst halb), Schutzpotentialausgleich = halber grösster PE, mind. 6, höchstens 25 mm² Cu; Erdungsleiter Cu mind. 16 mm² */
 const erdQs=pl=>{const q=qsNum(pl.qs)||0,pe=!q?0:q<=16?q:q<=35?16:q/2,pa=[6,10,16,25].find(v=>v>=pe/2)||25,er=Math.max(16,pa);return {pe,pa,er}};
-const erdOk=pl=>{const e=pl.erd;if(!e||!e.typ||!Array.isArray(e.sch)||!e.sch.length)return false;const ids=e.sch.map(x=>x.id);return e.sch.every((x,j)=>!!x.stock&&!!String(x.raum||'').trim()&&(!j||ids.indexOf(+x.con)>-1&&ids.indexOf(+x.con)<j))&&ids.includes(+e.hak)&&ids.includes(+e.hv)};
+const erdOk=pl=>{const e=pl.erd;if(!e||!e.typ||!Array.isArray(e.sch)||!e.sch.length||!Array.isArray(e.pts)||!e.pts.length)return false;const ids=e.sch.map(x=>x.id),nP=erdPts(e).length;if(!nP||nP>ERD_PMAX||!e.pts.every(g=>!!g.stock&&!!String(g.raum||'').trim()&&+g.n>=1))return false;const cOk=(c,j)=>{c=String(c||'');if(c[0]==='P'){const k=+c.slice(1);return k>=1&&k<=nP}if(c[0]==='S'&&j){const q=ids.indexOf(+c.slice(1));return q>-1&&q<j}return false};return e.sch.every((x,j)=>!!x.stock&&!!String(x.raum||'').trim()&&cOk(x.con,j))&&ids.includes(+e.hak)&&ids.includes(+e.hv)};
 const erdPage=pl=>erdOn(pl)&&!!(pl.erd&&pl.erd.typ);
 /* Tobi 26.11.: Sicherungsart im HAK / in der Säule, danach Bemessungsstrom (übliche Grössen, zur Prüfung) */
 /* Tobi 27.11.: alle NH-Grössen mit vollem Nennstrombereich gG (IEC 60269-2 / Herstellerkataloge, zur Prüfung). Schlüssel NH01..NH04 bleiben für gespeicherte Pläne, Anzeige NH1..NH4 */
@@ -1231,7 +1237,7 @@ const kabTypTxt=pl=>pl.kabTyp==='anderer Typ'?(pl.kabTypTxt||'').trim():(pl.kabT
 const zlpOk=(pl,k)=>pl.isUV?({herk:true,vt:true,sich:!pl.hakTyp||!!pl.hakA,kab:!!pl.qs&&qsNum(pl.qs)<=QS_MAX})[k]:({herk:hakOk(pl),vt:!!pl.hvStock&&!!(pl.hvRaum||'').trim(),sich:!!pl.hakTyp&&!!pl.hakA,kab:!!pl.qs&&qsNum(pl.qs)<=QS_MAX&&!!kabTypTxt(pl),erd:erdOk(pl),ok:!!pl.zlConf&&pl.zlConf===zlSig(pl)})[k];
 /* Tobi 26.11.: Einspeisung am Schluss bestätigen; ändert sich danach etwas, muss neu bestätigt werden */
 const zlSig=pl=>[pl.zs,pl.evName,pl.evNr,pl.evStock,pl.evRaum,pl.zlHerk,pl.hakStock,pl.hakRaum,pl.hakSeite,pl.hvStock,pl.hvRaum,pl.hakTyp,pl.hakA,pl.qs,pl.adern,pl.kabTyp,pl.kabTypTxt].map(x=>x||'').join('|')+(erdOn(pl)?'|'+JSON.stringify(pl.erd||{}):'');
-const zlpMsg={herk:'Bitte zuerst angeben, woher die Zuleitung kommt, und wo diese Einspeisung steht.',vt:'Bitte Stockwerk und Raum des Verteilers angeben.',sich:'Bitte Sicherungsart und Bemessungsstrom wählen.',kab:'Bitte Querschnitt und Leitungstyp wählen.',erd:'Bitte den Erder wählen, bei jeder PA-Schiene Stockwerk und Raum (ab Schiene 2 auch «verbunden mit») angeben und festlegen, an welcher Schiene HAK und Hauptverteilung hängen.',ok:'Bitte die Einspeisung bestätigen.'};
+const zlpMsg={herk:'Bitte zuerst angeben, woher die Zuleitung kommt, und wo diese Einspeisung steht.',vt:'Bitte Stockwerk und Raum des Verteilers angeben.',sich:'Bitte Sicherungsart und Bemessungsstrom wählen.',kab:'Bitte Querschnitt und Leitungstyp wählen.',erd:'Bitte den Erder wählen, die Erdungspunkte (Stockwerk, Raum, Anzahl) und bei jeder PA-Schiene Stockwerk, Raum und «hängt an» angeben und festlegen, an welcher Schiene HAK und Hauptverteilung hängen.',ok:'Bitte die Einspeisung bestätigen.'};
 const zlpCur=pl=>{let z=S.zlp==null?0:S.zlp;z=Math.max(0,Math.min(zlpL(pl).length-1,z));for(let j=0;j<z;j++)if(!zlpOk(pl,zlpL(pl)[j][0]))return j;return z};
 const flList=pl=>[...new Set([...((pl.sh||{}).fl||[]).map(f=>f.name).filter(Boolean),...STOCK])];
 const rmSugg=(pl,fl)=>[...new Set([...(((pl.sh||{}).fl||[]).find(f=>f.name===fl)||{rooms:[]}).rooms.map(r=>r.name),'Technikraum','Elektroraum','Keller','Waschküche','Garage','Hauswirtschaftsraum'])].slice(0,10);
@@ -2642,19 +2648,27 @@ function vPlan(){
       inner=`<div class="legend">Erdung: welcher Erder ist vorhanden?</div>
       <div class="seg wrap" role="group">${ERD_T.map(([v,t,su])=>`<button type="button" data-erdv="typ" data-v="${v}" aria-pressed="${e.typ===v}"${dis}><b>${t}</b><span>${su}</span></button>`).join('')}</div>
       ${e.typ==='wasser'?`<div class="msg warn" style="margin-top:8px">${esc(ERD_WASSER_TXT)}</div>`:''}
+      ${(()=>{const PN=ERD_PT[e.typ]||'Erdungspunkt',P=erdPts(e);let k=0;return `<div class="legend" style="margin-top:14px">Erdungspunkte${e.typ?' ('+esc(PN)+')':''}</div>
+      <p class="sub" style="margin-top:0">${e.typ==='fund'?'Fundamenterder: Anschlussplatten im Beton («Fünfliber»), dort wird der Erdungsleiter mit einer Schraube angeschlossen.':e.typ==='tief'||e.typ==='ring'?'Der Erder wird ins Gebäude eingeführt, dort ist der Anschlusspunkt für den Erdungsleiter.':'Anschlusspunkte des Erders im Gebäude.'} Pro Standort die Anzahl angeben, jeder Punkt bekommt eine eigene Nummer.</p>
+      <div class="erdl">${e.pts.map((g,j)=>{const n=Math.max(0,+g.n||0),a=k+1;k+=n;return `<div class="sk erdp"><div class="row between" style="gap:6px"><b>${n>1?'Erdungspunkte '+a+'–'+k:'Erdungspunkt '+a}</b>${ed&&j?`<button type="button" class="btn x" data-erdpdel="${g.id}" aria-label="Standort löschen" title="Standort löschen">✕</button>`:''}</div>
+        <div class="grid"><label class="f c3">Stockwerk<select data-erdp="${g.id}" data-f="stock"${dis}><option value="">wählen …</option>${opt(FL.map(y=>[y,y]),g.stock||'')}</select></label>
+        <label class="f c3">Raum<input data-erdp="${g.id}" data-f="raum" value="${esc(g.raum||'')}" placeholder="z. B. Technikraum" maxlength="40" autocomplete="off"${dis}></label>
+        ${ed?`<div class="c6 sugg" style="margin-top:-4px">${rmSugg(pl,g.stock).map(r=>`<button type="button" data-erdpv="${g.id}" data-f="raum" data-v="${esc(r)}">${esc(r)}</button>`).join('')}</div>`:''}
+        <label class="f c3">Anzahl ${esc(PN)}<select data-erdp="${g.id}" data-f="n"${dis}>${opt([1,2,3,4,5,6].map(v=>[String(v),String(v)]),String(g.n||'1'))}</select></label></div></div>`}).join('')}</div>
+      ${P.length>ERD_PMAX?`<div class="msg err">Höchstens ${ERD_PMAX} Erdungspunkte.</div>`:''}
+      ${ed&&P.length<ERD_PMAX?`<div><button type="button" class="btn" data-act="erdPAdd">+ Standort</button></div>`:''}`})()}
       <div class="legend" style="margin-top:14px">PA-Schienen (Potentialausgleich)</div>
-      <p class="sub" style="margin-top:0">Schiene 1 ist die Haupt-PA-Schiene, dort kommt der Erder an. Weitere Schienen mit «+ Schiene».</p>
+      <p class="sub" style="margin-top:0">Schiene 1 ist die Haupt-PA-Schiene. Jede Schiene hängt an einem Erdungspunkt oder an einer anderen Schiene. Weitere Schienen mit «+ Schiene».</p>
       <div class="erdl">${e.sch.map((x,j)=>`<div class="sk erds"><div class="row between" style="gap:6px"><b>Schiene ${j+1}${j?'':' · Haupt-PA-Schiene'}</b>${ed&&j?`<button type="button" class="btn x" data-erddel="${x.id}" aria-label="Schiene ${j+1} löschen" title="Schiene löschen">✕</button>`:''}</div>
         <div class="grid"><label class="f c3">Stockwerk<select data-erds="${x.id}" data-f="stock"${dis}><option value="">wählen …</option>${opt(FL.map(y=>[y,y]),x.stock||'')}</select></label>
         <label class="f c3">Raum<input data-erds="${x.id}" data-f="raum" value="${esc(x.raum||'')}" placeholder="z. B. Technikraum" maxlength="40" autocomplete="off"${dis}></label>
         ${ed?`<div class="c6 sugg" style="margin-top:-4px">${rmSugg(pl,x.stock).map(r=>`<button type="button" data-erdsv="${x.id}" data-f="raum" data-v="${esc(r)}">${esc(r)}</button>`).join('')}</div>`:''}
-        <label class="f c3">Anzahl Anschlussfahnen<input data-erds="${x.id}" data-f="fahnen" value="${esc(x.fahnen||'')}" inputmode="numeric" placeholder="z. B. 2" maxlength="2" autocomplete="off"${dis}></label>
-        ${j?`<label class="f c3">Verbunden mit<select data-erds="${x.id}" data-f="con"${dis}>${opS(x.con,x.id,j)}</select></label>`:''}</div></div>`).join('')}</div>
+        <label class="f c3">Hängt an<select data-erds="${x.id}" data-f="con"${dis}><option value="">wählen …</option>${erdPts(e).slice(0,ERD_PMAX).map(q=>`<option value="P${q.no}"${x.con==='P'+q.no?' selected':''}>Erdungspunkt ${q.no}${q.g.raum?' · '+esc(q.g.raum):''}</option>`).join('')}${e.sch.slice(0,j).map((y,q)=>`<option value="S${y.id}"${x.con==='S'+y.id?' selected':''}>PA-Schiene ${q+1}${y.raum?' · '+esc(y.raum):''}</option>`).join('')}</select></label></div></div>`).join('')}</div>
       ${ed&&e.sch.length<ERD_MAX?`<div><button type="button" class="btn" data-act="erdAdd">+ Schiene</button></div>`:''}
       <div class="legend" style="margin-top:14px">Anschlüsse</div>
       <div class="grid"><label class="f c3">${esc(pl.zlHerk==='saeule'?'Energiesäule':'HAK')} (PEN-Auftrennung) hängt an<select data-erdk="hak"${dis}>${opS(e.hak,0,99)}</select></label>
         <label class="f c3">Hauptverteilung (PE-Schiene) hängt an<select data-erdk="hv"${dis}>${opS(e.hv,0,99)}</select></label></div>
-      ${pl.qs?`<div class="msg info" style="margin-top:10px"><b>Querschnitte nach NIN (Vorschlag, zur Prüfung)</b><br>Erdungsleiter Erder → Haupt-PA-Schiene: Cu ${Q.er} mm²<br>Schutzpotentialausgleich (HAK, Hauptverteilung, Schiene zu Schiene): Cu ${Q.pa} mm² (halber PE der Zuleitung ${qsTxt(String(Q.pe))} mm², mind. 6, höchstens 25 mm²)</div>`:'<p class="sub">Querschnitt-Vorschlag folgt, sobald die Zuleitung (Punkt Leitung) gewählt ist.</p>'}
+      ${pl.qs?`<div class="msg info" style="margin-top:10px"><b>Querschnitte nach NIN (Vorschlag, zur Prüfung)</b><br>Erdungsleiter Erdungspunkt → PA-Schiene: Cu ${Q.er} mm²<br>Schutzpotentialausgleich (HAK, Hauptverteilung, Schiene zu Schiene): Cu ${Q.pa} mm² (halber PE der Zuleitung ${qsTxt(String(Q.pe))} mm², mind. 6, höchstens 25 mm²)</div>`:'<p class="sub">Querschnitt-Vorschlag folgt, sobald die Zuleitung (Punkt Leitung) gewählt ist.</p>'}
       <p class="sub">Im Plan kommt ein eigenes Blatt «Erdung». Vom ${esc(zlSrc(pl))} und von der PE-Schiene der Hauptverteilung führt je eine PE-Leitung mit Seitenverweis dorthin.</p>`}
       else{const conf=zlpOk(pl,'ok'),R=(l,v)=>`<tr><th>${l}</th><td>${esc(v||'offen')}</td></tr>`,nm=zlSrc(pl);
       inner=`${zlAnim(p,pl)}<div class="legend">Einspeisung bestätigen</div>
@@ -2897,7 +2911,8 @@ function bauPages(s){const {SEC}=bauData(s),hOf=x=>36+(x.rows?x.rows.length*18:0
   P.push(cur);return P}
 /* Tobi 27.11.: Blatt Erdung. Schienen nebeneinander, HAK/HV kommen von links oben, Verbindungen Schiene zu Schiene oben über eigene Bahnen */
 const erdLay=pl=>{const e=erdOf(pl),n=e.sch.length,X0=310,X1=1100,cw=(X1-X0)/Math.max(n,3),bw=Math.min(170,cw-36),yB=340;
-  return {e,n,cw,bw,yB,yHak:132,yHv:192,S:e.sch.map((x,j)=>{const cx=X0+cw*j+cw/2,x0=cx-bw/2,x1=cx+bw/2;return {x,j,cx,x0,x1,xHak:x0+10,xHv:x0+22,xCon:x1-26}})}};
+  const P0=erdPts(e).slice(0,ERD_PMAX),sp=Math.min(110,(1100-340)/Math.max(1,P0.length)),yP=yB+200;
+  return {e,n,cw,bw,yB,yHak:132,yHv:192,sp,yP,P:P0.map((q,k)=>({...q,x:340+sp*(k+0.5)})),S:e.sch.map((x,j)=>{const cx=X0+cw*j+cw/2,x0=cx-bw/2,x1=cx+bw/2;return {x,j,cx,x0,x1,xHak:x0+10,xHv:x0+22,xCon:x1-26}})}};
 function pagesOf(s){
   const pl=planOf(s),d=pl.docs||{},five=(pl.adern||'5')==='5',hv=s.art==='HV';
   const qs=pl.qs?qsTxt(pl.qs)+' mm²':'Querschnitt offen';
@@ -2906,7 +2921,7 @@ function pagesOf(s){
   if(d.toc)a.push({kind:'toc',title:'Inhaltsverzeichnis',sub:'Übersicht der Blätter'});
   if(d.bau!==false){const B=bauPages(s);B.forEach((cols,k)=>a.push({kind:'bau',k,cols,title:'Info Verteilerbauer',sub:B.length>1?'Teil '+(k+1)+' von '+B.length:'Klemmen, TE, Platz, Hinweise'}))}
   a.push({kind:'einspeisung',title:'Einspeisung',sub:hv?[pl.qs?'5×'+qsTxt(pl.qs)+' mm²':'',zlEv(pl)?(String(pl.evName||'').trim()?'von '+zlSrc(pl):''):pl.zlHerk==='saeule'?'Energiesäule':pl.zlHerk?'Hausanschlusskasten':''].filter(Boolean).join(', '):(five?'5×':'3×')+qs+(String(pl.evName||'').trim()?', von '+zlSrc(pl):'')+((pl.spd?', SPD':'')+(pl.hs?', -Q1':'')+(pl.spd||pl.hs?'':', ohne Zähler'))});
-  if(hv&&erdPage(pl)){const e=pl.erd;a.push({kind:'erd',title:'Erdung',sub:[(ERD_T.find(x=>x[0]===e.typ)||['',''])[1],e.sch.length+(e.sch.length===1?' PA-Schiene':' PA-Schienen')].join(', ')})}
+  if(hv&&erdPage(pl)){const e=pl.erd;a.push({kind:'erd',title:'Erdung',sub:[(ERD_T.find(x=>x[0]===e.typ)||['',''])[1],(()=>{const n=erdPts(erdOf(pl)).length;return n+(n===1?' Erdungspunkt':' Erdungspunkte')})(),e.sch.length+(e.sch.length===1?' PA-Schiene':' PA-Schienen')].join(', ')})}
   const L=skLayout(s),sk=L.list;
   if(hv&&pl.zs==='ja'){let cur=null;pl.zl.forEach((z,k)=>{if(!k)return;const n=z.res?0:Math.min(ZM_EXT_MAX,(L.ext[z.id]||[]).length),w=Math.max(5,Math.ceil(2+n*1.5));if(!cur||cur.used+w>10){cur={kind:'zm',title:'Messungen',bl:[],used:0};a.push(cur)}cur.bl.push({k,c0:cur.used,w});cur.used+=w});
     a.filter(q=>q.kind==='zm').forEach(q=>{const f=q.bl[0].k+1,l=q.bl[q.bl.length-1].k+1;q.sub=(f===l?'Zähler -P'+f+' '+(pl.zl[f-1].name||''):'Zähler -P'+f+' bis -P'+l).trim()});
@@ -3517,21 +3532,23 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     if(fl('siem'))hint('1-polige FI/LS von Siemens auf Hutschiene '+fl('siem')+'. Etagen- sowie Kammschienen von '+(pl.hersteller||'Hersteller')+' sind NICHT kompatibel.');
     if(fl('rel'))hint('Relais auf der Sicherungsschiene '+fl('rel')+'. '+(/hager/i.test(pl.hersteller||'')?'Bei Hager so keine Phasenschiene möglich.':'Phasenschiene beim Hersteller prüfen.'));
   }else if(pg.kind==='erd'){
-  /* Tobi 27.11.: Blatt Erdung: Erder an Haupt-PA-Schiene, weitere PA-Schienen, PEN vom HAK und PE der Hauptverteilung mit Seitenverweis, Querschnitte nach NIN (Vorschlag) */
+  /* Tobi 27.11.: Blatt Erdung: nummerierte Erdungspunkte, PA-Schienen, weitere PA-Schienen, PEN vom HAK und PE der Hauptverteilung mit Seitenverweis, Querschnitte nach NIN (Vorschlag) */
   const Y=erdLay(pl),e=Y.e,Q=erdQs(pl),ein=PG0.find(q=>q.kind==='einspeisung'),eNo=ein?ein.no:'?',dot=(x,y)=>o.push(`<circle cx="${x}" cy="${y}" r="2.2" fill="#111"/>`),cq=v=>pl.qs?'Cu '+qsTxt(String(v))+' mm²':'Querschnitt offen',src=pl.zlHerk==='saeule'?'Energiesäule':'HAK';
   T(ix0+12,80,'Erdung und Schutzpotentialausgleich','tb');T(ix0+12,93,'Querschnitte: Vorschlag nach NIN 5.4, zur Prüfung','tk');
   const inc=(id,y,dx,ref,t1,t2)=>{const S2=Y.S.find(q=>q.x.id===+id);if(!S2)return;const x=S2[dx];L(ix0+8,y,x,y,'wpe');L(x,y,x,Y.yB-4,'wpe');dot(x,Y.yB-4);T(ix0+10,y-3,ref,'tr');T(ix0+12,y+14,t1,'tb');T(ix0+12,y+26,t2,'tk')};
   inc(e.hak,Y.yHak,'xHak',eNo+'.9 PEN '+src,'PEN-Leiter '+zlSrcVon(pl),cq(Q.pa)+' · PEN-Auftrennung');
   inc(e.hv,Y.yHv,'xHv',eNo+'.9 PE Hauptverteilung','PE-Schiene Hauptverteilung',cq(Q.pa));
   Y.S.forEach(q=>{const {x,j,x0,x1,cx}=q;o.push(`<rect x="${x0}" y="${Y.yB-4}" width="${x1-x0}" height="9" fill="#e8d3a8" stroke="#111" stroke-width="1.4"/>`);
-    const nf=+x.fahnen||0;for(let k=0;k<Math.min(nf,8);k++){const fx=x0+(x1-x0)*(k+1)/(Math.min(nf,8)+1);if(Math.abs(fx-q.xHak)>4&&Math.abs(fx-q.xHv)>4&&Math.abs(fx-q.xCon)>4&&Math.abs(fx-cx)>4)o.push(`<line class="wpe" x1="${fx}" y1="${Y.yB+5}" x2="${fx}" y2="${Y.yB+10}"/>`)}
     let y=Y.yB+26;const mx=Math.max(8,Math.floor((x1-x0)/5.6)),ln=(t,c)=>wrapTxt(t,mx).forEach(w=>{T(x0,y,w,c);y+=11});
-    ln('PA-Schiene '+(j+1),'tb');if(!j)ln('Haupt-PA-Schiene','tk');ln(x.stock||'Stockwerk offen','tk');ln(String(x.raum||'').trim()||'Raum offen','tk');if(nf)ln(nf+(nf===1?' Anschlussfahne':' Anschlussfahnen'),'tk');
-    if(j){const k=Y.S.findIndex(r=>r.x.id===+x.con);if(k>=0&&k<j){const t=Y.S[k],ly=Y.yB-50-(j-1)*12;L(q.xCon,Y.yB-4,q.xCon,ly,'wpe');L(q.xCon,ly,t.cx,ly,'wpe');L(t.cx,ly,t.cx,Y.yB-4,'wpe');dot(q.xCon,Y.yB-4);dot(t.cx,Y.yB-4);o.push(`<text class="tk" transform="translate(${q.xCon+9} ${Y.yB-8}) rotate(-90)">${esc(cq(Q.pa))}</text>`)}}});
-  /* Erder an Schiene 1 */
-  {const q=Y.S[0],xe=q.x0-16,yE=Y.yB+150,gnd=(x,y)=>o.push(`<path d="M${x-9} ${y} h18 M${x-6} ${y+4} h12 M${x-3} ${y+8} h6" stroke="#111" stroke-width="1.2" fill="none"/>`);
-    L(q.x0,Y.yB,xe,Y.yB,'wpe');L(xe,Y.yB,xe,yE,'wpe');gnd(xe,yE);const et=(ERD_T.find(x=>x[0]===e.typ)||['',''])[1];
-    let y=yE+26;T(xe-10,y,et,'tb');y+=12;T(xe-10,y,'Erdungsleiter '+cq(Q.er),'tk');if(e.typ==='wasser'){y+=12;T(xe-10,y,'Wasserleitung als Erder nur im Bestand (NIN), Neubau nicht zulässig','tk')}}
+    ln('PA-Schiene '+(j+1),'tb');if(!j)ln('Haupt-PA-Schiene','tk');ln(x.stock||'Stockwerk offen','tk');ln(String(x.raum||'').trim()||'Raum offen','tk');
+    const c=String(x.con||'');if(c[0]==='S'){const k=Y.S.findIndex(r=>r.x.id===+c.slice(1));if(k>=0&&k<j){const t=Y.S[k],ly=Y.yB-50-(j-1)*12;L(q.xCon,Y.yB-4,q.xCon,ly,'wpe');L(q.xCon,ly,t.cx,ly,'wpe');L(t.cx,ly,t.cx,Y.yB-4,'wpe');dot(q.xCon,Y.yB-4);dot(t.cx,Y.yB-4);o.push(`<text class="tk" transform="translate(${q.xCon+9} ${Y.yB-8}) rotate(-90)">${esc(cq(Q.pa))}</text>`)}}
+    else if(c[0]==='P'){const pp=Y.P.find(r=>r.no===+c.slice(1));if(pp){const xe=x0-16,ly=Y.yB+100+j*9;L(x0,Y.yB,xe,Y.yB,'wpe');L(xe,Y.yB,xe,ly,'wpe');L(xe,ly,pp.x,ly,'wpe');L(pp.x,ly,pp.x,Y.yP-6,'wpe');o.push(`<text class="tk" transform="translate(${x0-5} ${ly-6}) rotate(-90)">${esc(cq(Q.er))}</text>`)}}});
+  /* Tobi 27.11.: Erdungspunkte nummeriert (Fünfliber bzw. Anschlusspunkt), pro Standort gruppiert */
+  {const gnd=(x,y)=>o.push(`<path d="M${x-8} ${y} h16 M${x-5} ${y+4} h10 M${x-2.5} ${y+8} h5" stroke="#111" stroke-width="1.1" fill="none"/>`),fl=e.typ==='fund';
+    Y.P.forEach(pp=>{L(pp.x,Y.yP+6,pp.x,Y.yP+12,'wpe');gnd(pp.x,Y.yP+12);if(fl)o.push(`<circle cx="${pp.x}" cy="${Y.yP}" r="6" fill="#c9ced3" stroke="#111" stroke-width="1.2"/>`);else o.push(`<rect x="${pp.x-5}" y="${Y.yP-6}" width="10" height="12" fill="#c9ced3" stroke="#111" stroke-width="1.2"/>`);T(pp.x,Y.yP+36,'EP '+pp.no,'tk2','middle')});
+    e.pts.forEach(g=>{const G=Y.P.filter(pp=>pp.g===g);if(!G.length)return;const xa=G[0].x-Y.sp/2+5,xb=G[G.length-1].x+Y.sp/2-5;L(xa,Y.yP+42,xb,Y.yP+42,'fr3');let y=Y.yP+54;wrapTxt([g.stock,String(g.raum||'').trim()].filter(Boolean).join(' · ')||'Standort offen',Math.max(6,Math.floor((xb-xa)/5.4))).forEach(w=>{T((xa+xb)/2,y,w,'tk','middle');y+=11})});
+    const et=(ERD_T.find(x=>x[0]===e.typ)||['',''])[1];let y=Y.yP-4;T(ix0+12,y,et,'tb');y+=13;
+    [...wrapTxt('Erdungspunkte EP: '+(ERD_PT[e.typ]||'Anschlusspunkt')+(fl?' (Anschlussplatte im Beton, Schraube ca. M8)':''),48),'Erdungsleiter PA-Schiene → EP: '+cq(Q.er),...(e.typ==='wasser'?wrapTxt('Wasserleitung als Erder nur im Bestand (NIN), Neubau nicht zulässig',42):[])].forEach(t=>{T(ix0+12,y,t,'tk');y+=11})}
   if(pl.qs){T(ix0+12,iy1-30,'Zuleitung '+qsTxt(pl.qs)+' mm² → PE '+qsTxt(String(Q.pe))+' mm² · Schutzpotentialausgleich halber PE, mind. 6, höchstens 25 mm² Cu · Erdungsleiter mind. 16 mm² Cu','tk');T(ix0+12,iy1-18,'Werte sind Vorschläge und vor der Ausführung zu prüfen (zur Prüfung).','tk')}
   }else if(pg.kind==='zm'||pg.kind==='za'){
   /* Messungen nach Tobis Vorlage: L1 L2 L3 N laufen oben durch, PE unten. Bezügersicherung und Zähler hängen an den Leitern oben */
@@ -3821,7 +3838,8 @@ document.addEventListener('input',e=>{
     persistSoon();
   }
   if(t.dataset.pl==='nb'&&S.site&&canEdit(S.site)&&t.isConnected){const pl=planOf(S.site);pl.nb=t.value;pl.nbAuto=false;refreshPreview();persistSoon()}
-  if(t.dataset.erds&&t.tagName==='INPUT'&&S.site&&canEdit(S.site)&&t.isConnected){const pl=planOf(S.site),x=erdSch(erdOf(pl),+t.dataset.erds);if(x){x[t.dataset.f]=t.dataset.f==='fahnen'?t.value.replace(/\D/g,''):t.value;pl.changed=now();refreshPreview();persistSoon()}}
+  if(t.dataset.erdp&&t.tagName==='INPUT'&&S.site&&canEdit(S.site)&&t.isConnected){const pl=planOf(S.site),g=erdOf(pl).pts.find(q=>q.id===+t.dataset.erdp);if(g){g[t.dataset.f]=t.value;pl.changed=now();refreshPreview();persistSoon()}}
+  if(t.dataset.erds&&t.tagName==='INPUT'&&S.site&&canEdit(S.site)&&t.isConnected){const pl=planOf(S.site),x=erdSch(erdOf(pl),+t.dataset.erds);if(x){x[t.dataset.f]=t.value;pl.changed=now();refreshPreview();persistSoon()}}
   if(t.dataset.sk&&S.site&&canEdit(S.site)){skSet(t);persistSoon();if(t.dataset.sk==='name'){const e=t.closest('.sk')&&t.closest('.sk').querySelector('.simh');if(e)e.innerHTML=skSimHint(S.site,t.value)}}
   if((t.dataset.zl==='name'||t.dataset.zl==='ziel')&&S.site&&canEdit(S.site)){const z=zlOfEl(t);if(z){z[t.dataset.zl]=t.value;planOf(S.site).changed=now();refreshPreview();persistSoon()}}
   if(t.dataset.lr&&t.tagName==='INPUT'&&S.site&&canEdit(S.site)){lrSet(planOf(S.site),t.dataset.lr,t.value);const c=lrCalc(S.site,planOf(S.site)),e2=$('#lrLive');if(e2)e2.innerHTML=(S.lrSt||0)===3?lrLenTxt(c):lrLastTxt(c);planOf(S.site).changed=now();persistSoon()}
@@ -3919,7 +3937,8 @@ document.addEventListener('change',e=>{
   if(t.dataset.wpfile&&t.files&&t.files[0]&&S.site&&canEdit(S.site)){const st=$('#wpStat'),site=S.site;if(st)st.innerHTML='<div class="msg info">PDF wird eingelesen …</div>';
     wpUpload(t.files[0]).then(m=>{hzOf(planOf(site)).wpPdf=m;touchPlan('Wärmepumpen-Schema eingefügt');persistSite();render()}).catch(err=>{const st2=$('#wpStat');if(st2)st2.innerHTML='<div class="msg err">Das PDF konnte nicht gelesen werden ('+esc(err.message||String(err))+').</div>'});return}
   if(t.dataset.lrit&&S.site&&canEdit(S.site)){const pl=planOf(S.site),r=lrOf(pl),k=t.dataset.lrit;r.it[k]=r.it[k]||{};r.it[k].on=t.checked;pl.changed=now();persistSite();render();return}
-  if(t.dataset.erds&&S.site&&canEdit(S.site)&&t.isConnected){const pl=planOf(S.site),e=erdOf(pl),x=erdSch(e,+t.dataset.erds);if(x){const f=t.dataset.f;x[f]=f==='con'?(+t.value||''):f==='fahnen'?t.value.replace(/\D/g,''):t.value.trim();touchPlan('Erdung geändert');render()}return}
+  if(t.dataset.erdp&&S.site&&canEdit(S.site)&&t.isConnected){const pl=planOf(S.site),e=erdOf(pl),g=e.pts.find(q=>q.id===+t.dataset.erdp);if(g){g[t.dataset.f]=t.value.trim();erdFix(e);touchPlan('Erdung geändert');render()}return}
+  if(t.dataset.erds&&S.site&&canEdit(S.site)&&t.isConnected){const pl=planOf(S.site),e=erdOf(pl),x=erdSch(e,+t.dataset.erds);if(x){const f=t.dataset.f;x[f]=t.value.trim();touchPlan('Erdung geändert');render()}return}
   if(t.dataset.erdk&&S.site&&canEdit(S.site)){const pl=planOf(S.site),e=erdOf(pl);e[t.dataset.erdk]=+t.value||'';touchPlan('Erdung geändert');render();return}
   if(t.dataset.lr&&t.tagName==='SELECT'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);lrSet(pl,t.dataset.lr,t.value);pl.changed=now();persistSite();render();return}
   if(t.dataset.izack&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.izAck=pl.izAck||{};pl.izAck[t.dataset.izack]=t.checked?t.dataset.izsig:'';touchPlan(t.checked?'Sicherung/Querschnitt quittiert':'Quittung Sicherung/Querschnitt aufgehoben');render();return}
@@ -4039,8 +4058,11 @@ document.addEventListener('click',e=>{
   if(t.dataset.lrp!=null&&S.site){S.lrSt=+t.dataset.lrp;render();const b=$('.lrbox');if(b)b.scrollIntoView({block:'start',behavior:'smooth'});return}
   if(t.dataset.erdv&&S.site&&canEdit(S.site)){const pl=planOf(S.site),e=erdOf(pl);e[t.dataset.erdv]=t.dataset.v;touchPlan('Erder: '+((ERD_T.find(x=>x[0]===e.typ)||['',''])[1]));render();return}
   if(t.dataset.erdsv&&S.site&&canEdit(S.site)){const pl=planOf(S.site),e=erdOf(pl),x=erdSch(e,+t.dataset.erdsv);if(x){x[t.dataset.f]=t.dataset.v;touchPlan('Erdung geändert');render()}return}
-  if(t.dataset.erddel&&S.site&&canEdit(S.site)){const pl=planOf(S.site),e=erdOf(pl),id=+t.dataset.erddel,nm=erdNm(e,id)||'PA-Schiene';e.sch=e.sch.filter(x=>x.id!==id);e.sch.forEach(x=>{if(+x.con===id)x.con=''});if(+e.hak===id)e.hak='';if(+e.hv===id)e.hv='';touchPlan(nm+' gelöscht');render();return}
-  if(act==='erdAdd'&&S.site&&canEdit(S.site)){const pl=planOf(S.site),e=erdOf(pl);if(e.sch.length>=ERD_MAX)return;e.sch.push({id:Math.max(0,...e.sch.map(x=>x.id))+1,stock:'',raum:'',fahnen:'',con:e.sch[0].id});touchPlan('PA-Schiene hinzugefügt');render();return}
+  if(t.dataset.erddel&&S.site&&canEdit(S.site)){const pl=planOf(S.site),e=erdOf(pl),id=+t.dataset.erddel,nm=erdNm(e,id)||'PA-Schiene';e.sch=e.sch.filter(x=>x.id!==id);e.sch.forEach(x=>{if(x.con==='S'+id)x.con=''});if(+e.hak===id)e.hak='';if(+e.hv===id)e.hv='';touchPlan(nm+' gelöscht');render();return}
+  if(t.dataset.erdpv&&S.site&&canEdit(S.site)){const pl=planOf(S.site),g=erdOf(pl).pts.find(q=>q.id===+t.dataset.erdpv);if(g){g[t.dataset.f]=t.dataset.v;touchPlan('Erdung geändert');render()}return}
+  if(t.dataset.erdpdel&&S.site&&canEdit(S.site)){const pl=planOf(S.site),e=erdOf(pl);e.pts=e.pts.filter(q=>q.id!==+t.dataset.erdpdel);erdFix(e);touchPlan('Erdungspunkt-Standort gelöscht');render();return}
+  if(act==='erdPAdd'&&S.site&&canEdit(S.site)){const pl=planOf(S.site),e=erdOf(pl);if(erdPts(e).length>=ERD_PMAX)return;e.pts.push({id:Math.max(0,...e.pts.map(q=>q.id))+1,stock:'',raum:'',n:'1'});touchPlan('Erdungspunkt-Standort hinzugefügt');render();return}
+  if(act==='erdAdd'&&S.site&&canEdit(S.site)){const pl=planOf(S.site),e=erdOf(pl);if(e.sch.length>=ERD_MAX)return;e.sch.push({id:Math.max(0,...e.sch.map(x=>x.id))+1,stock:'',raum:'',con:'S'+e.sch[0].id});touchPlan('PA-Schiene hinzugefügt');render();return}
   if(t.dataset.lrv&&S.site&&canEdit(S.site)){const pl=planOf(S.site),r=lrOf(pl),k=t.dataset.lrv,v=t.dataset.v;if(k==='va'&&((r.va==='D1')!==(v==='D1'))){delete r.temp;delete r.anz}r[k]=v;pl.changed=now();persistSite();render();return}
   if(act==='lrAdd'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);lrOf(pl).cus.push({name:'',n:1,kw:'',g:100});pl.changed=now();persistSite();render();return}
   if(t.dataset.lrdel!=null&&S.site&&canEdit(S.site)){const pl=planOf(S.site);lrOf(pl).cus.splice(+t.dataset.lrdel,1);pl.changed=now();persistSite();render();return}
