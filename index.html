@@ -109,6 +109,10 @@ input:disabled,select:disabled{opacity:1;background:var(--bg);color:var(--ink);-
 @keyframes zlflow{to{stroke-dashoffset:-14}}
 .zlmove{animation:zlmove .9s ease-in-out both}
 @keyframes zlmove{from{transform:translate(var(--dx),var(--dy))}to{transform:none}}
+.lrbox{border:1px solid var(--line);border-radius:6px;padding:12px;margin-top:10px;background:var(--bg)}
+.lrlist{display:flex;flex-direction:column;gap:6px}.lrrow{border:1px solid var(--line);border-radius:4px;padding:8px 10px;background:var(--surface)}.lrrow.on{border-color:#111}
+.lrin{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:6px;align-items:center}.lrin label{display:flex;align-items:center;gap:6px;font-size:13px}.lrin input{width:90px;min-width:0}.lrunit{font-size:13px;color:var(--muted)}
+.lrres{display:flex;flex-direction:column;gap:2px}.lrres b{font-size:20px}.lrtab{overflow-x:auto}.lrhi td{background:#fff7b0;font-weight:700}
 .zlsum{border-collapse:collapse;width:100%;font-size:14px;margin-top:6px}.zlsum th{text-align:left;font-weight:600;color:var(--muted,#666);padding:6px 10px 6px 0;vertical-align:top;width:40%}.zlsum td{padding:6px 0;border-bottom:1px solid var(--line,#eee)}
 .zlnav{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 12px}
 .zlnav button{font:inherit;font-size:13px;font-weight:600;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);cursor:pointer;display:flex;gap:6px;align-items:center}
@@ -275,7 +279,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-27.0550';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-27.0604';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -1226,6 +1230,110 @@ const izBad=(a,qs)=>!!(+a&&qs&&IZ_CU[qs]&&+a>IZ_CU[qs]);
 const izWarn=(pl,key,a,qs,was,dis)=>{if(!izBad(a,qs))return '';const sig=a+'|'+qs,ok=(pl.izAck||{})[key]===sig,mq=izMinQs(a);
   return `<div class="c6 msg ${ok?'info':'err'}" style="margin-top:8px"><b>${ok?'Quittiert: ':''}Passt das? ${esc(was)} ${a} A auf ${qsTxt(qs)} mm² Cu</b><br>Grobe Prüfung: ${qsTxt(qs)} mm² Kupfer trägt etwa ${String(IZ_CU[qs]).replace('.',',')} A (Richtwert NIN, PVC, Verlegeart C, ohne Häufung). Die Sicherung muss das Kabel schützen. Für ${a} A braucht es grob ${mq?'mindestens '+qsTxt(mq)+' mm²':'mehr als 240 mm² oder parallele Leiter'}. Länge, Verlegeart und Häufung sind hier nicht berücksichtigt.
   <label class="chk" style="margin-top:8px"><input type="checkbox" data-izack="${key}" data-izsig="${sig}" ${ok?'checked':''}${dis}> Ich habe es geprüft, die Angaben stimmen so.</label></div>`};
+/* Tobi 27.11.: freiwilliger Leitungsrechner in HV-Zuleitung, Unterpunkt «Leitung». 5 Schritte: Last, Material/Verlegeart, Häufung/Temperatur, Länge/Spannungsfall, Ergebnis.
+   Tabellenwerte nach NIN / IEC 60364-5-52 (Anhang B: B.52.4/B.52.5 Strombelastbarkeit, B.52.10/B.52.12 Verlegeart E, B.52.14/B.52.15 Temperatur, B.52.17/B.52.19 Häufung, Anhang G Spannungsfall). ZUR PRÜFUNG durch Tobi */
+const LR_PRUEF='Tabellenwerte nach NIN (IEC 60364-5-52), zur Prüfung';
+const LRP=[['last','Gesamtlast'],['mat','Material und Verlegeart'],['umg','Häufung und Temperatur'],['len','Länge und Spannungsfall'],['erg','Ergebnis']];
+/* Verbraucher-Checkliste: [Schlüssel, Name, kW je Stück, Gleichzeitigkeit %, Hinweis] · Vorschläge zur Prüfung */
+const LR_VB=[['wp','Wärmepumpe',6,100,'elektrische Leistung laut Datenblatt, nicht Heizleistung'],['wb','Wallbox / Ladestation',11,100,'11 kW = 16 A 3-polig, 22 kW = 32 A 3-polig'],['herd','Kochfeld / Herd',7.4,50,''],['ofen','Backofen',3.5,50,''],['steam','Steamer',2.7,30,''],['gs','Geschirrspüler',2.2,50,''],['wm','Waschmaschine',2.3,50,''],['tu','Tumbler',2.5,50,''],['boil','Elektroboiler',3,100,'oft gesperrt (Rundsteuerung), bitte prüfen'],['sauna','Sauna',9,100,''],['klima','Klimaanlage',3,100,''],['ls','Licht und Steckdosen (pauschal)',3,40,'pro Wohnung bzw. Einheit'],['lift','Lift',7.5,60,'Anlaufstrom beachten']];
+/* Verlegearten: [Code, Name, Beschrieb] */
+const LR_VA=[['A2','A2','Kabel im Rohr in wärmegedämmter Wand'],['B2','B2','Kabel im Rohr oder Kanal auf/in der Wand'],['C','C','Kabel direkt auf/in der Wand oder Decke'],['D1','D1','Kabel im Rohr im Erdreich'],['E','E','Kabel frei in Luft, auf gelochter Kabelpritsche']];
+/* Strombelastbarkeit Cu in A, Index wie QS (1,5 … 240 mm²). PVC 70 °C / XLPE 90 °C, 2 bzw. 3 belastete Leiter. Luft 30 °C, Erde 20 °C (2,5 K·m/W). null = nicht in der Tabelle */
+const LR_IZ={
+ PVC3:{A2:[13,17.5,23,29,39,52,68,83,99,125,150,172,196,223,261],B2:[15,20,27,34,46,62,80,99,118,149,179,206,null,null,null],C:[17.5,24,32,41,57,76,96,119,144,184,223,259,299,341,403],D1:[18,24,30,38,50,64,82,98,116,143,169,192,217,243,280],E:[18.5,25,34,43,60,80,101,126,153,196,238,276,319,364,430]},
+ PVC2:{A2:[14,18.5,25,32,43,57,75,92,110,139,167,192,219,248,291],B2:[16.5,23,30,38,52,69,90,111,133,168,201,232,null,null,null],C:[19.5,27,36,46,63,85,112,138,168,213,258,299,344,392,461],D1:[22,29,37,46,60,78,99,119,140,173,204,231,261,292,336],E:[22,30,40,51,70,94,119,148,180,232,282,328,379,434,514]},
+ XLPE3:{A2:[16.5,22,30,38,51,68,89,109,130,164,197,227,259,295,346],B2:[19.5,26,35,44,60,80,105,128,154,194,233,268,null,null,null],C:[22,30,40,52,71,96,119,147,179,229,278,322,371,424,500],D1:[21,28,36,44,58,75,96,115,135,167,197,223,251,281,324],E:[23,32,42,54,75,100,127,158,192,246,298,346,399,456,538]},
+ XLPE2:{A2:[18.5,25,33,42,57,76,99,121,145,183,220,253,290,329,386],B2:[22,30,40,51,69,91,119,146,175,221,265,305,null,null,null],C:[24,33,45,58,80,107,138,171,209,269,328,382,441,506,599],D1:[25,33,43,53,71,91,116,139,164,203,239,271,306,343,395],E:[26,36,49,63,86,115,149,185,225,289,352,410,473,542,641]}};
+/* Temperatur-Faktoren: Luft (Bezug 30 °C) B.52.14, Erde (Bezug 20 °C) B.52.15 */
+const LR_TL={PVC:{10:1.22,15:1.17,20:1.12,25:1.06,30:1,35:.94,40:.87,45:.79,50:.71,55:.61,60:.5},XLPE:{10:1.15,15:1.12,20:1.08,25:1.04,30:1,35:.96,40:.91,45:.87,50:.82,55:.76,60:.71}};
+const LR_TE={PVC:{10:1.1,15:1.05,20:1,25:.95,30:.89,35:.84,40:.77},XLPE:{10:1.07,15:1.04,20:1,25:.96,30:.93,35:.89,40:.85}};
+/* Häufung B.52.17 (Luft) je Anordnung, Index = Anzahl Kabel 1..9, ab 9 gleich; Erdreich B.52.19 (Rohre berührend) 1..6 */
+const LR_HF={b:[1,.8,.7,.65,.6,.57,.54,.52,.5],w:[1,.85,.79,.75,.73,.72,.72,.71,.7],p:[1,.88,.82,.77,.75,.73,.73,.72,.72]};
+const LR_HD=[1,.85,.75,.7,.65,.6];
+const LR_HA=[['b','gebündelt','auf/in Wand, im Rohr oder Kanal'],['w','einlagig auf Wand','nebeneinander, berührend'],['p','einlagig auf Pritsche','gelochte Kabelpritsche']];
+const LR_IN=[13,16,20,25,32,35,40,50,63,80,100,125,160];
+const lrOf=pl=>{pl.lr=pl.lr||{};const r=pl.lr;r.it=r.it||{};r.cus=r.cus||[];return r};
+const lrSet=(pl,path,v)=>{const r=lrOf(pl),P=path.split('.');let o=r;for(let i=0;i<P.length-1;i++){o[P[i]]=o[P[i]]||{};o=o[P[i]]}o[P[P.length-1]]=v};
+const lrNum=v=>{const n=parseFloat(String(v==null?'':v).replace(',','.'));return isFinite(n)?n:0};
+const lrF=(n,d=1)=>(Math.round(n*Math.pow(10,d))/Math.pow(10,d)).toFixed(d).replace('.',',');
+const lrIso=(pl,r)=>r.iso||(pl.kabTyp==='XKT'?'XLPE':'PVC');
+const lrRows=r=>[...LR_VB.filter(v=>(r.it[v[0]]||{}).on).map(v=>{const x=r.it[v[0]];return {name:v[1],n:x.n==null?1:lrNum(x.n),kw:x.kw==null?v[2]:lrNum(x.kw),g:x.g==null?v[3]:lrNum(x.g)}}),...r.cus.filter(c=>c.on!==false).map(c=>({name:c.name||'Weiterer Verbraucher',n:c.n==null?1:lrNum(c.n),kw:lrNum(c.kw),g:c.g==null?100:lrNum(c.g)}))];
+function lrCalc(p,pl){
+  const r=lrOf(pl),three=(pl.adern||'5')==='5',rows=lrRows(r),cos=lrNum(r.cos||'0.95')||.95;
+  const pInst=rows.reduce((a,x)=>a+x.n*x.kw,0),pGl=rows.reduce((a,x)=>a+x.n*x.kw*x.g/100,0);
+  const ib=pGl>0?pGl*1000/((three?Math.sqrt(3)*400:230)*cos):0;
+  const inA=+pl.hakA||0,inSug=LR_IN.find(a=>a>=ib-1e-9)||0,In=inA||inSug;
+  const iso=lrIso(pl,r),va=r.va||'C',ground=va==='D1',col=(LR_IZ[iso+(three?'3':'2')]||{})[va]||[];
+  const tmp=lrNum(r.temp||(ground?20:30))||(ground?20:30),fT=(ground?LR_TE:LR_TL)[iso][tmp]||1;
+  const n=Math.max(1,Math.round(lrNum(r.anz||1))),fH=ground?LR_HD[Math.min(n,6)-1]:LR_HF[r.anord||'b'][Math.min(n,9)-1];
+  const L=lrNum(r.len),du=lrNum(r.du||'1')||1,iDu=ib||In,sin=Math.sqrt(Math.max(0,1-cos*cos));
+  /* Spannungsfall nach IEC 60364-5-52 Anhang G: u = b·(ρ1·L/S·cos φ + λ·L·sin φ)·Ib, b=1 (3-phasig) bzw. 2 (1-phasig), ρ1 Cu 0,0225 Ω·mm²/m, λ 0,08 mΩ/m; ΔU % = 100·u/230 V */
+  const duOf=q=>L>0&&iDu>0?100*(three?1:2)*(0.0225*L/qsNum(q)*cos+0.00008*L*sin)*iDu/230:0;
+  const tab=QS.map((q,i)=>{const iz0=col[i];const iz=iz0==null?null:iz0*fT*fH;return {q,iz0,iz,du:duOf(q),okI:iz!=null&&In>0&&iz>=In,okU:!(L>0&&iDu>0)||duOf(q)<=du}});
+  const minI=In>0?(tab.find(x=>x.okI)||{}).q:null,minU=L>0&&iDu>0?(tab.find(x=>x.okU)||{}).q:null;
+  const rec=In>0?(tab.find(x=>x.okI&&x.okU)||{}).q||null:null;
+  return {r,three,rows,cos,pInst,pGl,ib,inA,inSug,In,iso,va,ground,tmp,fT,n,fH,L,du,iDu,tab,minI,minU,rec};
+}
+const lrOkStep=(c,k)=>({last:true,mat:!!c.va,umg:true,len:true,erg:!!c.rec})[k];
+function lrHTML(p,pl,dis,ed){
+  const open=S.lrOpen===p.id;
+  const btn=`<div style="margin-top:12px"><button type="button" class="btn${open?' primary':''}" data-act="lrOpen" aria-expanded="${open}">${open?'Leitungsrechner schliessen':'Leitung berechnen'}</button> <span class="sub" style="font-size:13px">freiwillig · hilft beim Querschnitt</span></div>`;
+  if(!open)return btn;
+  const c=lrCalc(p,pl),r=c.r,st=Math.max(0,Math.min(LRP.length-1,S.lrSt||0)),k=LRP[st][0];
+  const nav=`<div class="zlnav">${LRP.map(([kk,l],j)=>`<button type="button" data-lrp="${j}" class="${j===st?'on':''}${j<st?' done':''}"><b>${j+1}</b>${l}</button>`).join('')}</div>`;
+  const segB=(key,v,t,su,cur,off)=>`<button type="button" data-lrv="${key}" data-v="${esc(v)}" aria-pressed="${cur===v}"${off||dis}><b>${esc(t)}</b>${su?`<span>${esc(su)}</span>`:''}</button>`;
+  const num=(path,val,ph,w,unit)=>`<input type="number" inputmode="decimal" min="0" step="any" data-lr="${path}" value="${esc(val==null?'':String(val))}" placeholder="${esc(ph||'')}" style="${w?'max-width:'+w:''}"${dis}>${unit?`<span class="lrunit">${unit}</span>`:''}`;
+  let inner='';
+  if(k==='last'){
+    inner=`<div class="legend">Welche Verbraucher hängen an dieser Zuleitung?</div><p class="sub">Häkchen setzen, dann Anzahl, Leistung pro Stück und Gleichzeitigkeit prüfen. Gleichzeitigkeit = wie viel davon im Schnitt gleichzeitig läuft.</p>
+    <div class="lrlist">${LR_VB.map(([key,nm,kw,g,hint])=>{const x=r.it[key]||{},on=!!x.on;return `<div class="lrrow${on?' on':''}"><label class="chk"><input type="checkbox" data-lrit="${key}" ${on?'checked':''}${dis}> <b>${esc(nm)}</b></label>${on?`<div class="lrin"><label>Anzahl ${num('it.'+key+'.n',x.n==null?1:x.n,'1','70px')}</label><label>kW je Stück ${num('it.'+key+'.kw',x.kw==null?kw:x.kw,String(kw),'90px')}</label><label>Gleichzeitig ${num('it.'+key+'.g',x.g==null?g:x.g,String(g),'70px','%')}</label></div>${hint?`<div class="sub" style="font-size:12px">${esc(hint)}</div>`:''}`:''}</div>`}).join('')}
+    ${r.cus.map((cu,j)=>`<div class="lrrow on"><div class="row between" style="gap:6px"><input data-lr="cus.${j}.name" value="${esc(cu.name||'')}" placeholder="Name, z. B. Pool-Pumpe" maxlength="40" autocomplete="off" style="flex:1;min-width:0"${dis}>${ed?`<button type="button" class="btn x" data-lrdel="${j}" aria-label="Verbraucher löschen">✕</button>`:''}</div><div class="lrin"><label>Anzahl ${num('cus.'+j+'.n',cu.n==null?1:cu.n,'1','70px')}</label><label>kW je Stück ${num('cus.'+j+'.kw',cu.kw,'0','90px')}</label><label>Gleichzeitig ${num('cus.'+j+'.g',cu.g==null?100:cu.g,'100','70px','%')}</label></div></div>`).join('')}</div>
+    ${ed?`<div class="row" style="margin-top:8px"><button type="button" class="btn" data-act="lrAdd">+ Weiterer Verbraucher</button></div>`:''}
+    <div class="grid" style="margin-top:10px"><label class="f c3">Leistungsfaktor cos φ <span class="hint">Vorschlag 0,95</span><select data-lr="cos"${dis}>${opt([['1','1,0 (nur Heizung/Ohmsch)'],['0.95','0,95 (Standard)'],['0.9','0,9'],['0.85','0,85 (viele Motoren)']],r.cos||'0.95')}</select></label></div>
+    <div class="msg info" id="lrLive" style="margin-top:10px">${lrLastTxt(c)}</div>`;
+  }else if(k==='mat'){
+    const iso=c.iso;
+    inner=`<div class="legend">Leitermaterial</div><div class="seg" role="group" style="max-width:420px">${segB('mat','Cu','Kupfer','Cu','Cu')}<button type="button" disabled aria-disabled="true" style="opacity:.45"><b>Aluminium</b><span>folgt (erst ab 16 mm²)</span></button></div>
+    <div class="legend" style="margin-top:12px">Isolation</div><div class="seg" role="group" style="max-width:520px">${segB('iso','PVC','PVC · 70 °C','z. B. GKN, TT, FE0',iso)}${segB('iso','XLPE','Vernetzt · 90 °C','XLPE/EPR, z. B. XKT',iso)}</div>
+    <p class="sub" style="margin-top:6px">Vorschlag aus dem Leitungstyp ${esc(kabTypTxt(pl)||'(noch offen)')}. Bitte im Datenblatt der Leitung prüfen.</p>
+    <div class="legend" style="margin-top:12px">Verlegeart <span class="hint">nach NIN</span></div><div class="seg wrap" role="group">${LR_VA.map(([v,t,su])=>segB('va',v,t,su,c.va)).join('')}</div>`;
+  }else if(k==='umg'){
+    inner=`<div class="legend">Häufung</div><p class="sub">Wie viele Kabel liegen auf der Strecke nebeneinander (diese Zuleitung mitgezählt)?</p>
+    <div class="grid"><label class="f c3">Anzahl Kabel nebeneinander<select data-lr="anz"${dis}>${opt((c.ground?[1,2,3,4,5,6]:[1,2,3,4,5,6,7,8,9]).map(x=>[String(x),x+(x===9?' oder mehr':'')]),String(Math.min(c.n,c.ground?6:9)))}</select></label></div>
+    ${c.ground?`<p class="sub">Erdreich: Rohre nebeneinander, berührend.</p>`:`<div class="seg wrap" role="group" style="margin-top:8px">${LR_HA.map(([v,t,su])=>segB('anord',v,t,su,r.anord||'b')).join('')}</div>`}
+    <div class="legend" style="margin-top:12px">Temperatur ${c.ground?'im Erdreich':'der Umgebungsluft'}</div>
+    <div class="grid"><label class="f c3">Höchste Temperatur auf der Strecke<select data-lr="temp"${dis}>${opt(Object.keys(c.ground?LR_TE.PVC:LR_TL.PVC).map(x=>[x,x+' °C'+(+x===(c.ground?20:30)?' (Normalfall)':'')]),String(c.tmp))}</select></label></div>
+    <p class="sub">Achtung bei Dachböden, Heizungsräumen oder Sonne: dort wird es oft wärmer als ${c.ground?'20':'30'} °C.</p>
+    <div class="msg info" style="margin-top:8px">Faktor Temperatur ${lrF(c.fT,2)} · Faktor Häufung ${lrF(c.fH,2)} · zusammen ${lrF(c.fT*c.fH,2)}<br><span class="sub" style="font-size:12px">${LR_PRUEF}</span></div>`;
+  }else if(k==='len'){
+    inner=`<div class="legend">Länge und Spannungsfall</div>
+    <div class="grid"><label class="f c3">Länge der Leitung ${esc(zlSrcVon(pl))} zum Verteiler<span class="lrin" style="margin:0">${num('len',r.len,'z. B. 25','120px','m')}</span></label>
+    <label class="f c3">Erlaubter Spannungsfall auf diesem Stück<select data-lr="du"${dis}>${opt(['0.5','1','1.5','2','3'].map(x=>[x,qsTxt(x)+' %'+(x==='1'?' (Vorschlag)':'')]),r.du||'1')}</select></label></div>
+    <p class="sub">Vom Anschluss bis zum letzten Verbraucher darf der Spannungsfall gesamthaft nicht zu gross werden (NIN). Darum bleibt für die Zuleitung meist nur ein kleiner Teil. Der Vorschlag 1 % ist zur Prüfung.</p>
+    <div class="msg info" id="lrLive" style="margin-top:8px">${lrLenTxt(c)}</div>`;
+  }else{
+    const qMax=c.rec&&qsNum(c.rec)>QS_MAX,cur=pl.qs===c.rec;
+    inner=`<div class="legend">Ergebnis</div>
+    <table class="zlsum">
+    <tr><th>Gesamtlast gleichzeitig</th><td>${c.pGl>0?lrF(c.pGl)+' kW · Betriebsstrom '+lrF(c.ib)+' A':'keine Verbraucher erfasst, gerechnet mit dem Sicherungsstrom'}</td></tr>
+    <tr><th>Sicherung ${esc(zlSrcIn(pl))}</th><td>${c.inA?c.inA+' A (gewählt)':c.inSug?c.inSug+' A (Vorschlag aus der Last)':'offen'}</td></tr>
+    <tr><th>Leiter, Verlegeart</th><td>Kupfer, ${c.iso==='XLPE'?'vernetzt 90 °C':'PVC 70 °C'}, ${c.va}, ${c.three?'5-adrig (3 belastete Leiter)':'3-adrig (2 belastete Leiter)'}</td></tr>
+    <tr><th>Faktoren</th><td>Temperatur ${c.tmp} °C: ${lrF(c.fT,2)} · Häufung ${c.n} Kabel: ${lrF(c.fH,2)}</td></tr>
+    <tr><th>Nach Strom mindestens</th><td>${c.minI?qsTxt(c.minI)+' mm²':'nicht in der Tabelle (über 240 mm² oder parallele Leiter)'}</td></tr>
+    <tr><th>Nach Spannungsfall mindestens</th><td>${c.L>0?(c.minU?qsTxt(c.minU)+' mm² (max. '+qsTxt(String(c.du))+' % auf '+lrF(c.L,0)+' m)':'über 240 mm²'):'keine Länge angegeben'}</td></tr>
+    </table>
+    ${c.ib>0&&c.inA&&c.ib>c.inA?`<div class="msg err" style="margin-top:8px"><b>Sicherung zu klein für die Last:</b> Betriebsstrom ${lrF(c.ib)} A ist grösser als die Sicherung ${c.inA} A. Bitte Last oder Sicherung prüfen.</div>`:''}
+    ${c.ib>80?`<div class="msg err" style="margin-top:8px"><b>${esc(ZU_GROSS_TXT)}</b></div>`:''}
+    ${c.rec?`<div class="msg ${qMax?'warn':'ok'} lrres" style="margin-top:10px"><span>Empfehlung</span><b>${(c.three?'5×':'3×')+qsTxt(c.rec)} mm² Cu</b>${qMax?'<span>Über 16 mm² ist in der App noch nicht programmiert. Bitte mit Tobi klären.</span>':''}</div>`:`<div class="msg err" style="margin-top:10px">Kein passender Querschnitt gefunden. ${c.In?'':'Bitte zuerst Sicherung oder Last angeben.'}</div>`}
+    ${c.rec&&!qMax&&ed?`<div style="margin-top:10px"><button type="button" class="btn primary" data-act="lrTake"${cur?' disabled':''}>${cur?'Übernommen: '+qsTxt(c.rec)+' mm²':'Übernehmen: '+qsTxt(c.rec)+' mm²'}</button></div>`:''}
+    <details style="margin-top:12px"><summary>Tabelle ansehen</summary><div class="lrtab"><table class="zlsum"><tr><th style="width:auto">mm²</th><th style="width:auto">Tabelle</th><th style="width:auto">mit Faktoren</th><th style="width:auto">Spannungsfall</th></tr>${c.tab.filter(x=>x.iz0!=null).map(x=>`<tr${x.q===c.rec?' class="lrhi"':''}><td>${qsTxt(x.q)}</td><td>${lrF(x.iz0,1)} A</td><td>${lrF(x.iz,1)} A ${x.okI?'✓':'✗'}</td><td>${c.L>0?lrF(x.du,2)+' % '+(x.okU?'✓':'✗'):'–'}</td></tr>`).join('')}</table></div></details>
+    <p class="sub" style="margin-top:8px">Regel: Betriebsstrom ≤ Sicherung ≤ Belastbarkeit der Leitung (mit Faktoren). Spannungsfall nach IEC 60364-5-52 Anhang G (Kupfer 0,0225 Ω·mm²/m). <b>${LR_PRUEF}.</b> Die rote Prüfung Sicherung/Querschnitt bleibt trotzdem aktiv.</p>`;
+  }
+  const back=st>0?`<button type="button" class="btn" data-lrp="${st-1}">← Zurück</button>`:'',fwd=st<LRP.length-1?`<button type="button" class="btn primary" data-lrp="${st+1}">Weiter: ${LRP[st+1][1]}</button>`:'';
+  return btn+`<div class="lrbox"><div class="row between" style="gap:8px;flex-wrap:wrap"><b style="font-size:16px">Leitungsrechner</b><span class="tag" style="white-space:normal;max-width:100%">${LR_PRUEF}</span></div>${nav}${inner}<div class="row between" style="margin-top:14px;gap:8px">${back||'<span></span>'}${fwd}</div></div>`;
+}
+const lrLastTxt=c=>c.rows.length?`Installiert ${lrF(c.pInst)} kW · gleichzeitig <b>${lrF(c.pGl)} kW</b> · Betriebsstrom <b>${lrF(c.ib)} A</b> (${c.three?'400 V, 3-phasig, gleichmässig verteilt':'230 V, 1-phasig'}, cos φ ${qsTxt(String(c.cos))})${c.inA?`<br>Gewählte Sicherung: ${c.inA} A${c.ib>c.inA?' · <b style="color:#b00">zu klein für diese Last</b>':''}`:c.inSug?`<br>Passende Sicherung: ${c.inSug} A`:''}`:'Noch keine Verbraucher gewählt. Ohne Verbraucher rechnet der Rechner mit dem Strom der Sicherung (sicher, aber eher grosszügig).';
+const lrLenTxt=c=>c.L>0?`Gerechnet mit ${lrF(c.iDu)} A ${c.ib>0?'(Betriebsstrom)':'(Sicherung, keine Last erfasst)'}: mindestens <b>${c.minU?qsTxt(c.minU)+' mm²':'über 240 mm²'}</b> für höchstens ${qsTxt(String(c.du))} % Spannungsfall.`:'Länge eingeben, dann rechnet die App den Spannungsfall.';
 const hvPos=pl=>[pl.hvStock,(pl.hvRaum||'').trim()].filter(Boolean).join(' · ');
 function zlAnim(s,pl){return zlAnim2(s,pl)}
 function zlAnimOld(s,pl){const g=s.geb,hk=pl.zlHerk,K=hk||'none';
@@ -2486,7 +2594,7 @@ function vPlan(){
       ${T?`<div class="grid" style="margin-top:10px"><label class="f c3">Bemessungsstrom ${esc(hakTypTxt(T))}<select data-pl="hakA"${dis}><option value="">wählen …</option>${opt(AA.map(a=>[String(a),a+' A']),pl.hakA||'')}</select></label></div><p class="sub">Die Stromwerte sind ein Vorschlag mit den üblichen Grössen. Bitte prüfen.</p>`:''}${+pl.hakA>80?`<div class="msg err" style="margin-top:8px"><b>${esc(ZU_GROSS_TXT)}</b></div>`:wandlerNoetig(p,pl.hakA)?`<div class="msg warn" style="margin-top:8px">${esc(WANDLER_TXT)}</div>`:''}${izWarn(pl,'hak',pl.hakA,pl.qs,'Sicherung '+zlSrc(pl),dis)}`}
       else if(pg==='kab'){inner=`${zlAnim(p,pl)}<div class="legend">Leitung ${esc(zlSrcVon(pl))} in den Verteiler</div>
       <div class="grid">${qsF}<label class="f c3">Leitungstyp<select data-pl="kabTyp"${dis}><option value="">wählen …</option>${opt(KAB_T.map(x=>[x,x]),pl.kabTyp||'')}</select></label>
-      ${pl.kabTyp==='anderer Typ'?`<label class="f c3">Welcher Typ?<input data-pl="kabTypTxt" value="${esc(pl.kabTypTxt||'')}" maxlength="30" autocomplete="off"${dis}></label>`:''}${izWarn(pl,'hak',pl.hakA,pl.qs,'Sicherung '+zlSrc(pl),dis)}</div>`}
+      ${pl.kabTyp==='anderer Typ'?`<label class="f c3">Welcher Typ?<input data-pl="kabTypTxt" value="${esc(pl.kabTypTxt||'')}" maxlength="30" autocomplete="off"${dis}></label>`:''}${izWarn(pl,'hak',pl.hakA,pl.qs,'Sicherung '+zlSrc(pl),dis)}</div>${lrHTML(p,pl,dis,ed)}`}
       else{const conf=zlpOk(pl,'ok'),R=(l,v)=>`<tr><th>${l}</th><td>${esc(v||'offen')}</td></tr>`,nm=zlSrc(pl);
       inner=`${zlAnim(p,pl)}<div class="legend">Einspeisung bestätigen</div>
       <table class="zlsum">${R('Einspeisung',zlEv(pl)?zlSrc(pl)+(hakPos(pl)?' · '+hakPos(pl):''):pl.zlHerk?ZL_HERK[pl.zlHerk][0]+(hakPos(pl)?' · '+hakPos(pl):''):'')}${R('Verteiler steht',hvPos(pl))}${R('Sicherung '+nm,pl.hakTyp?hakSichTxt(pl):'')}${R('Leitung '+nm+' → Verteiler',pl.qs?((pl.adern||'5')==='5'?'5×':'3×')+qsTxt(pl.qs)+' mm² Cu'+(kabTypTxt(pl)?' · '+kabTypTxt(pl):''):'')}</table>
@@ -3612,6 +3720,7 @@ document.addEventListener('input',e=>{
   if(t.dataset.pl==='nb'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.nb=t.value;pl.nbAuto=false;refreshPreview();persistSoon()}
   if(t.dataset.sk&&S.site&&canEdit(S.site)){skSet(t);persistSoon();if(t.dataset.sk==='name'){const e=t.closest('.sk')&&t.closest('.sk').querySelector('.simh');if(e)e.innerHTML=skSimHint(S.site,t.value)}}
   if((t.dataset.zl==='name'||t.dataset.zl==='ziel')&&S.site&&canEdit(S.site)){const z=zlOfEl(t);if(z){z[t.dataset.zl]=t.value;planOf(S.site).changed=now();refreshPreview();persistSoon()}}
+  if(t.dataset.lr&&t.tagName==='INPUT'&&S.site&&canEdit(S.site)){lrSet(planOf(S.site),t.dataset.lr,t.value);const c=lrCalc(S.site,planOf(S.site)),e2=$('#lrLive');if(e2)e2.innerHTML=(S.lrSt||0)===3?lrLenTxt(c):lrLastTxt(c);planOf(S.site).changed=now();persistSoon()}
   if(t.id==='q'){S.q=t.value;$('#siteList').innerHTML=siteListHTML()}
   if(t.id==='fOrt'){S.fOrt=t.value;$('#siteList').innerHTML=siteListHTML()}
 });
@@ -3705,6 +3814,8 @@ document.addEventListener('change',e=>{
   if((t.dataset.ex==='spd'||t.dataset.ex==='hs')&&S.site&&canEdit(S.site)&&S.site.art!=='HV'){const pl=planOf(S.site);pl[t.dataset.ex]=t.checked;S.prevSel={step:pl.step,idx:pagesOf(S.site).findIndex(q=>q.kind==='einspeisung')};touchPlan((t.dataset.ex==='spd'?'Überspannungsschutz':'Hauptschalter')+(t.checked?' ergänzt':' entfernt'));render();return}
   if(t.dataset.wpfile&&t.files&&t.files[0]&&S.site&&canEdit(S.site)){const st=$('#wpStat'),site=S.site;if(st)st.innerHTML='<div class="msg info">PDF wird eingelesen …</div>';
     wpUpload(t.files[0]).then(m=>{hzOf(planOf(site)).wpPdf=m;touchPlan('Wärmepumpen-Schema eingefügt');persistSite();render()}).catch(err=>{const st2=$('#wpStat');if(st2)st2.innerHTML='<div class="msg err">Das PDF konnte nicht gelesen werden ('+esc(err.message||String(err))+').</div>'});return}
+  if(t.dataset.lrit&&S.site&&canEdit(S.site)){const pl=planOf(S.site),r=lrOf(pl),k=t.dataset.lrit;r.it[k]=r.it[k]||{};r.it[k].on=t.checked;pl.changed=now();persistSite();render();return}
+  if(t.dataset.lr&&t.tagName==='SELECT'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);lrSet(pl,t.dataset.lr,t.value);pl.changed=now();persistSite();render();return}
   if(t.dataset.izack&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.izAck=pl.izAck||{};pl.izAck[t.dataset.izack]=t.checked?t.dataset.izsig:'';touchPlan(t.checked?'Sicherung/Querschnitt quittiert':'Quittung Sicherung/Querschnitt aufgehoben');render();return}
   if(t.dataset.hzack&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.hzAck=t.checked?hzSig(S.site):'';touchPlan(t.checked?'Offene Heizsystem-Angaben quittiert':'Quittung Heizsystem aufgehoben');render();return}
   if(t.dataset.ex==='siem'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.siem=t.checked;pl.siemOk=null;touchPlan(t.checked?'Extras: Siemens FI/LS gewählt':'Extras: Siemens FI/LS entfernt');render();return}
@@ -3817,6 +3928,12 @@ document.addEventListener('click',e=>{
   if(t.dataset.ntauto&&S.site&&canEdit(S.site)){const pl=planOf(S.site),h=shOf(pl);delete h.ntAllow1;h.out={};h.ntMode='auto';const A=loxAsg(pl);if(A){const au=A.O.auto||{},nE0=au.ext||0,nE=A.O.filter(x=>x.list.some(v=>['te','dali','knx','rel','diex','mbex','fk'].includes(v.t))).length,nF=A.O.filter(x=>x.list.some(v=>!['ms','as','te','dali','knx','rel','diex','mbex','fk'].includes(v.t))).length;S.ntAutoMsg='Automatik fertig: Abgang 1 Miniserver'+(loxAs(pl)?' + Audioserver':'')+', alles andere nach Strom ausgeglichen verteilt (ca. '+String((au.need||0).toFixed(1)).replace('.',',')+' A von '+String((au.tot||0).toFixed(0))+' A möglich)'+(au.spill?'. '+au.spill+(au.spill===1?' Bauteil mit eigenem Tree teilt':' Bauteile mit eigenem Tree teilen')+' sich einen Abgang (zu wenig Abgänge)':'')+(au.mv?'. Strom gerechnet: '+au.mv+(au.mv===1?' Gruppe':' Gruppen')+' auf andere Abgänge verschoben, damit kein Abgang überlastet ist':'')+(au.over?'. Achtung: '+au.over+(au.over===1?' Abgang':' Abgänge')+' trotzdem über dem Maximalstrom, bitte ein weiteres Netzteil hinzufügen':'')+(A.open.length?'. '+A.open.length+' noch ohne Abgang':'')+'. '+ntSum(pl);S.ntSel=null}S.ntAnim=Date.now();touchPlan('Netzteil-Abgänge automatisch');persistSite();render();setTimeout(()=>{const e=document.querySelector('.ntanim');if(e)e.scrollIntoView({block:'center',behavior:'smooth'})},30);setTimeout(()=>{if(S.ntAnim&&Date.now()-S.ntAnim>=2500){S.ntAnim=0}},2600);return}
   if(t.dataset.rtask&&S.site&&canEdit(S.site)){const A=S.rtAsk;S.rtAsk=null;if(A&&t.dataset.rtask==='ja'){const h=shOf(planOf(S.site)),F=h.fl||[];A.O.forEach(o=>{const g=F.find(x=>x.id===o.fid);if(!g)return;g.rt=g.rt||{};g.rt[o.rid]=g.id===A.to.fid?A.to.n:A.to.fid+':'+A.to.n});touchPlan('Trees angepasst');persistSite()}render();return}if(t.dataset.zssub!=null&&S.site){S.zsSub=t.dataset.zssub;S.zsSite=S.site.id;render();setTimeout(()=>{const e=document.querySelector('.shpt');if(e)e.scrollIntoView({block:'start'})},30);return}
   const act=t.dataset.act;
+  if(act==='lrOpen'&&S.site){S.lrOpen=S.lrOpen===S.site.id?null:S.site.id;S.lrSt=S.lrSt||0;render();return}
+  if(t.dataset.lrp!=null&&S.site){S.lrSt=+t.dataset.lrp;render();const b=$('.lrbox');if(b)b.scrollIntoView({block:'start',behavior:'smooth'});return}
+  if(t.dataset.lrv&&S.site&&canEdit(S.site)){const pl=planOf(S.site),r=lrOf(pl),k=t.dataset.lrv,v=t.dataset.v;if(k==='va'&&((r.va==='D1')!==(v==='D1'))){delete r.temp;delete r.anz}r[k]=v;pl.changed=now();persistSite();render();return}
+  if(act==='lrAdd'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);lrOf(pl).cus.push({name:'',n:1,kw:'',g:100});pl.changed=now();persistSite();render();return}
+  if(t.dataset.lrdel!=null&&S.site&&canEdit(S.site)){const pl=planOf(S.site);lrOf(pl).cus.splice(+t.dataset.lrdel,1);pl.changed=now();persistSite();render();return}
+  if(act==='lrTake'&&S.site&&canEdit(S.site)){const pl=planOf(S.site),c=lrCalc(S.site,pl);if(!c.rec||qsNum(c.rec)>QS_MAX)return;pl.qs=c.rec;touchPlan('Zuleitung '+((pl.adern||'5')==='5'?'5×':'3×')+qsTxt(pl.qs)+' mm² (Leitungsrechner)');render();return}
   if(act==='ntsel'){S.ntSel=t.dataset.out;render();setTimeout(()=>{const e2=document.getElementById('ntsec-'+String(t.dataset.out).replace(/[^a-z0-9]/gi,'_'));if(e2)e2.scrollIntoView({block:'start',behavior:'smooth'})},30);return}
   if(t.dataset.ntput&&S.site&&canEdit(S.site)){const pl2=planOf(S.site),h=shOf(pl2);h.out=h.out||{};const x=loxOutOf(pl2,t.dataset.ntput),on=x&&x.id===t.dataset.out;h.out[t.dataset.ntput]=on?'':t.dataset.out;touchPlan('Netzteil-Abgang '+t.dataset.ntput+' → '+(on?'offen':t.dataset.out));persistSite();render();return}
   if(t.dataset.ntadd&&S.site&&canEdit(S.site)){const h=shOf(planOf(S.site));h.psx=h.psx||[];const k='g'+rid();h.psx.push({k,id:t.dataset.ntadd});if(h.ntMode!=='man'){h.out={};S.ntAnim=Date.now();S.ntAutoMsg='Weiteres Netzteil: Automatik hat alles neu verteilt (Reihenfolge bleibt, -G1 Abgang 1 Miniserver).'}S.ntSel=k+':1';touchPlan('Weiteres Netzteil '+t.dataset.ntadd);persistSite();render();return}
