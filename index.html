@@ -281,7 +281,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-27.0813';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-27.0814';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -1452,9 +1452,9 @@ function zaAnim(s,pl,cur){const FH=34,bx0=70,bx1=320,W=380,hvL=pl.hvStock?flLvl(
   const hx=bx0+6,hy=fy(hvL)+5;B+=`<rect x="${hx}" y="${hy}" width="26" height="24" rx="2" fill="#ffed00" stroke="#111" stroke-width="1.3"/><text x="${hx+13}" y="${hy+15}" text-anchor="middle" font-size="8" font-weight="700">HV</text>`;
   const rx=hx+34;B+=`<line x1="${hx+26}" y1="${hy+12}" x2="${rx}" y2="${hy+12}" stroke="#b59b00" stroke-width="2"/>`;
   const byL={};Z.filter(x=>x.l!=null).forEach(x=>{(byL[x.l]=byL[x.l]||[]).push(x)});const rT=Math.min(hy+12,...Object.keys(byL).map(l=>fy(+l)+FH/2)),rB=Math.max(hy+12,...Object.keys(byL).map(l=>fy(+l)+FH/2));B+=`<line x1="${rx}" y1="${rT}" x2="${rx}" y2="${rB}" stroke="#b59b00" stroke-width="2"/>`;
-  Object.keys(byL).forEach(l=>{const A=byL[l].sort((a,b)=>(+a.z.iwb||999)-(+b.z.iwb||999)||a.j-b.j),x0=rx+8,sp=Math.min(38,(bx1-6-x0)/A.length),y=fy(+l)+FH/2;B+=`<line x1="${rx}" y1="${y}" x2="${x0+sp*(A.length-1)+15}" y2="${y}" stroke="#b59b00" stroke-width="1.2" stroke-dasharray="3 2"/>`;
+  Object.keys(byL).forEach(l=>{const A=byL[l].sort((a,b)=>(parseFloat(a.z.iwb)||999)-(parseFloat(b.z.iwb)||999)||a.j-b.j),x0=rx+8,sp=Math.min(38,(bx1-6-x0)/A.length),y=fy(+l)+FH/2;B+=`<line x1="${rx}" y1="${y}" x2="${x0+sp*(A.length-1)+15}" y2="${y}" stroke="#b59b00" stroke-width="1.2" stroke-dasharray="3 2"/>`;
     A.forEach((x,k)=>{const bx=x0+sp*k,on=x.j===cur;B+=`<g${on?' class="zlpulse"':''}><rect x="${bx}" y="${y-9}" width="${Math.min(30,sp-3)}" height="18" rx="2" fill="${on?'#ffed00':x.z.res?'#e9e9e9':'#fff'}" stroke="#111" stroke-width="${on?1.6:1}"${x.z.res?' stroke-dasharray="2 2"':''}/><text x="${bx+Math.min(30,sp-3)/2}" y="${y+3}" text-anchor="middle" font-size="8" font-weight="700">P${x.j+1}</text></g>`})});
-  const c=pl.zl[cur],cap=c?'-P'+(cur+1)+' '+(zlNm(c)||zlLbl(s,cur))+(c.stock?' · '+c.stock:'')+(c.arch?' · Architekt '+c.arch:'')+(c.iwb?' · IWB Nr. '+c.iwb:'')+(c.bezA?' · '+bezTxt(c):''):'';
+  const c=pl.zl[cur],cap=c?'-P'+(cur+1)+' '+(zlNm(c)||zlLbl(s,cur))+(c.stock?' · '+c.stock:'')+(c.iwb?' · Energieversorger: '+c.iwb:'')+(c.bezA?' · '+bezTxt(c):''):'';
   return `<div class="zlani"><div class="zlview"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(cap)}">${B}</svg></div><div class="cap">${esc(cap)}</div></div>`}
 const zlLbl=(s,k)=>k===0?(zlAllgNo(s)?'Zähler':s.geb==='MFH'||(zlAllgQ(s)&&planOf(s).allg==='ja')?'Allgemeinzähler':'Hauptzähler'):'Zähler';
 function zlSelId(s){const act=zlAct(s),z=act.find(z=>z.id===S.zlSel)||act[0];return z?z.id:''}
@@ -2750,12 +2750,11 @@ function vPlan(){
       const info=z.res?'Reserveplatz: Bezügersicherung und Abgang werden vorbereitet, ein Zähler wird erst später montiert.':j===0?'Die Stromkreise dahinter trägst du später ein.':(n?n+(n===1?' Sicherung':' Sicherungen')+' direkt beim Zähler.':'Sicherungen beim Zähler (z. B. Keller) kommen später.');
       inner=`${zaAnim(p,pl,j)}<div class="sk zlr${z.res?' res':''}" data-zi="${j}" style="margin-top:10px">
       <div class="sk1"><b class="zlno">-P${j+1}</b>${j===0?`<span class="tag y">${zlLbl(p,0)}</span>`:''}${z.res?'<span class="tag">Reservezählerplatz</span>':''}<span style="flex:1"></span>${ed&&j?`<button type="button" class="btn x" data-zldel="${j}" aria-label="Zähler -P${j+1} löschen" title="Zähler löschen">✕</button>`:''}</div>
-      <div class="grid"><label class="f c6">${main?'Bezeichnung':'Bereich / Bezeichnung'} <span class="hint">${main?'umbenennbar':'steht im Schema'}</span><input data-zl="name" value="${esc(z.name||'')}" placeholder="${main?'Allgemein':z.res?'z. B. Reserve Wohnung 4':'z. B. Wohnung 1a, Büro, Laden'}" maxlength="40" autocomplete="off"${dis}></label>
+      <div class="grid"><label class="f c6">${main?'Bezeichnung':'Bereich / Bezeichnung'} <span class="hint">${main?'umbenennbar':'steht im Schema'}</span><input data-zl="name" value="${esc(z.name||'')}" placeholder="${main?'Allgemein':'z. B. Wohnung 1a, Büro, Laden'}" maxlength="40" autocomplete="off"${dis}></label>
       ${main?'':`<label class="f c3">Stockwerk<select data-zl="stock"${dis}><option value="">wählen …</option>${opt(FL.map(x=>[x,x]),z.stock||'')}</select></label>
-      <label class="f c3">Wohnung (Architekt) <span class="hint">freiwillig, z. B. 1a</span><input data-zl="arch" value="${esc(z.arch||'')}" placeholder="z. B. 1a" maxlength="12" autocomplete="off"${dis}></label>
-      <label class="f c3">Wohnung Nr. (IWB) <span class="hint">freiwillig, ab Treppe von links gezählt</span><input data-zl="iwb" value="${esc(z.iwb||'')}" placeholder="z. B. 5" inputmode="numeric" maxlength="4" autocomplete="off"${dis}></label>`}
+      <label class="f c3">Wohnungsbezeichnung Energieversorger <span class="hint">freiwillig</span><input data-zl="iwb" value="${esc(z.iwb||'')}" placeholder="z. B. 5" maxlength="12" autocomplete="off"${dis}></label>`}
       ${zlFields(p,z,j,dis)}
-      ${j===0||z.res?'':`<label class="f c6">Abgang geht zu <span class="hint">freiwillig</span><input data-zl="ziel" value="${esc(z.ziel||'')}" placeholder="z. B. UV Wohnung 1a" autocomplete="off"${dis}></label>`}</div>
+</div>
       <p class="sub" style="margin:0">${info}${zp?' Im Plan auf Seite '+zp.no+'.':''}</p></div>
       ${ed?'<div class="row" style="margin-top:10px"><button type="button" class="btn" data-act="zlAdd">+ Zähler hinzufügen</button></div>':''}`}
     body=`<div class="row between"><h2>Zähler</h2><span class="tag y">${esc(gebName(p))} · ${zlSum(p)}</span></div>${nav}${inner}`;
@@ -3646,7 +3645,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
       [...xs,xPE].forEach((x,i)=>term(x,i+1,i<zc.length?(zc[i]==='N'?'N':zf?zc[i]:'L'):'PE'));
       T(xs[0]-10,yK+7,X,'tb','end');
       const cx=(xs[0]+xPE)/2;for(let m=0;m<3;m++)L(cx-7,yK+35+m*3,cx+7,yK+30+m*3,'w');
-      if(z.res)T(cx,yK+60,'Reserve','tb','middle');else{T(cx,yK+60,(z.name||'Bereich offen').slice(0,26),'tb','middle');T(cx,yK+72,z.ziel?z.ziel.slice(0,30):'Abgang','tk3','middle');T(cx,yK+83,(zf?'5×':'3×')+(z.qs?qsTxt(z.qs)+' mm²':' Querschnitt offen'),'tk3','middle');{const w=[z.stock,z.iwb?'IWB Nr. '+z.iwb:''].filter(Boolean).join(' · ');if(w)T(cx,yK+94,w,'tk3','middle')}}
+      if(z.res)T(cx,yK+60,'Reserve','tb','middle');else{T(cx,yK+60,(z.name||'Bereich offen').slice(0,26),'tb','middle');T(cx,yK+72,z.ziel?z.ziel.slice(0,30):'Abgang','tk3','middle');T(cx,yK+83,(zf?'5×':'3×')+(z.qs?qsTxt(z.qs)+' mm²':' Querschnitt offen'),'tk3','middle');{const w=[z.stock,z.iwb?'EVU: '+z.iwb:''].filter(Boolean).join(' · ');if(w)T(cx,yK+94,w,'tk3','middle')}}
       if(z.res)return;
       /* Sicherungen direkt beim Zähler, z. B. Keller: ab Zählerausgang, eigener Klemmenabgang */
       (LY.ext[z.id]||[]).slice(0,ZM_EXT_MAX).forEach((r,j)=>{const ax=bx+2*cw+j*1.5*cw,cn=r.cond.filter(c=>c!=='PE'),ex=cn.map((_,i)=>ax+64+i*14),ePE=ex[ex.length-1]+14,y1=430,y2=466;
