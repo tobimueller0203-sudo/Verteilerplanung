@@ -279,7 +279,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-27.0636';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-27.0639';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -1148,7 +1148,7 @@ const BEZ_QS={'16':'4','20':'4','25':'6','32':'10','35':'10','40':'10','50':'16'
 const NB_LIST=['IWB Industrielle Werke Basel','Primeo Energie','EBL Genossenschaft Elektra Baselland','AEW Energie AG','BKW Energie AG','CKW AG','EKZ Elektrizitätswerke des Kantons Zürich','Netze BW GmbH','ED Netze GmbH','bnNETZE GmbH'];
 const qsNum=q=>parseFloat(String(q).replace(',','.'))||0;
 const qsTxt=q=>String(q).replace('.',',');
-function planOf(s){if(s.plan&&!s.plan.klAbg)s.plan.klAbg='ja';if(!s.plan)s.plan={step:'unterlagen',qs:'',adern:'5',nb:'',nbAuto:false,material:false,revs:[]};const pl=s.plan;if(!pl.revs)pl.revs=[];if(!pl.docs)pl.docs={deck:false,toc:false,klemmen:false,bau:true};if(!Array.isArray(pl.sk))pl.sk=[];if(pl.step==='produkte')pl.step='stromkreise';if(!Array.isArray(pl.zl)||!pl.zl.length)pl.zl=[{id:1,name:'',res:false,bez:pl.bez||(s.norm==='VDE'?'NH':'DZ'),bezA:pl.bezA||'',qs:'',adern:pl.adern||'5',ziel:''}];pl.zl[0].res=false;if(s.geb==='MFH'&&!pl.zl[0].name)pl.zl[0].name='Allgemein';if(s.art==='HV'){pl.gehaeuse='alu';pl.montage='AP';if(s.geb==='EFH'&&pl.zs==='nein')pl.zs=''}else if(pl.montage==='UP'){pl.gehaeuse='hersteller'}return pl}
+function planOf(s){if(s.plan&&!s.plan.klAbg)s.plan.klAbg='ja';if(!s.plan)s.plan={step:'unterlagen',qs:'',adern:'5',nb:'',nbAuto:false,material:false,revs:[]};const pl=s.plan;if(!pl.revs)pl.revs=[];if(!pl.docs)pl.docs={deck:false,toc:false,klemmen:false,bau:true};if(!Array.isArray(pl.sk))pl.sk=[];if(pl.step==='produkte')pl.step='stromkreise';if(!Array.isArray(pl.zl)||!pl.zl.length)pl.zl=[{id:1,name:'',res:false,bez:pl.bez||(s.norm==='VDE'?'NH':'DZ'),bezA:pl.bezA||'',qs:'',adern:pl.adern||'5',ziel:''}];pl.zl[0].res=false;if(s.geb==='MFH'&&!pl.zl[0].name)pl.zl[0].name='Allgemein';if(s.art==='HV'){pl.gehaeuse='alu';pl.montage='AP';pl.adern='5';/* Tobi 27.11.: HV-Zuleitung immer 5-adrig */if(s.geb==='EFH'&&pl.zs==='nein')pl.zs=''}else if(pl.montage==='UP'){pl.gehaeuse='hersteller'}return pl}
 const initials=n=>String(n||'').split(/\s+/).filter(Boolean).map(w=>w[0].toUpperCase()).join('').slice(0,3);
 /* Netzbetreiber: zuerst was auf diesem Gerät für die PLZ gemerkt wurde, sonst sichere Regel (Basel-Stadt = IWB) */
 function guessNB(s){
@@ -2564,7 +2564,7 @@ function vPlan(){
     const qsF=`<label class="f c3">Querschnitt Zuleitung <span class="hint">Kupfer</span>
         <select id="p-qs" data-pl="qs"${dis}><option value="">wählen …</option>${opt(QS.map(q=>[q,qsTxt(q)+' mm²'+(qsNum(q)>QS_MAX?' (folgt)':'')]),pl.qs)}</select></label>
       <label class="f c3">Adern
-        <select id="p-adern" data-pl="adern"${dis}>${opt([['5','5-adrig · L1 L2 L3 N PE'],['3','3-adrig · L N PE']],pl.adern||'5')}</select></label>
+        ${hv?`<select id="p-adern" disabled>${opt([['5','5-adrig · L1 L2 L3 N PE']],'5')}</select><span class="sub" style="font-size:13px">HV immer 5-adrig</span>`:`<select id="p-adern" data-pl="adern"${dis}>${opt([['5','5-adrig · L1 L2 L3 N PE'],['3','3-adrig · L N PE']],pl.adern||'5')}</select>`}</label>
       ${busOn(p)?`<label class="f c3">Zuleitungsblock -X0 <span class="hint">Seite der Etagenschienen</span>
         <select data-pl="x0Side"${dis}>${opt([['l','links'],['r','rechts']],x0Side(pl))}</select></label>
       <label class="f c3">Zuleitungsblock -X0 Höhe <span class="hint">Etagenschienen starten dort</span>
@@ -3535,12 +3535,17 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
   T(cx,yBot+73,'Vorsicherung gemäss HV','tm','middle');
   }else{
   /* Tobi 26.11.: HAK nach Vorlage: Kasten mit Sicherungen auf L1-L3, PEN-Aufteilung N/PE, Trichter zur Einspeisung, Erder und Pot.-Ausgleich abgehend, Bemerkung Standort/Form */
-  const tx=xs[xs.length-1]+26,sae=pl.zlHerk==='saeule',ev=zlEv(pl),nm=ev?zlShort(zlSrc(pl),8):sae?'Energiesäule':'HAK',yH0=yBot+92,yH1=yH0+58,bx0=xs[0]-74,bx1=xs[xs.length-1]+16,mx=(bx0+bx1)/2;
+  const tx=xs[xs.length-1]+26,sae=pl.zlHerk==='saeule',ev=zlEv(pl),nm=ev?zlShort(zlSrc(pl),8):sae?'Energiesäule':'HAK',yH0=yBot+92,yH1=yH0+58,bx0=xs[0]-(sae?98:74),bx1=xs[xs.length-1]+(sae?36:30),mx=sae?xs[Math.floor((xs.length-1)/2)]:(bx0+bx1)/2;
   T(tx,yBot+24,'Zuleitung '+zlSrcVon(pl)+' zum Verteiler','tb');
   T(tx,yBot+37,(five?'5×':'3×')+qs+' Cu'+(kabTypTxt(pl)?' · '+kabTypTxt(pl):' · Leitungstyp offen'),'t');
   /* Leiter von -W1 hinunter in den HAK */
   cond.forEach((c,i)=>L(xs[i],yBot+7,xs[i],yH0+(c[0]==='PE'||c[0]==='N'?30:14),c[1]));
-  o.push(`<rect x="${bx0}" y="${yH0}" width="${bx1-bx0}" height="${yH1-yH0}" fill="none" stroke="#111" stroke-width="1.6"/>`);
+  /* Tobi 27.11.: Energiesäule eigenes Symbol (Säule mit gewölbtem Dach, Sockel, Erdreich, Blitz), HAK bleibt Kasten mit Trichter */
+  if(sae){const r=10,yS=yH1+8;o.push(`<path d="M${bx0} ${yH1} V${yH0+r} Q${bx0} ${yH0-6} ${bx0+r+6} ${yH0-6} H${bx1-r-6} Q${bx1} ${yH0-6} ${bx1} ${yH0+r} V${yH1} Z" fill="#fffbe0" stroke="#111" stroke-width="1.8"/>`);
+    o.push(`<rect x="${bx0-6}" y="${yH1}" width="${bx1-bx0+12}" height="8" fill="#ddd" stroke="#111" stroke-width="1.4"/>`);
+    o.push(`<path d="M${bx1-16} ${yH0-2} l-6 9 h5 l-4 8 l9 -11 h-5 l4 -6 z" fill="#ffed00" stroke="#111" stroke-width=".8"/>`);
+    let hz='';for(let x=bx0-12;x<bx1+12;x+=8)hz+=`M${x} ${yS+7} l6 -7 `;o.push(`<path d="M${bx0-12} ${yS} H${bx1+12} ${hz}" stroke="#111" stroke-width=".8" fill="none"/>`)}
+  else o.push(`<rect x="${bx0}" y="${yH0}" width="${bx1-bx0}" height="${yH1-yH0}" fill="none" stroke="#111" stroke-width="1.6"/>`);
   /* Sicherungen L1-L3 */
   cond.filter(c=>c[0]!=='N'&&c[0]!=='PE').forEach((c,i)=>{const x=xs[i];o.push(`<rect x="${x-3}" y="${yH0+14}" width="6" height="16" fill="#fff" stroke="#111" stroke-width="1"/>`);L(x,yH0+30,x,yH1,'w')});
   /* PEN-Aufteilung: N und PE oben getrennt, unten gemeinsam als PEN */
@@ -3553,10 +3558,10 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
   /* Beschriftung links im Kasten */
   T(xs[0]-10,yH0+16,nm,'tb','end');T(xs[0]-10,yH0+28,pl.hakTyp?hakTypTxt(pl.hakTyp):'Typ offen','tk','end');T(xs[0]-10,yH0+38,pl.hakA?pl.hakA+' A':'Strom offen','tk','end');T(xs[0]-10,yH0+48,pl.hakA?(five?'3× ':'1× ')+pl.hakA+' A':'','tk','end');
   /* Trichter zur Einspeisung */
-  const yA=Math.min(iy1-44,yH1+34);o.push(`<path d="M${bx0} ${yH1} L${mx} ${yA} L${bx1} ${yH1}" fill="none" stroke="#111" stroke-width="1.6"/>`);L(mx,yA,mx,yA+10,'w');
+  const yA=Math.min(iy1-44,yH1+34);if(sae){o.push(`<path d="M${mx} ${yH1+8} V${yA+10}" stroke="#111" stroke-width="2.2"/>`);o.push(`<circle cx="${mx}" cy="${yA+10}" r="2.5" fill="#111"/>`)}else{o.push(`<path d="M${bx0} ${yH1} L${mx} ${yA} L${bx1} ${yH1}" fill="none" stroke="#111" stroke-width="1.6"/>`);L(mx,yA,mx,yA+10,'w')}
   if(ev){T(mx,yA+21,'Einspeisung '+zlSrcVon(pl),'tk2','middle');T(mx,yA+31,hakPos(pl)?'Standort: '+hakPos(pl):'Standort offen','tk','middle')}else{T(mx,yA+21,'Einspeisung '+(pl.nb?pl.nb.split(' ')[0]:'Netzbetreiber'),'tk2','middle');T(mx,yA+31,'Netzkabel des Netzbetreibers','tk','middle')}
   /* Bemerkung Standort und Form */
-  const rem=ev?['Einspeisung '+zlSrcVon(pl)+' (ohne Zähler)','Standort '+zlSrc(pl)+': '+(hakPos(pl)||'offen'),hvPos(pl)?'Verteiler: '+hvPos(pl):''].filter(Boolean):[(sae?'Energiesäule im Aussenbereich':pl.zlHerk==='hak_ext'?'HAK aussen am Gebäude':pl.zlHerk==='hak_in'?'HAK im Gebäude (intern)':'Form offen'),pl.zlHerk==='hak_ext'?'Hausseite: '+(pl.hakSeite==='U'?'unbekannt':pl.hakSeite?(SEITEN.find(x=>x[0]===pl.hakSeite)||['',''])[1]:'offen'):pl.zlHerk==='hak_in'?'Standort: '+(hakPos(pl)||'offen'):'',hvPos(pl)?'Verteiler: '+hvPos(pl):'',wandlerNoetig(s,pl.hakA)?'Wandlermessung nötig (WV-CH 7.9, > 80 A)':''].filter(Boolean);
+  const rem=ev?['Einspeisung '+zlSrcVon(pl)+' (ohne Zähler)','Standort '+zlSrc(pl)+': '+(hakPos(pl)||'offen'),hvPos(pl)?'Verteiler: '+hvPos(pl):''].filter(Boolean):[(sae?'Energiesäule im Aussenbereich':pl.zlHerk==='hak_ext'?'HAK aussen am Gebäude':pl.zlHerk==='hak_in'?'HAK im Gebäude (intern)':'Form offen'),pl.zlHerk==='hak_ext'?'Hausseite: '+(pl.hakSeite==='U'?'unbekannt':pl.hakSeite?(SEITEN.find(x=>x[0]===pl.hakSeite)||['',''])[1]:'offen'):pl.zlHerk==='hak_in'?'Standort: '+(hakPos(pl)||'offen'):'',hvPos(pl)?'Verteiler: '+hvPos(pl):''].filter(Boolean);
   let yy=yBot+60;T(tx,yy,'Bemerkung','tk2b');yy+=11;rem.forEach(t=>{T(tx,yy,t,'t');yy+=11});
   }
   // Einspeiseblock -X0
