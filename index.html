@@ -279,7 +279,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-27.0646';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-27.0649';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -1145,6 +1145,8 @@ const QS=['1.5','2.5','4','6','10','16','25','35','50','70','95','120','150','18
 const QS_MAX=240;/* Tobi 27.11.: alle Querschnitte bis 240 mm² wählbar */
 /* Tobi 26.11.: die Bezügersicherung gibt den Querschnitt vor, er gilt ab der Bezügersicherung (auch bis zum Zähler). Vorschlag, änderbar. 25 A -> 6 mm² von Tobi bestätigt, Rest zur Prüfung */
 const BEZ_QS={'16':'4','20':'4','25':'6','32':'10','35':'10','40':'10','50':'16','63':'16'};
+/* Tobi 27.11.: Netzbetreiber als Auswahl, automatisch nach Kanton/PLZ */
+const NB_SEL=['IWB Industrielle Werke Basel','Primeo Netz AG','EBL Genossenschaft Elektra Baselland'];
 const NB_LIST=['IWB Industrielle Werke Basel','Primeo Energie','EBL Genossenschaft Elektra Baselland','AEW Energie AG','BKW Energie AG','CKW AG','EKZ Elektrizitätswerke des Kantons Zürich','Netze BW GmbH','ED Netze GmbH','bnNETZE GmbH'];
 const qsNum=q=>parseFloat(String(q).replace(',','.'))||0;
 const qsTxt=q=>String(q).replace('.',',');
@@ -1155,7 +1157,7 @@ function guessNB(s){
   D.nbMap=D.nbMap||{};
   const k=(s.land||'')+':'+(s.plz||'').trim();
   if(D.nbMap[k])return {name:D.nbMap[k],src:'gemerkt für PLZ '+s.plz};
-  if(s.land==='CH'&&s.kanton==='BS')return {name:'IWB Industrielle Werke Basel',src:'Kanton Basel-Stadt'};
+  if(s.land==='CH'&&s.kanton==='BS')return {name:'IWB Industrielle Werke Basel',src:'Kanton Basel-Stadt'};if(s.land==='CH'&&s.kanton==='BL')return {name:'Primeo Netz AG',src:'Kanton Basel-Land'};
   return null;
 }
 function touchPlan(grund){
@@ -2606,7 +2608,9 @@ function vPlan(){
       inner=`${zlAnim(p,pl)}<div class="legend">Einspeisung bestätigen</div>
       <table class="zlsum">${R('Einspeisung',zlEv(pl)?zlSrc(pl)+(hakPos(pl)?' · '+hakPos(pl):''):pl.zlHerk?ZL_HERK[pl.zlHerk][0]+(hakPos(pl)?' · '+hakPos(pl):''):'')}${R('Verteiler steht',hvPos(pl))}${R('Sicherung '+nm,pl.hakTyp?hakSichTxt(pl):'')}${R('Leitung '+nm+' → Verteiler',pl.qs?((pl.adern||'5')==='5'?'5×':'3×')+qsTxt(pl.qs)+' mm² Cu'+(kabTypTxt(pl)?' · '+kabTypTxt(pl):''):'')}</table>
       <div class="grid" style="margin-top:10px"><label class="f c6">Netzbetreiber <span class="hint">${pl.nbAuto&&g?'automatisch: '+esc(g.src):'wird für diese PLZ gemerkt'}</span>
-        <input id="p-nb" data-pl="nb" value="${esc(pl.nb)}" placeholder="z. B. IWB Industrielle Werke Basel" autocomplete="off"${dis}></label></div>
+        <select id="p-nbsel" data-pl="nbSel"${dis}><option value="">wählen …</option>${opt([...NB_SEL.map(x=>[x,{'IWB Industrielle Werke Basel':'IWB (Basel)','Primeo Netz AG':'Primeo Netz','EBL Genossenschaft Elektra Baselland':'EBL (Elektra Baselland)'}[x]||x]),['__andere','Anderer Netzbetreiber …']],pl.nbOwn||(pl.nb&&!NB_SEL.includes(pl.nb))?'__andere':(pl.nb||''))}</select></label>
+        ${pl.nbOwn||(pl.nb&&!NB_SEL.includes(pl.nb))?`<label class="f c6">Name des Netzbetreibers<input id="p-nb" data-pl="nb" value="${esc(pl.nb)}" placeholder="Name des Netzbetreibers" autocomplete="off"${dis}></label>`:''}</div>
+        ${p.land==='CH'&&p.kanton==='BL'?'<p class="sub" style="margin-top:4px">Basel-Land: meist Primeo Netz, einige Gemeinden (z. B. Raum Liestal) EBL. Bitte prüfen.</p>':''}
       ${conf?`<div class="msg ok" style="margin-top:10px">Einspeisung bestätigt. Mit «Weiter» geht es ${pl.zs==='nein'?'weiter':'zu den Zählern'}.</div>`:ed?`<div style="margin-top:12px"><button type="button" class="btn primary" data-act="zlConf">Bestätigen</button></div>`:''}`}
       body=`<div class="row between"><h2>Zuleitung und Einspeisung</h2><span class="tag y">HV · ${esc(gebName(p))}</span></div>${nav}${S.zlMsg?`<div class="msg err">${esc(S.zlMsg)}</div>`:''}${inner}`;S.zlMsg=null}
   }else if(k==='zaehler'){
@@ -3729,7 +3733,7 @@ document.addEventListener('input',e=>{
     if(t.dataset.b==='bereich')sgBereich();
     persistSoon();
   }
-  if(t.dataset.pl==='nb'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.nb=t.value;pl.nbAuto=false;refreshPreview();persistSoon()}
+  if(t.dataset.pl==='nb'&&S.site&&canEdit(S.site)&&t.isConnected){const pl=planOf(S.site);pl.nb=t.value;pl.nbAuto=false;refreshPreview();persistSoon()}
   if(t.dataset.sk&&S.site&&canEdit(S.site)){skSet(t);persistSoon();if(t.dataset.sk==='name'){const e=t.closest('.sk')&&t.closest('.sk').querySelector('.simh');if(e)e.innerHTML=skSimHint(S.site,t.value)}}
   if((t.dataset.zl==='name'||t.dataset.zl==='ziel')&&S.site&&canEdit(S.site)){const z=zlOfEl(t);if(z){z[t.dataset.zl]=t.value;planOf(S.site).changed=now();refreshPreview();persistSoon()}}
   if(t.dataset.lr&&t.tagName==='INPUT'&&S.site&&canEdit(S.site)){lrSet(planOf(S.site),t.dataset.lr,t.value);const c=lrCalc(S.site,planOf(S.site)),e2=$('#lrLive');if(e2)e2.innerHTML=(S.lrSt||0)===3?lrLenTxt(c):lrLastTxt(c);planOf(S.site).changed=now();persistSoon()}
@@ -3836,7 +3840,8 @@ document.addEventListener('change',e=>{
     const pl=planOf(S.site),k=t.dataset.pl;
     if(k==='herstellerFrei'){const v=t.value.trim();if(v){pl.hersteller=v;touchPlan('Hersteller '+v)}render();return}
     if(k==='material'){pl.material=t.checked;touchPlan('Materialliste '+(t.checked?'ja':'nein'));return}
-    if(k==='nb'){pl.nb=t.value.trim();if(S.site.plz){D.nbMap=D.nbMap||{};D.nbMap[S.site.land+':'+S.site.plz.trim()]=pl.nb}touchPlan('Netzbetreiber '+pl.nb);return}
+    if(k==='nbSel'){delete pl.nbSel;pl.nbAuto=false;if(t.value==='__andere'){pl.nbOwn=true;if(NB_SEL.includes(pl.nb))pl.nb=''}else{pl.nbOwn=false;pl.nb=t.value}if(pl.nb&&S.site.plz){D.nbMap=D.nbMap||{};D.nbMap[S.site.land+':'+S.site.plz.trim()]=pl.nb}touchPlan('Netzbetreiber '+(pl.nb||'anderer'));render();return}
+    if(k==='nb'){if(!pl.nbOwn&&NB_SEL.includes(pl.nb))return;pl.nb=t.value.trim();if(S.site.plz){D.nbMap=D.nbMap||{};D.nbMap[S.site.land+':'+S.site.plz.trim()]=pl.nb}touchPlan('Netzbetreiber '+pl.nb);return}
     pl[k]=t.value;
     if(k==='bez'){if(!(BEZ_A[pl.bez]||[]).includes(pl.bezA))pl.bezA='';touchPlan('Bezügersicherung '+bezTxt(pl))}
     if(k==='bezA')touchPlan('Bezügersicherung '+bezTxt(pl));
