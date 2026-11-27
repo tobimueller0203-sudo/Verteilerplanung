@@ -279,7 +279,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-27.0658';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-27.0701';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -1919,7 +1919,7 @@ function skLayout(s){
 const skSorted=s=>skLayout(s).list;
 const stepIdx=k=>stepsOf(S.site).findIndex(x=>x[0]===k);
 /* Zurücksetzen einzelner Planungsschritte (Baustellendaten bleiben) */
-const RS_KEYS={hvart:['zs','hvArt'],smarthome:['sh'],unterlagen:['docs'],hersteller:['hersteller','herstellerFrei'],gehaeuse:['gehaeuse','montage','vtSer'],zuleitung:['qs','adern','nb','nbAuto','bez','bezA','x0Side'],zaehler:['zl'],klemmen:['klAbg','klPos'],heizung:['hz','hzAck'],stromkreise:['sk','relSame','resPct','resOff'],schienen:['bus','etag','big4','x0Moved','busSeen'],matliste:[],extras:['spd','hs','hsA','hsE','siem','siemOk','preise','litzeMag','material']};
+const RS_KEYS={hvart:['zs','hvArt'],smarthome:['sh'],unterlagen:['docs'],hersteller:['hersteller','herstellerFrei'],gehaeuse:['gehaeuse','montage','vtSer','hvBau','hvMaxB','hvMaxH','hvMaxT','hvMaxU'],zuleitung:['qs','adern','nb','nbAuto','nbOwn','bez','bezA','x0Side','zlHerk','hakStock','hakRaum','hakSeite','hvStock','hvRaum','hakTyp','hakA','kabTyp','kabTypTxt','zlConf','izAck','evName','evNr','evStock','evRaum','lr'],zaehler:['zl'],klemmen:['klAbg','klPos'],heizung:['hz','hzAck'],stromkreise:['sk','relSame','resPct','resOff'],schienen:['bus','etag','big4','x0Moved','busSeen'],matliste:[],extras:['spd','hs','hsA','hsE','siem','siemOk','preise','litzeMag','material']};
 function rsPanel(p){const ST=stepsOf(p),sel=S.rsSel||new Set(),ci=ST.findIndex(x=>x[0]===planOf(p).step),cur=ST[ci],all=sel.size===ST.length,only=cur&&sel.size===1&&sel.has(cur[0]);
   const q=only?'Nur Schritt '+(ci+1)+' «'+esc(cur[1])+'» zurücksetzen?':all?'Alles zurücksetzen (alle Schritte der Planung)?':'Diese Schritte zurücksetzen?';
   return `<div class="msg err" style="margin-top:14px"><b>${q}</b><p style="margin:6px 0">Sie können weitere Schritte ankreuzen oder alles zurücksetzen. Die Baustellendaten bleiben immer unverändert (die gehen nur beim Löschen der ganzen Baustelle weg).</p>
@@ -2821,7 +2821,7 @@ function bauData(s){const pl=planOf(s),hv=s.art==='HV',five=(pl.adern||'5')==='5
   /* 1) Wichtig */
   const W=[];if(lox){const ps=loxPs(pl);if(ps&&ps.big)W.push('Loxone Power Supply & Backup: 18 TE breit. Einbau unten im Verteiler, oben und unten 50 mm frei, Verteiler mind. 100 l.');loxPsx(pl).forEach(X=>W.push('Weiteres Netzteil -G'+X.g+': '+X.o.art+', '+X.o.te+' TE.'));if(fkPtrvN(pl))W.push('Fensterkontakte '+LX(pl).fk+': '+fkPtrvN(pl)+'× Rangierverbinder PTRV 8, sehr gross (86 mm hoch, 100 mm quer zur Hutschiene).')}
   if(hv&&pl.hvBau)W.push('Hauptverteilung als '+(pl.hvBau==='stand'?'Standverteiler':'Wandverteiler hängend')+(pl.hvBau==='stand'&&hvMaxTxt(pl)?', maximale Masse (Höchstwerte, nicht Endmasse): '+hvMaxTxt(pl):'')+(hvPos(pl)?'. Standort: '+hvPos(pl):'')+'.');
-  if(hv&&pl.zs!=='nein'&&(pl.zl||[]).some(z=>wandlerNoetig(s,z.bezA,z.qs)))W.push('Achtung: '+WANDLER_TXT);
+  if(hv&&pl.zs==='ja'&&(pl.zl||[]).some(z=>wandlerNoetig(s,z.bezA,z.qs)))W.push('Achtung: '+WANDLER_TXT);
   if(pl.hs)W.push('Hauptschalter'+(hsTxt(pl)?' '+hsTxt(pl):'')+' mit Klemmenabdeckung.');if(pl.spd)W.push('Überspannungsschutz direkt nach der Einspeisung.');
   if(W.length)SEC.push({h:'Wichtig für den Einbau',hl:1,list:W});
   /* 2) Sicherungen pro Stromkreis */
@@ -2851,12 +2851,12 @@ function pagesOf(s){
   if(d.deck)a.push({kind:'deck',title:'Deckblatt',sub:'Planmappe'});
   if(d.toc)a.push({kind:'toc',title:'Inhaltsverzeichnis',sub:'Übersicht der Blätter'});
   if(d.bau!==false){const B=bauPages(s);B.forEach((cols,k)=>a.push({kind:'bau',k,cols,title:'Info Verteilerbauer',sub:B.length>1?'Teil '+(k+1)+' von '+B.length:'Klemmen, TE, Platz, Hinweise'}))}
-  a.push({kind:'einspeisung',title:'Einspeisung',sub:(five?'5×':'3×')+qs+(hv?(pl.zs==='nein'?', von '+zlShort(zlSrc(pl),14):', Hausanschluss'):(pl.spd?', SPD':'')+(pl.hs?', -Q1':'')+(pl.spd||pl.hs?'':', ohne Zähler'))});
+  a.push({kind:'einspeisung',title:'Einspeisung',sub:hv?[pl.qs?'5×'+qsTxt(pl.qs)+' mm²':'',zlEv(pl)?(String(pl.evName||'').trim()?'von '+zlSrc(pl):''):pl.zlHerk==='saeule'?'Energiesäule':pl.zlHerk?'Hausanschlusskasten':''].filter(Boolean).join(', '):(five?'5×':'3×')+qs+((pl.spd?', SPD':'')+(pl.hs?', -Q1':'')+(pl.spd||pl.hs?'':', ohne Zähler'))});
   const L=skLayout(s),sk=L.list;
-  if(hv&&pl.zs!=='nein'){let cur=null;pl.zl.forEach((z,k)=>{if(!k)return;const n=z.res?0:Math.min(ZM_EXT_MAX,(L.ext[z.id]||[]).length),w=Math.max(5,Math.ceil(2+n*1.5));if(!cur||cur.used+w>10){cur={kind:'zm',title:'Messungen',bl:[],used:0};a.push(cur)}cur.bl.push({k,c0:cur.used,w});cur.used+=w});
+  if(hv&&pl.zs==='ja'){let cur=null;pl.zl.forEach((z,k)=>{if(!k)return;const n=z.res?0:Math.min(ZM_EXT_MAX,(L.ext[z.id]||[]).length),w=Math.max(5,Math.ceil(2+n*1.5));if(!cur||cur.used+w>10){cur={kind:'zm',title:'Messungen',bl:[],used:0};a.push(cur)}cur.bl.push({k,c0:cur.used,w});cur.used+=w});
     a.filter(q=>q.kind==='zm').forEach(q=>{const f=q.bl[0].k+1,l=q.bl[q.bl.length-1].k+1;q.sub=(f===l?'Zähler -P'+f+' '+(pl.zl[f-1].name||''):'Zähler -P'+f+' bis -P'+l).trim()});
     a.push({kind:'za',title:s.geb==='MFH'?'Messung Allgemein':'Messung',sub:'-P1 '+(pl.zl[0].name||zlLbl(s,0))})}
-  L.pages.forEach(q=>{const fs=q.items.filter(it=>!it.sk).map(it=>it.f),zk=hv&&pl.zs!=='nein'?pl.zl.findIndex(z=>z.id===q.zid):-1,zt=zk>=0?'-P'+(zk+1)+(pl.zl[zk].name?' '+pl.zl[zk].name:'')+' · ':'';a.push({kind:'sk',title:'Stromkreise',sub:zt+(fs.length?fs[0]+(fs.length>1?' bis '+fs[fs.length-1]:''):'Relais'),dp:q,zid:q.zid})});
+  L.pages.forEach(q=>{const fs=q.items.filter(it=>!it.sk).map(it=>it.f),zk=hv&&pl.zs==='ja'?pl.zl.findIndex(z=>z.id===q.zid):-1,zt=zk>=0?'-P'+(zk+1)+(pl.zl[zk].name?' '+pl.zl[zk].name:'')+' · ':'';a.push({kind:'sk',title:'Stromkreise',sub:zt+(fs.length?fs[0]+(fs.length>1?' bis '+fs[fs.length-1]:''):'Relais'),dp:q,zid:q.zid})});
   {loxSyncTe(pl);const ps=loxPs(pl);if(ps)a.push({kind:'loxps',title:'Smart Home Loxone',sub:'-G1 '+ps.o.art});loxPsx(pl).forEach(X=>a.push({kind:'loxps',g:X.g,title:'Smart Home Loxone',sub:'-G'+X.g+' '+X.o.art}));const ms=loxMs(pl);if(ms)a.push({kind:'loxms',title:'Smart Home Loxone',sub:'-A1 '+ms.art});for(let k=0;k<loxAs(pl);k++)a.push({kind:'loxas',k,title:'Smart Home Loxone',sub:'-A'+(k+2)+' Audioserver'});for(let k=0;k<loxTeN(pl);k++)a.push({kind:'loxte',k,title:'Smart Home Loxone',sub:'-A'+(k+2+loxAs(pl))+' Tree Extension'});loxDaliExt(pl).forEach((x,k)=>a.push({kind:'loxdali',k,title:'Smart Home Loxone',sub:'-A'+(2+loxAs(pl)+loxTeN(pl)+k)+' DALI Extension '+(x.id==='100200'?64:10)}));{const DK=daliKl(s);for(let i=0;i<Math.ceil(DK.length/10);i++)a.push({kind:'loxdalikl',k:i,title:'Smart Home Loxone',sub:'DALI-Klemmen '+LX(pl).dali+(DK.length>10?' ('+(i+1)+')':'')})}if(loxKnxN(pl))a.push({kind:'loxknx',title:'Smart Home Loxone',sub:'-A'+(2+loxAs(pl)+loxTeN(pl)+loxDaliExt(pl).length)+' KNX Extension · KNX-DALI'});loxDev(pl).filter(v=>v.t==='rel').forEach(v=>a.push({kind:'loxrel',k:v.i,title:'Smart Home Loxone',sub:v.name}));loxDev(pl).filter(v=>v.t==='diex').forEach(v=>a.push({kind:'loxdiex',k:v.i,title:'Smart Home Loxone',sub:v.name}));loxDev(pl).filter(v=>v.t==='mbex').forEach(v=>a.push({kind:'loxmb',k:v.i,title:'Smart Home Loxone',sub:v.name}));{const nW=fkSlots(pl).length;for(let i=0;i<Math.ceil(nW/16);i++)a.push({kind:'loxdi',k:i,title:'Smart Home Loxone',sub:'Fensterkontakte '+LX(pl).fk+(nW>16?' ('+(i+1)+')':'')})}{const nK=busGrp(pl).length;for(let i=0;i<Math.ceil(nK/6);i++)a.push({kind:'loxtk',k:i,title:'Smart Home Loxone',sub:'Bus- und 24-V-Abgänge '+LX(pl).bus+(nK>6?' ('+(i+1)+')':'')})}{const P=bsSepPages(pl);P.forEach((q,i)=>a.push({kind:'loxbs',k:i,title:'Smart Home Loxone',sub:'Beschattung separat '+q.X}))}}
   if(busOn(s)&&L.list.length&&!shSel(planOf(s)))a.push({kind:'bus2d',title:'Verteileransicht',sub:'Sammel- und Etagenschienen'});
   {const m=hzWP(pl)&&pl.hz.wpPdf;if(m)for(let k=0;k<m.n;k++)a.push({kind:'wpdoc',key:m.key,k,title:'Wärmepumpe',sub:'Schema Hersteller'+(m.n>1?', Seite '+(k+1):'')})}
@@ -3526,12 +3526,15 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
   const yBot=hv?470:620,yTop=[90,104,118,132,146];const nxP=pagesOf(s).find(p=>p.no===nx),toSk=!!(nxP&&['sk','zm','za'].includes(nxP.kind));
   const peY=hv?370:500;
   const qs=pl.qs?qsTxt(pl.qs)+' mm²':'Querschnitt offen';
+  /* Tobi 27.11.: nichts pauschal zeichnen. HV: -W1, HAK/Säule/Einspeisung und Erdung erst, wenn die Herkunft der Zuleitung angegeben ist */
+  const zlOn=!hv||(zlEv(pl)?!!String(pl.evName||'').trim():!!pl.zlHerk),yB0=zlOn?yBot:yBot-48;
   // Leiter von unten nach oben und nach rechts zur Sammelschiene
   cond.forEach((c,i)=>{
-    if(c[0]==='PE'){L(xs[i],yBot,xs[i],peY,c[1]);L(xs[i],peY,ix1-8,peY,c[1]);if(toSk)T(ix1-10,peY-4,nx+'.0 PE','tr','end');return}
-    const yt=yTop[i];L(xs[i],yBot,xs[i],yt,c[1]);L(xs[i],yt,ix1-8,yt,c[1]);if(toSk)T(ix1-10,yt-2,nx+'.0 '+c[0],'tr','end');
+    if(c[0]==='PE'){L(xs[i],yB0,xs[i],peY,c[1]);L(xs[i],peY,ix1-8,peY,c[1]);if(toSk)T(ix1-10,peY-4,nx+'.0 PE','tr','end');return}
+    const yt=yTop[i];L(xs[i],yB0,xs[i],yt,c[1]);L(xs[i],yt,ix1-8,yt,c[1]);if(toSk)T(ix1-10,yt-2,nx+'.0 '+c[0],'tr','end');
   });
   T(ix1-12,yTop[cond.length-2]+24,toSk?'Sammelschiene · weiter auf Seite '+nx:'Sammelschiene · Stromkreise folgen','tm','end');
+  if(zlOn){
   // Klemmenbeschriftung unten
   cond.forEach((c,i)=>{o.push(`<circle class="term" cx="${xs[i]}" cy="${yBot+3.4}" r="3.4"/>`)});
   // Kabelmarkierung und Text
@@ -3581,6 +3584,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
   }
   /* Tobi 27.11.: Aderbeschriftung -W1 genau unter dem Punkt, Linie dahinter weiss unterbrochen (lesbar) */
   cond.forEach((c,i)=>{const w=c[0].length*4+3;o.push(`<rect x="${xs[i]-w/2}" y="${yBot+8.5}" width="${w}" height="8.5" fill="#fff"/>`);T(xs[i],yBot+15,c[0],'tk','middle')});
+  }
   // Einspeiseblock -X0
   const bx=xs[0]-22,bw=xs[xs.length-1]-xs[0]+44;
   o.push(`<rect class="bxd" x="${bx}" y="${yBot-70}" width="${bw}" height="44"/>`);
@@ -3591,7 +3595,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     else{lv.forEach((c,i)=>{if(c[0]!=='N')CTsym(xs[i],y0+26)});const mx0=112,mx1=172;o.push(`<rect x="${mx0}" y="${y0}" width="${mx1-mx0}" height="${y1-y0}" rx="3" fill="#fff" stroke="#111" stroke-width="1.4"/><rect x="${mx0+4}" y="${y0+6}" width="${mx1-mx0-8}" height="14" rx="1.5" fill="#eaf5e7" stroke="#111" stroke-width=".7"/><rect x="${mx0+4}" y="${y1-8}" width="${mx1-mx0-8}" height="3.5" rx="1" fill="#3fa34d"/>`);T((mx0+mx1)/2,y0+16.5,'kWh','tb','middle');o.push(`<line x1="${mx1}" y1="${y0+26}" x2="${xs[0]-6}" y2="${y0+26}" class="cp"/>`);o.push(`<path d="M${(mx0+mx1)/2-1.3} ${y1} V${y1+20} M${(mx0+mx1)/2+1.3} ${y1} V${y1+20}" fill="none" stroke="#3fa34d" stroke-width="1"/>`);T(mx0-6,y1+16,'Tree → '+ref,'tgn','end')}
     /* Tobi 24.11.: Beschriftung nie auf Leitungen → rechts unter der PE-Leitung */const tx=xs[xs.length-1]+24;T(tx,y0+31,z.P,'tb');T(tx,y0+42,'Energiezähler '+ezLbl(s)+' · '+((LOX.find(o=>o.id===z.id)||{}).art||''),'tm');T(tx,y0+52,z.id+(z.w?' + Stromwandler '+z.w:'')+' · '+(z.dir?'Direktanschluss':'Messwandler')+' · vor Hauptschalter','tm')}}
   // Zähler nur HV
-  if(hv){T(xs[0]+90,250,(pl.zs==='nein'?(String(pl.hvArt||'').trim()||'Hauptverteilung')+': ohne Zähler, Stromkreise folgen ab Seite ':'Hauptverteilung: Zähler folgen ab Seite ')+nx,'tm');
+  if(hv){if(pl.zs)T(xs[0]+90,250,(pl.zs==='nein'?(String(pl.hvArt||'').trim()||'Hauptverteilung')+': ohne Zähler, Stromkreise folgen ab Seite ':'Hauptverteilung: Zähler folgen ab Seite ')+nx,'tm');
   }else{
     const spdOn=!!pl.spd,hsOn=!!pl.hs,live=cond.filter(c=>c[0]!=='PE');
     if(!spdOn&&!hsOn)T(xs[0]+90,330,'Unterverteilung ohne Zähler','tm');
@@ -3643,7 +3647,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
   T(cI[6]+5,ky+57,[s.plz,s.ort].filter(Boolean).join(' ').slice(0,30),'tk3');
   // Blattbeschreibung
   T(cI[7]+5,ky+13,'Blattbeschreibung:','tk2');T(cI[7]+5,ky+29,pg.title,'tb');
-  {const sb=String(pg.sub||'');T(cI[7]+5,ky+43,sb.length>24?(sb.length>32?sb.slice(0,31)+'…':sb):sb,sb.length>24?'tk2':'tk3')}
+  {const sb=String(pg.sub||'');/* Tobi 27.11.: nie mit «…» abschneiden, auf 2 Zeilen umbrechen */if(sb.length<=24)T(cI[7]+5,ky+43,sb,'tk3');else{const Ls=wrapTxt(sb,30);if(Ls.length<=2)Ls.forEach((l,m)=>T(cI[7]+5,ky+41+m*10,l,'tk2'));else wrapTxt(sb,40).forEach((l,m)=>T(cI[7]+5,ky+39+m*7,l,'tk'))}}
   T(cI[7]+5,ky+57,[s.bereich,s.stock].filter(Boolean).join(' · ').slice(0,30),'tk3');
   // Projekt / Ort / Seite
   L(cI[8],ky+kh,X1,ky+kh,'fr2');L(cI[8]+110,ky+kh,cI[8]+110,Y1,'fr2');
