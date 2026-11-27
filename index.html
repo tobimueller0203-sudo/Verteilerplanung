@@ -195,6 +195,8 @@ input:disabled,select:disabled{opacity:1;background:var(--bg);color:var(--ink);-
 .rfc{border:1px solid var(--line);border-radius:10px;padding:10px;margin:8px 0;background:#fff}.rfh{display:flex;flex-direction:column;gap:2px;margin-bottom:6px}.rft{width:100%;border-collapse:collapse;font-size:13px}.rft th{text-align:left;font-size:11px;color:var(--muted);font-weight:600;padding:2px 4px}.rft td{padding:4px;border-top:1px solid var(--line);vertical-align:top}.rft td:nth-child(3){white-space:nowrap}.rft td:nth-child(4) small{display:block;margin-top:2px}.rft .rfb{flex-wrap:nowrap}
 .rfk{margin-top:8px;padding-top:6px;border-top:1px dashed var(--line)}.rfkh{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-bottom:2px}
 .missHl{outline:3px solid #d0021b !important;outline-offset:4px;border-radius:8px;animation:missP 1s ease 2}@keyframes missP{50%{outline-color:#ff8a8a}}
+.missTag2{display:block;margin-top:4px;color:#d0021b;font-weight:700;font-size:13px}
+label.missHl,select.missHl,input.missHl{outline-offset:2px}
 .missTag{display:inline-block;margin:8px 0 6px;padding:6px 10px;border-radius:6px;background:#d0021b;color:#fff;font-weight:700;font-size:14px}
 .missRow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;flex-wrap:wrap}
 .swc{display:flex;gap:6px;flex-wrap:wrap;flex-basis:100%;margin:2px 0 4px}.swcb{display:flex;align-items:center;gap:6px;padding:5px 10px 5px 6px;border:1px solid var(--line);border-radius:8px;background:#f3f3f1;font:inherit;font-size:13px;color:inherit;cursor:pointer}.swcb i{width:20px;height:20px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}.swcb.on{background:#111;color:#fff;border-color:#111}.swcb small{color:#b42318;font-size:11px}.swcb.on small{color:#ffb4ab}
@@ -279,7 +281,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-27.0740';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-27.0746';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -956,7 +958,7 @@ function render0(){LXC=new Map();
   $('#main').innerHTML=f();
   {const sn=document.querySelector('#main .shnav .shc.on');if(sn){const n=sn.parentNode,a=n.getBoundingClientRect(),r=sn.getBoundingClientRect();n.scrollLeft+=(r.left-a.left)-(n.clientWidth-r.width)/2}}
   if(S.screen==='plan')skDecor();
-  if(S.screen==='plan'&&S.hl&&S.site){const pl=planOf(S.site);if(stepMiss(S.site,pl.step).includes(S.hl)){const first=!S._hlShown||S._hlShown!==S.hl;missGo(S.hl,first);S._hlShown=S.hl}else{const M=stepMiss(S.site,pl.step);S.hl=S.missShow&&M.length?M[0]:null;S._hlShown=null;if(S.hl){missGo(S.hl,false);S._hlShown=S.hl}}}
+  if(S.screen==='plan'&&S.site)missMarkAll();
   if(S.screen==='plan')fillDl('dlNB',[...new Set([...Object.values(D.nbMap||{}),...NB_LIST])]);
   if(S.screen==='baustelle'){fillDl('dlBereich',[...new Set([...BEREICHE,...D.sites.map(s=>s.bereich).filter(Boolean)])]);}
   if(S.screen==='baustelle')fillDl('dlKom',[...new Set(D.sites.filter(s=>s.id!==S.site.id&&s.kom).map(s=>s.kom))].sort());
@@ -2004,6 +2006,30 @@ function missEl(t){const pl=S.site?planOf(S.site):{},h=pl.sh||{},q=x=>document.q
     'Hersteller':()=>box('[data-plv=hersteller]'),'Montage (AP/UP)':()=>box('[data-plv=montage]'),'Gehäuse':()=>box('[data-plv=gehaeuse]'),'Zuleitung (Querschnitt)':()=>q('#p-qs'),
     'Mindestens ein Stromkreis':()=>q('#skRows input[data-sk=name]'),'Fehler: zu viele Netzteil-Abgänge':()=>{const e=q('[data-shout]');return e?(e.closest('.row')||e):q('.msg.alarm')},'Fehler: Netzteil-Abgang über 10 A':()=>{const e=q('[data-shout]');return e?(e.closest('.row')||e):q('.msg.alarm')},'Fehler: Netzteil zu klein':()=>box('[data-loxone="100401"]')||q('.msg.alarm'),'Fehler: Tree Turbo voll':()=>q('.msg.err')||box('[data-sh=au]'),'Fehler: Tree voll (max. 50 Geräte)':()=>q('[data-flnt]')?box('[data-flnt]'):q('.msg.alarm'),'Fehler: KNX-DALI-Aktor max. 64 Leuchten':()=>box('[data-sh=daliArt]'),'Fehler: Wallbox-Raum, Stockwerk EG fehlt':()=>q('[data-fladd]')||q('[data-flname]'),'Fehler: Wallbox-Zuleitung kleiner als Standard':()=>q('[data-shv=wbQs]'),'Mindestens ein Zähler':()=>q('input[data-zl="name"]')};
   return (F[t]||(()=>/^Fehler/.test(t)?q('.msg.err'):null))()}
+/* Tobi 27.11.: fehlende Pflichtangaben direkt am Feld rot markieren (alle, nicht nur das erste). Sobald ausgefüllt, verschwindet die Markierung beim nächsten Zeichnen */
+function missMark(e,t){const lab=e.tagName==='SELECT'||e.tagName==='INPUT'?(e.closest('label')||e):e;if(lab.classList.contains('missHl'))return lab;lab.classList.add('missHl');
+  if(lab.tagName==='LABEL'){const sp=document.createElement('span');sp.className='missTag2';sp.textContent='Bitte '+(/^Fehler: /.test(t)?'beheben: '+t.slice(8):lab.querySelector('select')||e.tagName==='BUTTON'?'auswählen':'ausfüllen');lab.appendChild(sp)}
+  else{const tag=document.createElement('div');tag.className='missTag';tag.textContent=/^Fehler: /.test(t)?'Gesperrt: '+t.slice(8)+' – zuerst beheben':'Bitte auswählen: '+t;lab.parentNode.insertBefore(tag,lab)}return lab}
+function zlPgMiss(pl,pg){const q=x=>document.querySelector('#main '+x),bx=x=>{const e=q(x);return e?(e.closest('.tiles,.seg')||e):null},M=[],add=(ok,t,f)=>{if(!ok)M.push([t,f])},v=x=>!!String(x||'').trim();
+  if(pl.isUV){if(pg==='sich')add(!pl.hakTyp||!!pl.hakA,'Bemessungsstrom',()=>q('[data-pl=hakA]'));if(pg==='kab')add(!!pl.qs&&qsNum(pl.qs)<=QS_MAX,'Querschnitt',()=>q('#p-qs'));return M}
+  if(pg==='herk'){if(zlEv(pl)){add(v(pl.evName),'Einspeisende Verteilung',()=>q('[data-pl=evName]'));add(!!pl.evStock,'Stockwerk',()=>q('[data-pl=evStock]'));add(v(pl.evRaum),'Raum',()=>q('[data-pl=evRaum]'))}
+    else{add(!!pl.zlHerk,'Herkunft der Zuleitung',()=>bx('[data-plv=zlHerk]'));if(pl.zlHerk==='hak_in'){add(!!pl.hakStock,'Stockwerk',()=>q('[data-pl=hakStock]'));add(v(pl.hakRaum),'Raum',()=>q('[data-pl=hakRaum]'))}if(pl.zlHerk==='hak_ext')add(!!pl.hakSeite,'Hausseite',()=>bx('[data-plv=hakSeite]'))}}
+  if(pg==='vt'){add(!!pl.hvStock,'Stockwerk',()=>q('[data-pl=hvStock]'));add(v(pl.hvRaum),'Raum',()=>q('[data-pl=hvRaum]'))}
+  if(pg==='sich'){add(!!pl.hakTyp,'Sicherungsart',()=>bx('[data-plv=hakTyp]'));if(pl.hakTyp)add(!!pl.hakA,'Bemessungsstrom',()=>q('[data-pl=hakA]'))}
+  if(pg==='kab'){add(!!pl.qs&&qsNum(pl.qs)<=QS_MAX,'Querschnitt',()=>q('#p-qs'));add(!!pl.kabTyp,'Leitungstyp',()=>q('[data-pl=kabTyp]'));if(pl.kabTyp==='anderer Typ')add(v(pl.kabTypTxt),'Leitungstyp',()=>q('[data-pl=kabTypTxt]'))}
+  if(pg==='erd'){const e=erdOf(pl),nP=erdPts(e).length,ids=e.sch.map(x=>x.id);add(!!e.typ,'Erder',()=>bx('[data-erdv=typ]'));
+    e.pts.forEach(g=>{add(!!g.stock,'Stockwerk',()=>q('[data-erdp="'+g.id+'"][data-f=stock]'));add(v(g.raum),'Raum',()=>q('[data-erdp="'+g.id+'"][data-f=raum]'))});
+    e.sch.forEach((x,j)=>{const c=String(x.con||''),cOk=c[0]==='P'?+c.slice(1)>=1&&+c.slice(1)<=nP:c[0]==='S'&&j>0&&ids.indexOf(+c.slice(1))>-1&&ids.indexOf(+c.slice(1))<j;add(!!x.stock,'Stockwerk',()=>q('[data-erds="'+x.id+'"][data-f=stock]'));add(v(x.raum),'Raum',()=>q('[data-erds="'+x.id+'"][data-f=raum]'));add(cOk,'Hängt an',()=>q('[data-erds="'+x.id+'"][data-f=con]'))});
+    add(ids.includes(+e.hak),'HAK hängt an',()=>q('[data-erdk=hak]'));add(ids.includes(+e.hv),'Hauptverteilung hängt an',()=>q('[data-erdk=hv]'))}
+  if(pg==='ok')add(zlpOk(pl,'ok'),'Einspeisung bestätigen',()=>q('[data-act=zlConf]'));
+  return M}
+function missMarkAll(){document.querySelectorAll('.missHl').forEach(e=>e.classList.remove('missHl'));document.querySelectorAll('.missTag,.missTag2').forEach(e=>e.remove());
+  const pl=planOf(S.site),k=pl.step;let L=[];
+  if(S.missShow===k)L=stepMiss(S.site,k).map(t=>[t,()=>missEl(t)]);
+  if(k==='zuleitung'&&S.zlMissPg&&zlpL(pl)[zlpCur(pl)]&&zlpL(pl)[zlpCur(pl)][0]===S.zlMissPg)L=zlPgMiss(pl,S.zlMissPg).concat(L);
+  const done=[],els=[];L.forEach(([t,f])=>{let e=null;try{e=f()}catch(_){}if(!e)return;els.push([t,missMark(e,t)]);done.push(t)});
+  const box=document.querySelector('#missBox');if(box){box.querySelectorAll('.missRow').forEach(r=>{const b=r.querySelector('[data-goto]'),t=b?b.dataset.goto.split('|').slice(1).join('|'):'';if(done.includes(t))r.remove()});if(!box.querySelector('.missRow'))box.remove()}
+  if(S._missScroll){S._missScroll=false;const hit=(S.hl&&els.find(x=>x[0]===S.hl))||els[0];if(hit)setTimeout(()=>{const tg=hit[1].tagName==='LABEL'?hit[1]:(hit[1].previousElementSibling&&hit[1].previousElementSibling.classList.contains('missTag')?hit[1].previousElementSibling:hit[1]);tg.scrollIntoView({block:'center',behavior:'smooth'})},30)}}
 function missGo(t,smooth){document.querySelectorAll('.missHl').forEach(e=>e.classList.remove('missHl'));document.querySelectorAll('.missTag').forEach(e=>e.remove());
   const e=missEl(t);if(!e)return false;e.classList.add('missHl');const tag=document.createElement('div');tag.className='missTag';tag.textContent=/^Fehler: /.test(t)?'Gesperrt: '+t.slice(8)+' – zuerst beheben':'Achtung: '+t+' noch auswählen';e.parentNode.insertBefore(tag,e);
   if(smooth!==false)tag.scrollIntoView({block:'center',behavior:'smooth'});return true}
@@ -3840,6 +3866,7 @@ document.addEventListener('input',e=>{
     persistSoon();
   }
   if(t.dataset.pl==='nb'&&S.site&&canEdit(S.site)&&t.isConnected){const pl=planOf(S.site);pl.nb=t.value;pl.nbAuto=false;refreshPreview();persistSoon()}
+  {const l=t.closest&&t.closest('label.missHl');if(l&&String(t.value||'').trim()){l.classList.remove('missHl');const g=l.querySelector('.missTag2');if(g)g.remove()}}
   if(t.dataset.erdp&&t.tagName==='INPUT'&&S.site&&canEdit(S.site)&&t.isConnected){const pl=planOf(S.site),g=erdOf(pl).pts.find(q=>q.id===+t.dataset.erdp);if(g){g[t.dataset.f]=t.value;pl.changed=now();refreshPreview();persistSoon()}}
   if(t.dataset.erds&&t.tagName==='INPUT'&&S.site&&canEdit(S.site)&&t.isConnected){const pl=planOf(S.site),x=erdSch(erdOf(pl),+t.dataset.erds);if(x){x[t.dataset.f]=t.value;pl.changed=now();refreshPreview();persistSoon()}}
   if(t.dataset.sk&&S.site&&canEdit(S.site)){skSet(t);persistSoon();if(t.dataset.sk==='name'){const e=t.closest('.sk')&&t.closest('.sk').querySelector('.simh');if(e)e.innerHTML=skSimHint(S.site,t.value)}}
@@ -4095,15 +4122,15 @@ document.addEventListener('click',e=>{
   if(act==='print'){printSheet();return}
   if(act==='toPlan'){if(canEdit(S.site))persistSite();planOf(S.site);return go('plan')}
   if(act==='toSite'){return go('baustelle')}
-  if(t.dataset.goto&&S.site){const [st,lbl]=t.dataset.goto.split('|'),pl=planOf(S.site);S.hl=lbl;if(st==='smarthome'&&SH_MISS_PT[lbl]&&S.shp!==SH_MISS_PT[lbl]){S.shp=SH_MISS_PT[lbl];pl.step=st;S.missShow=st;S._hlShown=null;render();return}if(pl.step!==st){pl.step=st;S.missShow=st;render()}else missGo(lbl);return}
-  if(act==='planNext'&&planOf(S.site).step==='zuleitung'){const pl=planOf(S.site),z=zlpCur(pl);if(z<zlpL(pl).length-1){if(!zlpOk(pl,zlpL(pl)[z][0])){S.zlMsg=zlpMsg[zlpL(pl)[z][0]];render();return}S.zlp=z+1;if(canEdit(S.site))persistSite();render();toStepTop();return}}
+  if(t.dataset.goto&&S.site){const [st,lbl]=t.dataset.goto.split('|'),pl=planOf(S.site);S.hl=lbl;if(st==='smarthome'&&SH_MISS_PT[lbl]&&S.shp!==SH_MISS_PT[lbl]){S.shp=SH_MISS_PT[lbl];pl.step=st;S.missShow=st;S._hlShown=null;S._missScroll=true;render();return}pl.step=st;S.missShow=st;S._missScroll=true;render();return}
+  if(act==='planNext'&&planOf(S.site).step==='zuleitung'){const pl=planOf(S.site),z=zlpCur(pl);if(z<zlpL(pl).length-1){if(!zlpOk(pl,zlpL(pl)[z][0])){S.zlMissPg=zlpL(pl)[z][0];S._missScroll=true;render();return}S.zlp=z+1;if(canEdit(S.site))persistSite();render();toStepTop();return}}
   if(act==='zlConf'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);if(!zlpL(pl).slice(0,-1).every(x=>zlpOk(pl,x[0])))return;pl.zlConf=zlSig(pl);if(pl.nb&&S.site.plz){D.nbMap=D.nbMap||{};D.nbMap[S.site.land+':'+S.site.plz.trim()]=pl.nb}touchPlan('Einspeisung bestätigt');pl.step=stepNext(S.site,'zuleitung');S.zlp=0;if(pl.step==='zaehler'&&S.site.geb==='MFH'&&pl.zl.length<2)pl.zl.push(zlNew(S.site));persistSite();render();toStepTop();return}
   if(act==='planPrev'&&S.site.art==='HV'&&planOf(S.site).step==='zuleitung'&&zlpCur(planOf(S.site))>0){S.zlp=zlpCur(planOf(S.site))-1;render();toStepTop();return}
-  if(t.dataset.zlp!=null){S.zlp=+t.dataset.zlp;render();return}
+  if(t.dataset.zlp!=null){S.zlp=+t.dataset.zlp;S.zlMissPg=null;render();return}
   if(act==='planNext'){const pl=planOf(S.site),i=stepIdx(pl.step),M=stepMiss(S.site,pl.step);
-    if(pl.step==='smarthome'&&loxOn(pl)){const ci=shPtCur(pl);if(ci<SH_PTS.length-1){const m=shPtMiss(pl,SH_PTS[ci][0]);if(m.length){S.missShow='smarthome';S.hl=m[0];S._hlShown=null;render();return}S.shp=SH_PTS[ci+1][0];S.hl=null;render();const e=document.querySelector('.shnav');if(e)e.scrollIntoView({block:'start',behavior:'smooth'});return}}
-    if(M.length){S.missShow=pl.step;S.hl=M[0];S._hlShown=null;if(pl.step==='smarthome'&&SH_MISS_PT[M[0]])S.shp=SH_MISS_PT[M[0]];render();return}
-    if(shGated(S.site,stepNext(S.site,pl.step))){const M2=shMissing(pl);S.hl=M2[0]||null;S._hlShown=null;if(M2[0]&&SH_MISS_PT[M2[0]])S.shp=SH_MISS_PT[M2[0]];pl.step='smarthome';S.missShow='smarthome';render();return}
+    if(pl.step==='smarthome'&&loxOn(pl)){const ci=shPtCur(pl);if(ci<SH_PTS.length-1){const m=shPtMiss(pl,SH_PTS[ci][0]);if(m.length){S.missShow='smarthome';S.hl=m[0];S._hlShown=null;S._missScroll=true;render();return}S.shp=SH_PTS[ci+1][0];S.hl=null;render();const e=document.querySelector('.shnav');if(e)e.scrollIntoView({block:'start',behavior:'smooth'});return}}
+    if(M.length){S.missShow=pl.step;S.hl=M[0];S._hlShown=null;S._missScroll=true;if(pl.step==='smarthome'&&SH_MISS_PT[M[0]])S.shp=SH_MISS_PT[M[0]];render();return}
+    if(shGated(S.site,stepNext(S.site,pl.step))){const M2=shMissing(pl);S.hl=M2[0]||null;S._hlShown=null;S._missScroll=true;if(M2[0]&&SH_MISS_PT[M2[0]])S.shp=SH_MISS_PT[M2[0]];pl.step='smarthome';S.missShow='smarthome';render();return}
     S.missShow=null;S.hl=null;if(canEdit(S.site)){if(pl.step==='zuleitung'&&S.site.art==='HV'&&pl.nb&&S.site.plz){D.nbMap=D.nbMap||{};D.nbMap[S.site.land+':'+S.site.plz.trim()]=pl.nb}}pl.step=stepNext(S.site,pl.step);if(pl.step==='zuleitung')S.zlp=0;if(pl.step==='zaehler'&&S.site.geb==='MFH'&&pl.zl.length<2&&canEdit(S.site))pl.zl.push(zlNew(S.site));if(canEdit(S.site))persistSite();render();toStepTop();return}
   if(act==='planPrev'){const pl=planOf(S.site),pv=stepPrev(S.site,pl.step);if(!pv)return go('baustelle');pl.step=pv;if(pv==='zuleitung')S.zlp=zlpL(pl).length-1;if(canEdit(S.site))persistSite();render();toStepTop();return}
   if(t.dataset.step){const pl=planOf(S.site);pl.step=t.dataset.step;S.zlp=0;if(canEdit(S.site))persistSite();render();toStepTop();return}
@@ -4185,7 +4212,7 @@ document.addEventListener('click',e=>{
     touchPlan('Raum-Sicherungen angepasst');persistSite();render();return}
   if((t.dataset.stadd||t.dataset.stdel!=null)&&S.site&&canEdit(S.site)){const pl2=planOf(S.site),h=shOf(pl2);h.stR=stItems(pl2).map(x=>({...x}));if(t.dataset.stadd)h.stR.push({rid:'',n:0});else h.stR.splice(+t.dataset.stdel,1);touchPlan('Stellantriebe angepasst');persistSite();render();return}
   if(t.dataset.swcol&&S.site&&canEdit(S.site)){const pl2=planOf(S.site),h=shOf(pl2),[rid,i,v]=t.dataset.swcol.split(':');h.sw=h.sw||{};const c=h.sw[rid]=h.sw[rid]||{};c.items=swItems(pl2,rid).slice();delete c.typ;delete c.n;const it=c.items[+i]=c.items[+i]||{typ:'',n:0};it.typ=v;touchPlan('Schalter angepasst');persistSite();render();return}
-  if((t.dataset.shp||t.dataset.shpnext)&&S.site){const pl2=planOf(S.site);if(t.dataset.shpnext){const ci=shPtCur(pl2),k=SH_PTS[ci][0],m=shPtMiss(pl2,k);if(m.length){S.missShow='smarthome';S.hl=m[0];S._hlShown=null;S.shp=k;render();return}S.shp=SH_PTS[Math.min(ci+1,SH_PTS.length-1)][0]}else S.shp=t.dataset.shp;S.hl=null;render();const e=document.querySelector('.shnav');if(e)e.scrollIntoView({block:'start',behavior:'smooth'});return}
+  if((t.dataset.shp||t.dataset.shpnext)&&S.site){const pl2=planOf(S.site);if(t.dataset.shpnext){const ci=shPtCur(pl2),k=SH_PTS[ci][0],m=shPtMiss(pl2,k);if(m.length){S.missShow='smarthome';S.hl=m[0];S._hlShown=null;S._missScroll=true;S.shp=k;render();return}S.shp=SH_PTS[Math.min(ci+1,SH_PTS.length-1)][0]}else S.shp=t.dataset.shp;S.hl=null;render();const e=document.querySelector('.shnav');if(e)e.scrollIntoView({block:'start',behavior:'smooth'});return}
   if(t.dataset.pickopen!=null){S.pick=S.pick===t.dataset.pickopen?null:t.dataset.pickopen;render();return}
   if(t.dataset.pick!=null&&S.site&&canEdit(S.site)){const pl2=planOf(S.site),h=shOf(pl2),[k,a,b2]=t.dataset.pick.split('|'),v=t.dataset.v;S.pick=null;
     if(k==='sw'){h.sw=h.sw||{};const c=h.sw[a]=h.sw[a]||{};c.items=swItems(pl2,a).slice();delete c.typ;delete c.n;const it=c.items[+b2]=c.items[+b2]||{typ:'',n:0};if(v==='100891'&&it.typ!=='100891'){const used=Object.keys(h.sw).reduce((x,r2)=>x+swItems(pl2,r2).reduce((y,q)=>y+(q.typ==='100891'?+q.n||0:0),0),0);if(used>=(+h.wdN||0)){render();return}}it.typ=v;if(!(+it.n))it.n=1;touchPlan('Schalter angepasst')}
