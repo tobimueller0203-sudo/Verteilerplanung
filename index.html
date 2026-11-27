@@ -279,7 +279,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-27.0639';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-27.0646';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -1468,6 +1468,11 @@ const KL={
   'PT10TBU':{art:'PT 10-TWIN BU blau',nr:'158 324 155',mm:10.2,net:3.16,bru:4.51},
   'PT10TPE':{art:'PT 10-TWIN-PE',nr:'158 841 765',mm:10.2,net:5.53,bru:7.90},
   'DPT10T':{art:'Deckel D-PT 10-TWIN',nr:'158 929 735',mm:2.2,net:0.76,bru:1.09},
+  /* Tobi 27.11.: Zuleitung 70 und 95 mm² (NUR diese, 25–50 mm² folgen andere): Phoenix PTPOWER 95, 25 mm breit, kein Deckel nötig, 2 Endhalter alu 10 mm */
+  'PTP95':{art:'PTPOWER 95 grau',nr:'',mm:25,net:0,bru:0,miss:true},
+  'PTP95BU':{art:'PTPOWER 95 BU blau',nr:'158 451 155',mm:25,net:24.48,bru:34.97},
+  'PTP95PE':{art:'PTPOWER 95-PE grün/gelb',nr:'158 451 165',mm:25,net:36.25,bru:51.79},
+  'EHALU':{art:'Endhalter PX B=10 mm alu',nr:'158 910 195',mm:10,net:3.77,bru:5.38},
   /* Abgänge bis 4 mm²: PT 2,5-QUATTRO (2 Löcher pro Seite, Doppelstock), 5,2 mm */
   'Q':{art:'PT 2,5-QUATTRO grau',nr:'158 170 135',mm:5.2,net:1.25,bru:1.78},
   'QBU':{art:'PT 2,5-QUATTRO BU blau',nr:'158 170 155',mm:5.2,net:1.25,bru:1.78},
@@ -1519,8 +1524,8 @@ const mmTxt=v=>v.toFixed(1).replace('.',',')+' mm';
 /* Hager-Herstellerverteiler: Klemmen auf Hutschiene UT22B, 206 mm. Preis aus dem Internet (Conrad), nicht unser Preis */
 const KL_UT={art:'Hager UT22B Hutschiene für Klemmen',nr:'UT22B',mm:206,bru:23.95};
 function klTypAbg(qs){const mx=Math.max(0,...qs.map(q=>q?qsNum(q):0));return mx>10?'(Klemmentyp folgt)':mx>4?'PT 6-TWIN':'PT 2,5-QUATTRO'}
-function klZulTyp(s){const pl=planOf(s),q=pl.qs?qsNum(pl.qs):0;return !q?null:q<=10?'PT 6-TWIN':q<=16?'PT 10-TWIN':null}
-function klZul(s){const pl=planOf(s),five=(pl.adern||'5')==='5',ty=klZulTyp(s);if(!ty)return null;const k=ty==='PT 6-TWIN'?'6':'10';
+function klZulTyp(s){const pl=planOf(s),q=pl.qs?qsNum(pl.qs):0;return !q?null:q<=10?'PT 6-TWIN':q<=16?'PT 10-TWIN':(q===70||q===95)?'PTPOWER 95':null}
+function klZul(s){const pl=planOf(s),five=(pl.adern||'5')==='5',ty=klZulTyp(s);if(!ty)return null;if(ty==='PTPOWER 95'){const it=[['PTP95',five?3:1],['PTP95BU',1],['PTP95PE',1],['EHALU',2]].map(([k,n])=>({...KL[k],n}));return {it,miss:it.some(x=>x.miss),mm:it.reduce((a,x)=>a+x.mm*x.n,0),net:it.reduce((a,x)=>a+x.net*x.n,0),bru:it.reduce((a,x)=>a+x.bru*x.n,0)}}const k=ty==='PT 6-TWIN'?'6':'10';
   const it=[['PT'+k+'T',five?3:1],['PT'+k+'TBU',1],['PT'+k+'TPE',1],['DPT'+k+'T',1],['EH',2]].map(([k,n])=>({...KL[k],n}));
   return {it,mm:it.reduce((a,x)=>a+x.mm*x.n,0),net:it.reduce((a,x)=>a+x.net*x.n,0),bru:it.reduce((a,x)=>a+x.bru*x.n,0)}}
 /* Produkte mit Lieferant (vorerst Sonepar, EM folgt für den Preisvergleich). Preise CHF netto / brutto, Stand 19.11.2026 */
@@ -2569,7 +2574,7 @@ function vPlan(){
         <select data-pl="x0Side"${dis}>${opt([['l','links'],['r','rechts']],x0Side(pl))}</select></label>
       <label class="f c3">Zuleitungsblock -X0 Höhe <span class="hint">Etagenschienen starten dort</span>
         <select data-klpos="-X0"${dis}>${opt([['o','oben'],['u','unten']],klPos(pl,'-X0')==='unten'?'u':'o')}</select></label>`:''}
-      ${pl.qs&&qsNum(pl.qs)>16?`<div class="c6 msg err"><b>Klemmen für ${qsTxt(pl.qs)} mm² noch nicht eingefügt.</b> Der Klemmentyp für -X0 über 16 mm² ist noch nicht hinterlegt. Im Plan steht «Klemmentyp folgt», die Breite von -X0 bleibt offen.</div>`:''}`;
+      ${pl.qs&&qsNum(pl.qs)>16&&!klZulTyp(p)?`<div class="c6 msg err"><b>Klemmen für ${qsTxt(pl.qs)} mm² noch nicht eingefügt.</b> Für -X0 sind bisher nur Klemmen bis 16 mm² sowie für 70 und 95 mm² hinterlegt. Im Plan steht «Klemmentyp folgt», die Breite von -X0 bleibt offen.</div>`:''}`;
     if(!hv){body=`<div class="row between"><h2>Zuleitung und Einspeisung</h2><span class="tag y">UV · ohne Zähler</span></div><div class="grid">${qsF}</div>`}
     else{
       /* Tobi 26.11.: HV Zuleitung Seite für Seite: 1 Einspeisung (HAK/Säule + Position), 2 Standort Verteiler, 3 Sicherung im HAK, 4 Leitung HAK → Verteiler, 5 Zähler */
@@ -2772,7 +2777,7 @@ function teBox(s,pl,dis){
     <select data-pl="big4"${dis}>${opt([['o','auf der obersten Sicherungsschiene'],['u','auf der untersten Sicherungsschiene']],pl.big4==='u'?'u':'o')}</select></label>
   <label class="chk"><input type="checkbox" data-ex="relSame" ${pl.relSame?'checked':''}${dis}> Relais mit auf die Sicherungsschienen setzen, wenn Platz ist</label>
   ${pl.relSame?`<div class="msg err">Relais neben Sicherungen: ${hgr?'bei Hager so keine Phasenschiene möglich.':'Phasenschiene beim Hersteller prüfen.'}</div>`:'<p class="sub">Relais bekommen eine eigene Schiene, auch wenn auf der Sicherungsschiene noch Platz wäre (Reserve für später).</p>'}`}
-  ${det('x0','Klemmen Zuleitung -X0 (Breite und Preis)',(()=>{const z=klZul(s);return `${z?`<table class="te">${z.it.map(x=>row(x.n+'× '+x.art+' <span class="sub">('+x.nr+')</span>',(x.mm*x.n).toFixed(1).replace('.',',')+' mm · '+chf(x.net*x.n)+' CHF')).join('')}${row('Zuleitungsblock -X0',z.mm.toFixed(1).replace('.',',')+' mm · netto '+chf(z.net)+' / brutto '+chf(z.bru)+' CHF','sum')}</table>`:`<p class="sub">Zuleitungsklemmen für ${pl.qs?qsTxt(pl.qs)+' mm²':'diesen Querschnitt'} folgen.</p>`}`})())}
+  ${det('x0','Klemmen Zuleitung -X0 (Breite und Preis)',(()=>{const z=klZul(s);return `${z?`<table class="te">${z.it.map(x=>row(x.n+'× '+x.art+(x.miss?' <b style="color:#b00">noch nicht eingefügt</b>':' <span class="sub">('+x.nr+')</span>'),(x.mm*x.n).toFixed(1).replace('.',',')+' mm · '+(x.miss?'Preis fehlt':chf(x.net*x.n)+' CHF'))).join('')}${row('Zuleitungsblock -X0',z.mm.toFixed(1).replace('.',',')+' mm · netto '+chf(z.net)+' / brutto '+chf(z.bru)+' CHF','sum')}</table>`:`<p class="sub">Zuleitungsklemmen für ${pl.qs?qsTxt(pl.qs)+' mm²':'diesen Querschnitt'} folgen.</p>`}`})())}
   ${det('kl','Klemmen Abgänge, Breiten und Positionen',(()=>{const a=klAbg(s),z0=klZul(s),mmT=(z0?z0.mm:0)+(a?a.mm:0);return `${noKl(s)?'<p class="sub">Ohne Abgangsklemmen: Die Kabel kommen direkt an die Sicherungen. Nur der Zuleitungsblock -X0 wird gerechnet.</p>':''}<div class="legend"${noKl(s)?' hidden':''}>Klemmen Abgänge ${(()=>{const n=skLayout(s).nX||1;return n>1?'-X1 bis -X'+n+' (je höchstens '+KL_SICH+' Sicherungen)':'-X1'})()}</div>${a?`<table class="te">${a.it.map(x=>row(x.n+'× '+x.art+' <span class="sub">('+x.nr+')</span>',(x.mm?(x.mm*x.n).toFixed(1).replace('.',',')+' mm · ':'')+chf(x.net*x.n)+' CHF')).join('')}${row('Klemmen Abgänge zusammen',a.mm.toFixed(1).replace('.',',')+' mm · netto '+chf(a.net)+' / brutto '+chf(a.bru)+' CHF','sum')}</table>${a.big?`<p class="sub">${a.big} Klemmen für Kabel über 10 mm² folgen (Klemmentyp noch offen).</p>`:''}${a.nb?`<p class="sub">${a.nb} ${a.nb===1?'Sicherung hat':'Sicherungen haben'} mehr als 2 Kabel: Klemmensätze mit Steckbrücke verbunden (pauschal 1 rote und 1 blaue Steckbrücke pro 3 solcher Fälle).</p>`:''}`:(noKl(s)?'':'<p class="sub">Noch keine Abgänge.</p>')}
   ${mmT?`<table class="te">${klStrips(s).filter(k=>k.mm||k.offen).map(k=>row('Breite Klemmenleiste '+k.X,k.offen&&!k.mm?'Klemmentyp folgt':mmTxt(k.mm)+' = '+klTE(k.mm)+' TE'+(k.offen?' + Klemmen folgen':''))).join('')}${row('Klemmen total nebeneinander',mmT.toFixed(1).replace('.',',')+' mm = '+klTE(mmT)+' TE (aufgerundet)','sum')}${row('Preis Klemmen total','netto '+chf((z0?z0.net:0)+(a?a.net:0))+' / brutto '+chf((z0?z0.bru:0)+(a?a.bru:0))+' CHF','sum')}</table><p class="sub">Die Klemmen zählen nicht zur TE-Reserve der Sicherungen.</p>${(()=>{if(noKl(s))return '';const ks=klStrips(s).filter(k=>k.mm||k.offen),ps=ks.map(k=>klPos(pl,k.X)),mix=new Set(ps).size>1,allU=ps.length&&ps.every(p=>p==='unten');
     if(!S.klPosOpen)return `<p class="sub">Klemmen-Position: ${mix?'aufgeteilt ('+ks.map((k,i)=>k.X+' '+ps[i]).join(', ')+')':allU?'alle unten (unterste Hutschiene)':'alle oben (oberste Hutschiene)'}</p><button type="button" class="btn small" data-act="klPosOpen">Klemmen-Positionen anpassen</button>${mix?'<div class="msg info">Hinweis: Die Klemmen sind oben und unten aufgeteilt. Das braucht mehr Platz im Verteiler: Für die Klemmen unten ist eine eigene Hutschiene eingerechnet.</div>':''}`;
