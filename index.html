@@ -279,7 +279,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-27.0649';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-27.0653';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -2833,7 +2833,7 @@ function bauData(s){const pl=planOf(s),hv=s.art==='HV',five=(pl.adern||'5')==='5
   if(ks.length)SEC.push({h:'Klemmleisten (Phoenix Push-in)',table:{head:['Leiste','Lage','Klemmen','Breite','TE'],w:[.2,.2,.2,.24,.16],rows:ks.map(k=>[k.X,klPos(pl,k.X),String(k.X==='-X0'?nZ:(k.n||'–')),k.offen&&!k.mm?'folgt':mmTxt(k.mm),String(klTE(k.mm))]).concat([['Total','',String(ks.reduce((a,k)=>a+(k.X==='-X0'?nZ:(k.n||0)),0)),mmTxt(kt),String(klTE(kt))]]),tot:1},note:'Breite inkl. Endhalter und Deckel bzw. Trennplatte. TE aufgerundet (1 TE = 18 mm).'});
   if(lox){const R=[],nP=fkPtrvN(pl),nT=busGrp(pl).length;if(nT){const mm=nT*2*KL.PTTBS15.mm+KL.ATPSTTB.mm;R.push([LX(pl).bus+' Bus / 24 V',nT*2+'× PTTBS 1,5/S + Abdeckplatte = '+mmTxt(mm)+' ('+klTE(mm)+' TE)'])}if(nP)R.push([LX(pl).fk+' Fensterkontakte',nP+'× PTRV 8 à 10,45 mm']);{const DK=daliKl(s);if(DK.length){const mm=DK.length*KL.PTTBS.mm+KL.ATPSTTB.mm;R.push([LX(pl).dali+' DALI',DK.length+'× PTTBS 2,5 + Abdeckung = '+mmTxt(mm)+' ('+klTE(mm)+' TE)'])}}LX(pl).rels.forEach((X,k)=>{const mm=14*KL.PTTBS.mm+KL.ATPSTTB.mm;R.push([X+' Relay Ext. '+(k+1),'14× PTTBS 2,5 + Abdeckung = '+mmTxt(mm)+' ('+klTE(mm)+' TE)'])});bsSep(pl).forEach(b=>{const mm=b.D.length*4*KL.PT25.mm+KL.ATPST4.mm;R.push([b.X+' Storen separat',b.D.length*4+' Kl. + Trennplatte = '+mmTxt(mm)+' ('+klTE(mm)+' TE)'])});LX(pl).mb.forEach(X=>{const mm=4*KL.ST15.mm+KL.ATPST4.mm;R.push([X+' Modbus','4 Kl. 0,08–1,5 + Trennplatte = '+mmTxt(mm)+' ('+klTE(mm)+' TE)'])});{const n=loxTermN(pl);if(n)R.push(['weitere Smart-Home-Klemmen',n+' Stück (Typ folgt)'])}if(R.length)SEC.push({h:'Smart-Home-Klemmen',rows:R})}
   /* 5) Verteiler */
-  SEC.push({h:'Verteiler',rows:[['Art',hv?'Hauptverteilung (HV)':'Unterverteilung (UV)'],['Gehäuse',pl.gehaeuse?(pl.gehaeuse==='alu'?'Alu-Verteiler (Schaltschrankbauer)':'Herstellerverteiler')+(pl.montage?' · '+(pl.montage==='AP'?'Aufputz':'Unterputz'):''):'offen'],...(vtArt?[['Verteiler',vtArt]]:[]),['Hersteller',pl.hersteller||'offen'],['Zuleitung',pl.qs?(five?'5×':'3×')+qsTxt(pl.qs)+' mm² Cu':'offen'],['Norm',s.norm==='VDE'?'DIN VDE 0100':'NIN SN 411000']]});
+  SEC.push({h:'Verteiler',rows:[['Art',hv?'Hauptverteilung (HV)':'Unterverteilung (UV)'],['Gehäuse',hv?(pl.hvBau==='stand'?'Standverteiler':pl.hvBau==='wand'?'Wandverteiler hängend · Aufputz':'offen'):pl.gehaeuse?(pl.gehaeuse==='alu'?'Alu-Verteiler (Schaltschrankbauer)':'Herstellerverteiler')+(pl.montage?' · '+(pl.montage==='AP'?'Aufputz':'Unterputz'):''):'offen'],...(vtArt?[['Verteiler',vtArt]]:[]),['Hersteller',pl.hersteller||'offen'],['Zuleitung',pl.qs?(five?'5×':'3×')+qsTxt(pl.qs)+' mm² Cu':'offen'],['Norm',s.norm==='VDE'?'DIN VDE 0100':'NIN SN 411000']]});
   /* 6) Hinweise */
   const H=[];if(lox)H.push('Tree und Tree Turbo nie verbinden. GND aller Netzteile verbinden.');H.push('3- und 4-polige Sicherungen nie mit 1- und 2-poligen auf derselben Hutschiene, eigene Klemmleiste.');H.push('Max. 6 Sicherungen pro Klemmleiste, danach Endhalter + Deckel und nächste Leiste.');H.push('Belegung, Querschnitte und Aderfarben: siehe Schema'+((pl.docs||{}).klemmen?' und Klemmenliste.':'.'));
   SEC.push({h:'Hinweise zum Bau',list:H});
@@ -2961,9 +2961,9 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
       L(lx,yy-18,px-50,yy-18,'fr2');R.forEach((r,i)=>{const x=lx+i*cw2;if(i)L(x-10,yy-6,x-10,yy+22,'fr3');T(x,yy,r[0],'tkv');T(x,yy+18,cut(r[1],Math.floor((cw2-16)/7.6)),'tkvb')})}
     /* rechte Spalte: Projekt und Verteilung */
     o.push(`<rect x="${px}" y="${py}" width="${pw}" height="${ph}" fill="#f5f5f2"/><rect x="${px}" y="${py}" width="${pw}" height="6" fill="#ffed00"/>`);
-    {let y=py+44;const mx=Math.floor((pw-48)/6.9),sec=(h,R)=>{T(px+24,y,h,'tlab');L(px+24,y+9,px+pw-24,y+9,'fr2');y+=32;R.filter(r=>r[1]).forEach(r=>{T(px+24,y,r[0].toUpperCase(),'tkv');T(px+24,y+16,cut(r[1],mx),'tkvb');y+=36});y+=14};
+    {let y=py+44;const mx=Math.floor((pw-48)/6.9),sec=(h,R)=>{T(px+24,y,h,'tlab');L(px+24,y+9,px+pw-24,y+9,'fr2');y+=32;R.filter(r=>r[1]).forEach(r=>{T(px+24,y,r[0].toUpperCase(),'tkv');/* Tobi 27.11.: nie abschneiden, umbrechen */const Ls=[];String(r[1]).split(' ').forEach(w=>{const l=Ls.length?Ls[Ls.length-1]:null;if(l!=null&&(l+' '+w).length<=mx)Ls[Ls.length-1]=l+' '+w;else Ls.push(w)});Ls.forEach((l,i)=>T(px+24,y+16+i*16,l,'tkvb'));y+=36+(Ls.length-1)*16});y+=14};
       sec('PROJEKT',[['Kommission',s.kom||'offen'],['Bauherrschaft',s.bauherr||'offen'],['Adresse',[s.adr,[s.plz,s.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ')],['Bereich · Stockwerk',[s.bereich,s.stock].filter(Boolean).join(' · ')],['Land',(s.land==='CH'&&s.kanton?s.kanton+' · ':'')+landName(s.land)]]);
-      sec('VERTEILUNG',[['Art',hv?'Hauptverteilung (HV)':'Unterverteilung (UV)'],['Norm',s.norm==='VDE'?'DIN VDE 0100':'NIN SN 411000'],['Hersteller',pl.hersteller||'offen'],['Gehäuse',pl.gehaeuse?(pl.gehaeuse==='alu'?'Alu-Verteiler'+(s.art==='HV'&&pl.hvBau?(pl.hvBau==='stand'?' · Standverteiler':' · Wandverteiler hängend'):''):'Herstellerverteiler')+(pl.montage?' · '+(pl.montage==='AP'?'Aufputz':'Unterputz'):''):'offen'],['Zuleitung',pl.qs?(five?'5×':'3×')+qsTxt(pl.qs)+' mm² Cu':'offen']])}
+      sec('VERTEILUNG',[['Art',hv?'Hauptverteilung (HV)':'Unterverteilung (UV)'],['Norm',s.norm==='VDE'?'DIN VDE 0100':'NIN SN 411000'],['Hersteller',pl.hersteller||'offen'],['Gehäuse',hv?(pl.hvBau==='stand'?'Standverteiler':pl.hvBau==='wand'?'Wandverteiler hängend · Aufputz':'offen'):pl.gehaeuse?(pl.gehaeuse==='alu'?'Alu-Verteiler':'Herstellerverteiler')+(pl.montage?' · '+(pl.montage==='AP'?'Aufputz':'Unterputz'):''):'offen'],['Zuleitung',pl.qs?(five?'5×':'3×')+qsTxt(pl.qs)+' mm² Cu':'offen'],...(hv?[['Zuleitung von',zlEv(pl)?zlSrc(pl)+(hakPos(pl)?' · '+hakPos(pl):''):pl.zlHerk==='saeule'?'Energiesäule · Aussenbereich':pl.zlHerk?'Hausanschlusskasten'+(hakPos(pl)?' · '+hakPos(pl):''):'offen']]:[]),...(hv?[['Zuleitungssicherung',pl.hakTyp?hakSichTxt(pl)+' ('+zlSrcIn(pl)+')':'offen']]:[])])}
   }else if(pg.kind==='bau'){
     const D=bauData(s),cols=pg.cols||[[],[]],k=pg.k||0,cx0=ix0+40,cW=(ix1-ix0-120)/2;
     T(cx0,iy0+46,'Info für den Verteilerbauer','tdeck2');o.push(`<rect x="${cx0}" y="${iy0+56}" width="48" height="4" fill="#ffed00"/>`);
@@ -3544,7 +3544,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
   T(cx,yBot+73,'Vorsicherung gemäss HV','tm','middle');
   }else{
   /* Tobi 26.11.: HAK nach Vorlage: Kasten mit Sicherungen auf L1-L3, PEN-Aufteilung N/PE, Trichter zur Einspeisung, Erder und Pot.-Ausgleich abgehend, Bemerkung Standort/Form */
-  const tx=xs[xs.length-1]+26,sae=pl.zlHerk==='saeule',ev=zlEv(pl),nm=ev?zlShort(zlSrc(pl),8):sae?'Energiesäule':'HAK',yH0=yBot+92,yH1=yH0+58,bx0=xs[0]-(sae?98:74),bx1=xs[xs.length-1]+(sae?36:30),mx=sae?xs[Math.floor((xs.length-1)/2)]:(bx0+bx1)/2;
+  const sae=pl.zlHerk==='saeule',tx=xs[xs.length-1]+(sae?48:42),ev=zlEv(pl),nm=ev?zlShort(zlSrc(pl),8):sae?'Energiesäule':'HAK',yH0=yBot+92,yH1=yH0+58,bx0=xs[0]-(sae?98:74),bx1=xs[xs.length-1]+(sae?36:30),mx=sae?xs[Math.floor((xs.length-1)/2)]:(bx0+bx1)/2;
   T(tx,yBot+24,'Zuleitung '+zlSrcVon(pl)+' zum Verteiler','tb');
   T(tx,yBot+37,(five?'5×':'3×')+qs+' Cu'+(kabTypTxt(pl)?' · '+kabTypTxt(pl):' · Leitungstyp offen'),'t');
   /* Leiter von -W1 hinunter in den HAK */
@@ -3610,7 +3610,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
   T(bxX+12,ny+36,'Netz: '+(five?'TN-S, 5-adrig ab Einspeisung':'1-phasig, L N PE'),'tm');
   T(bxX+12,ny+50,'Zuleitung: '+(five?'5×':'3×')+qs+' Cu','tm');
   T(bxX+12,ny+64,'Norm: '+(s.norm==='VDE'?'DIN VDE 0100':'NIN SN 411000'),'tm');
-  T(bxX+12,ny+78,'Hersteller: '+(pl.hersteller||'offen')+(pl.gehaeuse?' · '+(pl.gehaeuse==='alu'?'Alu-Verteiler':'Herstellerverteiler')+(pl.montage?' '+pl.montage:''):''),'tm');
+  T(bxX+12,ny+78,'Hersteller: '+(pl.hersteller||'offen')+(s.art==='HV'?(pl.hvBau?' · '+(pl.hvBau==='stand'?'Standverteiler':'Wandverteiler hängend · Aufputz'):''):pl.gehaeuse?' · '+(pl.gehaeuse==='alu'?'Alu-Verteiler':'Herstellerverteiler')+(pl.montage?' '+(pl.montage==='AP'?'Aufputz':'Unterputz'):''):''),'tm');
 
   }
   /* Plankopf */
