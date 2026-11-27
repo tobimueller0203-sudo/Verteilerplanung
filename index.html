@@ -281,7 +281,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-27.1115';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-27.1119';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -1229,7 +1229,16 @@ const erdConTxt=(e,c)=>{c=String(c||'');if(c[0]==='P')return 'Erdungspunkt '+c.s
 const erdNm=(e,id)=>{const j=e.sch.findIndex(x=>x.id===id);return j<0?'':'PA-Schiene '+(j+1)};
 const erdSch=(e,id)=>e.sch.find(x=>x.id===id);
 /* Querschnitte nach NIN 5.4 (zur Prüfung): PE der Zuleitung (≤16: gleich; ≤35: 16; sonst halb), Schutzpotentialausgleich = halber grösster PE, mind. 6, höchstens 25 mm² Cu; Erdungsleiter Cu mind. 16 mm² */
-const erdQs=pl=>{const q=qsNum(pl.qs)||0,pe=!q?0:q<=16?q:q<=35?16:q/2,pa=[6,10,16,25].find(v=>v>=pe/2)||25,er=Math.max(16,pa);return {pe,pa,er}};
+/* Tobi 27.11.: Querschnittsregeln fest hinterlegt (NIN 5.4.3 / 5.4.4.1.1 / 5.4.2.3, zur Prüfung): PE = Polleiter bis 16 mm², 16 mm² bei 25–35 mm², halber Polleiter ab 50 mm².
+   Schutzpotentialausgleichsleiter mind. halber grösster PE, mind. 6 mm², höchstens 25 mm² Cu nötig. Erdungsleiter mind. 16 mm² Cu. Eigene Werte möglich (erd.qPa/qEr), laufende Prüfung mit quittierbarer Warnung */
+const ERD_QS=['6','10','16','25','35','50'];
+const erdQs=pl=>{const q=qsNum(pl.qs)||0,pe=!q?0:q<=16?q:q<=35?16:(QS.map(qsNum).find(v=>v>=q/2)||q/2),paMin=[6,10,16,25].find(v=>v>=pe/2)||25,erMin=Math.max(16,paMin),e=pl.erd||{},pa=+e.qPa||paMin,er=+e.qEr||erMin;return {pe,pa,er,paMin,erMin}};
+const erdWarn=pl=>{if(!erdOn(pl)||!pl.qs)return [];const Q=erdQs(pl),e=pl.erd||{},W=[];
+  if(+e.qPa&&+e.qPa<Q.paMin)W.push({k:'pa',sig:Q.pe+'|'+e.qPa,t:'Schutzpotentialausgleichsleiter Cu '+qsTxt(String(e.qPa))+' mm² ist zu klein. Nötig: mindestens halber PE ('+qsTxt(String(Q.pe))+' mm² / 2), mindestens 6 mm², also Cu '+Q.paMin+' mm² (NIN 5.4.4.1.1).'});
+  if(+e.qEr&&+e.qEr<16)W.push({k:'er',sig:String(e.qEr),t:'Erdungsleiter Cu '+qsTxt(String(e.qEr))+' mm² ist zu klein. Nötig: mindestens Cu 16 mm².'});
+  return W};
+const erdWarnOpen=pl=>erdWarn(pl).filter(w=>((pl.erdAck||{})[w.k])!==w.sig);
+const erdWarnHTML=(pl,dis)=>erdWarn(pl).map(w=>{const ok=((pl.erdAck||{})[w.k])===w.sig;return `<div class="msg ${ok?'info':'err'}" style="margin-top:8px"><b>${ok?'Quittiert: ':'Achtung Norm: '}</b>${esc(w.t)}<label class="chk" style="margin-top:8px"><input type="checkbox" data-erdack="${w.k}" data-erdsig="${esc(w.sig)}" ${ok?'checked':''}${dis}> Ich habe es geprüft, die Angaben stimmen so.</label></div>`}).join('');
 const erdOk=pl=>{const e=pl.erd;if(!e||!e.typ||!Array.isArray(e.sch)||!e.sch.length||!Array.isArray(e.pts)||!e.pts.length)return false;const ids=e.sch.map(x=>x.id),nP=erdPts(e).length;if(!nP||nP>ERD_PMAX||!e.pts.every(g=>!!g.stock&&!!String(g.raum||'').trim()&&+g.n>=1))return false;const cOk=(c,j)=>{c=String(c||'');if(c[0]==='P'){const k=+c.slice(1);return k>=1&&k<=nP}if(c[0]==='S'&&j){const q=ids.indexOf(+c.slice(1));return q>-1&&q<j}return false};return e.sch.every((x,j)=>!!x.stock&&!!String(x.raum||'').trim()&&cOk(x.con,j))&&ids.includes(+e.hak)&&ids.includes(+e.hv)};
 const erdPage=pl=>erdOn(pl)&&!!(pl.erd&&pl.erd.typ);
 /* Tobi 26.11.: Sicherungsart im HAK / in der Säule, danach Bemessungsstrom (übliche Grössen, zur Prüfung) */
@@ -1975,7 +1984,7 @@ function skLayout(s){
 const skSorted=s=>skLayout(s).list;
 const stepIdx=k=>stepsOf(S.site).findIndex(x=>x[0]===k);
 /* Zurücksetzen einzelner Planungsschritte (Baustellendaten bleiben) */
-const RS_KEYS={hvart:['zs','hvArt','zOrt'],smarthome:['sh'],unterlagen:['docs'],hersteller:['hersteller','herstellerFrei'],gehaeuse:['hvSelbst','gehaeuse','montage','vtSer','hvBau','hvMaxB','hvMaxH','hvMaxT','hvMaxU'],zuleitung:['qs','adern','nb','nbAuto','nbOwn','bez','bezA','x0Side','zlHerk','hakStock','hakRaum','hakSeite','hvStock','hvRaum','hakTyp','hakA','kabTyp','kabTypTxt','zlConf','izAck','evName','evNr','evStock','evRaum','lr','erd','zNr','hvWhg'],zaehler:['zl','allg','resAns'],klemmen:['klAbg','klPos'],heizung:['hz','hzAck'],stromkreise:['sk','relSame','resPct','resOff'],schienen:['bus','etag','big4','x0Moved','busSeen'],matliste:[],extras:['spd','hs','hsA','hsE','siem','siemOk','preise','litzeMag','material']};
+const RS_KEYS={hvart:['zs','hvArt','zOrt'],smarthome:['sh'],unterlagen:['docs'],hersteller:['hersteller','herstellerFrei'],gehaeuse:['hvSelbst','gehaeuse','montage','vtSer','hvBau','hvMaxB','hvMaxH','hvMaxT','hvMaxU'],zuleitung:['qs','adern','nb','nbAuto','nbOwn','bez','bezA','x0Side','zlHerk','hakStock','hakRaum','hakSeite','hvStock','hvRaum','hakTyp','hakA','kabTyp','kabTypTxt','zlConf','izAck','evName','evNr','evStock','evRaum','lr','erd','erdAck','zNr','hvWhg'],zaehler:['zl','allg','resAns'],klemmen:['klAbg','klPos'],heizung:['hz','hzAck'],stromkreise:['sk','relSame','resPct','resOff'],schienen:['bus','etag','big4','x0Moved','busSeen'],matliste:[],extras:['spd','hs','hsA','hsE','siem','siemOk','preise','litzeMag','material']};
 function rsPanel(p){const ST=stepsOf(p),sel=S.rsSel||new Set(),ci=ST.findIndex(x=>x[0]===planOf(p).step),cur=ST[ci],all=sel.size===ST.length,only=cur&&sel.size===1&&sel.has(cur[0]);
   const q=only?'Nur Schritt '+(ci+1)+' «'+esc(cur[1])+'» zurücksetzen?':all?'Alles zurücksetzen (alle Schritte der Planung)?':'Diese Schritte zurücksetzen?';
   return `<div class="msg err" style="margin-top:14px"><b>${q}</b><p style="margin:6px 0">Sie können weitere Schritte ankreuzen oder alles zurücksetzen. Die Baustellendaten bleiben immer unverändert (die gehen nur beim Löschen der ganzen Baustelle weg).</p>
@@ -2740,7 +2749,10 @@ function vPlan(){
       <div class="legend" style="margin-top:14px">Anschlüsse</div>
       <div class="grid"><label class="f c3">${esc(pl.zlHerk==='saeule'?'Energiesäule':'HAK')} (PEN-Auftrennung) hängt an<select data-erdk="hak"${dis}>${opS(e.hak,0,99)}</select></label>
         <label class="f c3">Hauptverteilung (PE-Schiene) hängt an<select data-erdk="hv"${dis}>${opS(e.hv,0,99)}</select></label></div>
-      ${pl.qs?`<div class="msg info" style="margin-top:10px"><b>Querschnitte nach NIN (Vorschlag, zur Prüfung)</b><br>Erdungsleiter Erdungspunkt → PA-Schiene: Cu ${Q.er} mm²<br>Schutzpotentialausgleich (HAK, Hauptverteilung, Schiene zu Schiene): Cu ${Q.pa} mm² (halber PE der Zuleitung ${qsTxt(String(Q.pe))} mm², mind. 6, höchstens 25 mm²)</div>`:'<p class="sub">Querschnitt-Vorschlag folgt, sobald die Zuleitung (Punkt Leitung) gewählt ist.</p>'}
+      ${pl.qs?`<div class="legend" style="margin-top:18px;font-size:20px;font-weight:800">Querschnitte</div><div class="grid"><label class="f c3">Erdungsleiter <span class="hint">Erdungspunkt → PA-Schiene · mind. Cu 16 mm²</span><select data-erdk="qEr"${dis}>${opt([['','automatisch · Cu '+Q.erMin+' mm²'],...ERD_QS.map(v=>[v,'Cu '+v+' mm²'])],String(e.qEr||''))}</select></label>
+        <label class="f c3">Schutzpotentialausgleichsleiter <span class="hint">HAK, Hauptverteilung, Schiene zu Schiene</span><select data-erdk="qPa"${dis}>${opt([['','automatisch · Cu '+Q.paMin+' mm²'],...ERD_QS.map(v=>[v,'Cu '+v+' mm²'])],String(e.qPa||''))}</select></label></div>
+        <div class="msg info" style="margin-top:8px"><b>Regeln (NIN, zur Prüfung)</b><br>PE-Leiter: gleich Polleiter bis 16 mm², 16 mm² bei 25 und 35 mm², halber Polleiter ab 50 mm². Zuleitung ${qsTxt(pl.qs)} mm² → PE ${qsTxt(String(Q.pe))} mm². Die Zuleitung ist 5-adrig mit vollem PE, das passt immer.<br>Schutzpotentialausgleichsleiter: mindestens halber grösster PE, mindestens 6 mm², höchstens 25 mm² Cu nötig (NIN 5.4.4.1.1).<br>Erdungsleiter: mindestens 16 mm² Cu.</div>
+        ${+e.qPa>25?'<div class="msg info" style="margin-top:8px">Hinweis: Mehr als 25 mm² Cu ist für den Schutzpotentialausgleich nicht nötig.</div>':''}${erdWarnHTML(pl,dis)}`:'<p class="sub">Querschnitt-Vorschlag folgt, sobald die Zuleitung (Punkt Leitung) gewählt ist.</p>'}
       <p class="sub">Im Plan kommt ein eigenes Blatt «Erdung». Vom ${esc(zlSrc(pl))} und von der PE-Schiene der Hauptverteilung führt je eine PE-Leitung mit Seitenverweis dorthin.</p>`}
       else{const conf=zlpOk(pl,'ok'),R=(l,v)=>`<tr><th>${l}</th><td>${esc(v||'offen')}</td></tr>`,nm=zlSrc(pl);
       inner=`${zlAnim(p,pl)}<div class="legend">Einspeisung bestätigen</div>
@@ -2847,6 +2859,7 @@ function vPlan(){
     <div id="stepTop"></div>${body}
     ${ed&&S.rsOpen?rsPanel(p):''}
     ${!last&&k!=='smarthome'&&shGated(p,stepNext(p,k))&&!shGated(p,k)?`<div class="msg err"><b>Zuerst Smart Home fertig erfassen</b>, erst dann geht es zu ${esc(ST.find(x=>x[0]===stepNext(p,k))[1])} und den Stromkreisen.</div>${missBox(shMissing(pl),'smarthome')}`:''}
+    ${hv&&k!=='zuleitung'&&erdWarnOpen(pl).length?`<div class="msg err"><b>Achtung Norm, Erdung:</b> ${esc(erdWarnOpen(pl).map(w=>w.t).join(' '))} <button type="button" class="btn link" data-act="toErd">Zur Erdung</button></div>`:''}
     ${!last&&S.missShow===k&&stepMiss(p,k).length?missBox(stepMiss(p,k),k):''}
     <div class="actions">
       ${ed?'<button type="button" class="btn small" data-act="rsOpen" style="order:3">'+(S.rsOpen?'Zurücksetzen schliessen':'Zurücksetzen …')+'</button>':''}
@@ -4040,6 +4053,7 @@ document.addEventListener('change',e=>{
   if(t.dataset.erds&&S.site&&canEdit(S.site)&&t.isConnected){const pl=planOf(S.site),e=erdOf(pl),x=erdSch(e,+t.dataset.erds);if(x){const f=t.dataset.f;x[f]=t.value.trim();touchPlan('Erdung geändert');render()}return}
   if(t.dataset.erdk&&S.site&&canEdit(S.site)){const pl=planOf(S.site),e=erdOf(pl);e[t.dataset.erdk]=+t.value||'';touchPlan('Erdung geändert');render();return}
   if(t.dataset.lr&&t.tagName==='SELECT'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);lrSet(pl,t.dataset.lr,t.value);pl.changed=now();persistSite();render();return}
+  if(t.dataset.erdack&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.erdAck=pl.erdAck||{};pl.erdAck[t.dataset.erdack]=t.checked?t.dataset.erdsig:'';touchPlan(t.checked?'Erdung-Querschnitt quittiert':'Quittung Erdung aufgehoben');render();return}
   if(t.dataset.izack&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.izAck=pl.izAck||{};pl.izAck[t.dataset.izack]=t.checked?t.dataset.izsig:'';touchPlan(t.checked?'Sicherung/Querschnitt quittiert':'Quittung Sicherung/Querschnitt aufgehoben');render();return}
   if(t.dataset.hzack&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.hzAck=t.checked?hzSig(S.site):'';touchPlan(t.checked?'Offene Heizsystem-Angaben quittiert':'Quittung Heizsystem aufgehoben');render();return}
   if(t.dataset.ex==='siem'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.siem=t.checked;pl.siemOk=null;touchPlan(t.checked?'Extras: Siemens FI/LS gewählt':'Extras: Siemens FI/LS entfernt');render();return}
@@ -4222,6 +4236,7 @@ document.addEventListener('click',e=>{
   if(t.dataset.zldel&&S.site&&canEdit(S.site)){const pl=planOf(S.site),j=+t.dataset.zldel,z=pl.zl[j];if(!z||j===0)return;pl.zl.splice(j,1);pl.sk.forEach(r=>{if(String(r.zl)===String(z.id))r.zl=''});S.prevSel=null;S.zaI=Math.max(0,(S.zaI||1)-1);touchPlan('Zähler -P'+(j+1)+' entfernt');render();return}
   if(t.dataset.relauto&&S.site&&canEdit(S.site)){const r=planOf(S.site).sk[+t.dataset.relauto];if(r){r.relMan=false;r.abg='1';r.kab=[];touchPlan('Relaiskabel wieder automatisch bei '+(r.name||'Stromkreis'));render()}return}
   if(t.dataset.rldel&&S.site&&canEdit(S.site)){const [j,q]=t.dataset.rldel.split(':').map(Number),pl=planOf(S.site),r=pl.sk[j];if(r&&r.relais){r.relais.splice(q,1);touchPlan('Relais entfernt bei '+(r.name||'Stromkreis'));render()}return}
+  if(act==='toErd'&&S.site){const pl=planOf(S.site),i=zlpL(pl).findIndex(x=>x[0]==='erd');pl.step='zuleitung';if(i>=0)S.zlp=i;render();toStepTop();return}
   if(act==='siemAck'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);pl.siemOk={gez:S.user.name,date:new Date().toLocaleDateString('de-CH')};S.prevSel=null;touchPlan('Siemens FI/LS quittiert');render();return}
   if(t.dataset.skdel&&S.site&&canEdit(S.site)){const pl=planOf(S.site),r=pl.sk[+t.dataset.skdel];pl.sk.splice(+t.dataset.skdel,1);touchPlan('Stromkreis '+((r&&r.name)||'')+' entfernt');render();return}
   if(act==='saveNow'){if(S.site&&canEdit(S.site)){persistSite();t.textContent='Gespeichert ✓';setTimeout(()=>{if(t.isConnected)t.textContent='Speichern'},1800)}return}
