@@ -279,7 +279,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-27.0604';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-27.0633';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -1208,7 +1208,7 @@ const hakTypTxt=t=>(HAK_T.find(x=>x[0]===t)||['',''])[1];
 const hakSichTxt=pl=>pl.hakTyp?hakTypTxt(pl.hakTyp)+(pl.hakA?' '+pl.hakA+' A':''):'Sicherung offen';
 const KAB_T=['GKN','TT','FE0','FE05C (halogenfrei)','XKT','anderer Typ'];
 const kabTypTxt=pl=>pl.kabTyp==='anderer Typ'?(pl.kabTypTxt||'').trim():(pl.kabTyp||'');
-const zlpOk=(pl,k)=>({herk:hakOk(pl),vt:!!pl.hvStock&&!!(pl.hvRaum||'').trim(),sich:!!pl.hakTyp&&!!pl.hakA&&+pl.hakA<=80,kab:!!pl.qs&&qsNum(pl.qs)<=QS_MAX&&!!kabTypTxt(pl),ok:!!pl.zlConf&&pl.zlConf===zlSig(pl)})[k];
+const zlpOk=(pl,k)=>({herk:hakOk(pl),vt:!!pl.hvStock&&!!(pl.hvRaum||'').trim(),sich:!!pl.hakTyp&&!!pl.hakA,kab:!!pl.qs&&qsNum(pl.qs)<=QS_MAX&&!!kabTypTxt(pl),ok:!!pl.zlConf&&pl.zlConf===zlSig(pl)})[k];
 /* Tobi 26.11.: Einspeisung am Schluss bestätigen; ändert sich danach etwas, muss neu bestätigt werden */
 const zlSig=pl=>[pl.zs,pl.evName,pl.evStock,pl.evRaum,pl.zlHerk,pl.hakStock,pl.hakRaum,pl.hakSeite,pl.hvStock,pl.hvRaum,pl.hakTyp,pl.hakA,pl.qs,pl.adern,pl.kabTyp,pl.kabTypTxt].map(x=>x||'').join('|');
 const zlpMsg={herk:'Bitte zuerst angeben, woher die Zuleitung kommt, und wo diese Einspeisung steht.',vt:'Bitte Stockwerk und Raum des Verteilers angeben.',sich:'Bitte Sicherungsart und Bemessungsstrom wählen.',kab:'Bitte Querschnitt und Leitungstyp wählen.',ok:'Bitte die Einspeisung bestätigen.'};
@@ -1219,8 +1219,10 @@ const rmSugg=(pl,fl)=>[...new Set([...(((pl.sh||{}).fl||[]).find(f=>f.name===fl)
 const flLvl=(n,top)=>{n=String(n||'');let m=n.match(/(\d+)\.?\s*UG/i);if(m)return -(+m[1]);if(/UG|Keller|Untergeschoss/i.test(n))return -1;m=n.match(/(\d+)\.?\s*OG/i);if(m)return +m[1];if(/OG|Obergeschoss/i.test(n))return 1;if(/Attika|Dach/i.test(n))return top;return 0};
 const hvMaxTxt=pl=>{const u=pl.hvMaxU||'mm',f=v=>String(v).trim()?String(v).trim().replace('.',','):'offen';return [pl.hvMaxB,pl.hvMaxH,pl.hvMaxT].some(v=>String(v||'').trim())?'B '+f(pl.hvMaxB||'')+' × H '+f(pl.hvMaxH||'')+' × T '+f(pl.hvMaxT||'')+' '+u:''};
 /* Tobi 26.11.: WV-CH 2025 Kap. 7.9 (1): Vorsicherung > 80 A oder Messverdrahtung > 25 mm² -> Messung über Stromwandler (indirekt). Nur bei Norm NIN */
-const WANDLER_TXT='Wandlermessung nötig (WV-CH 2025, Kap. 7.9): Bei einer Vorsicherung über 80 A wird der Zähler über Stromwandler angeschlossen. Regionale Werkvorschriften (z. B. IWB, Primeo Netz, EBL) beachten.';
-const ZU_GROSS_TXT='Über 80 A gesperrt: Hier braucht es eine Wandlermessung (WV-CH 2025, Kap. 7.9). Das ist keine Wohnhaus-Planung mehr, sondern eine Gewerbe-/Industrieplanung. Diese folgt in der App. Bitte einen Wert bis 80 A wählen.';
+const WANDLER_TXT='Wandlermessung nötig (WV-CH 2025, Kap. 7.9): Bei einer Bezügersicherung über 80 A (oder Messverdrahtung über 25 mm²) wird der Zähler über Stromwandler angeschlossen. Regionale Werkvorschriften (z. B. IWB, Primeo Netz, EBL) beachten.';
+/* Tobi 27.11.: Wandlermessung hängt NUR an der Bezügersicherung, nie an HAK-/Einspeisesicherung */
+const HAK_WANDLER_TXT='Gut zu wissen: Die Sicherung im HAK bzw. der Einspeisung darf über 80 A sein. Ob es eine Wandlermessung braucht, entscheidet nur die Bezügersicherung vor dem Zähler (über 80 A = Wandlermessung, WV-CH 2025 Kap. 7.9).';
+const ZU_GROSS_TXT='Bezügersicherung über 80 A gesperrt: Hier braucht es eine Wandlermessung (WV-CH 2025, Kap. 7.9). Das ist keine Wohnhaus-Planung mehr, sondern eine Gewerbe-/Industrieplanung. Diese folgt in der App. Bitte einen Wert bis 80 A wählen.';
 const wandlerNoetig=(p,a,qs)=>(p.norm||'NIN')==='NIN'&&(+a>80||(qs!=null&&qsNum(qs)>25));
 /* Tobi 26.11.: grobe Prüfung Sicherung gegen Querschnitt. Richtwerte Strombelastbarkeit Cu, PVC 70 °C, Verlegeart C, 3 belastete Leiter, ohne Häufung (IEC 60364-5-52 / NIN, zur Prüfung).
    Nur grobe Plausibilität: Länge, Verlegeart, Häufung und Temperatur fehlen. Roter Hinweis, quittierbar, sperrt nicht */
@@ -1323,7 +1325,6 @@ function lrHTML(p,pl,dis,ed){
     <tr><th>Nach Spannungsfall mindestens</th><td>${c.L>0?(c.minU?qsTxt(c.minU)+' mm² (max. '+qsTxt(String(c.du))+' % auf '+lrF(c.L,0)+' m)':'über 240 mm²'):'keine Länge angegeben'}</td></tr>
     </table>
     ${c.ib>0&&c.inA&&c.ib>c.inA?`<div class="msg err" style="margin-top:8px"><b>Sicherung zu klein für die Last:</b> Betriebsstrom ${lrF(c.ib)} A ist grösser als die Sicherung ${c.inA} A. Bitte Last oder Sicherung prüfen.</div>`:''}
-    ${c.ib>80?`<div class="msg err" style="margin-top:8px"><b>${esc(ZU_GROSS_TXT)}</b></div>`:''}
     ${c.rec?`<div class="msg ${qMax?'warn':'ok'} lrres" style="margin-top:10px"><span>Empfehlung</span><b>${(c.three?'5×':'3×')+qsTxt(c.rec)} mm² Cu</b>${qMax?'<span>Über 16 mm² ist in der App noch nicht programmiert. Bitte mit Tobi klären.</span>':''}</div>`:`<div class="msg err" style="margin-top:10px">Kein passender Querschnitt gefunden. ${c.In?'':'Bitte zuerst Sicherung oder Last angeben.'}</div>`}
     ${c.rec&&!qMax&&ed?`<div style="margin-top:10px"><button type="button" class="btn primary" data-act="lrTake"${cur?' disabled':''}>${cur?'Übernommen: '+qsTxt(c.rec)+' mm²':'Übernehmen: '+qsTxt(c.rec)+' mm²'}</button></div>`:''}
     <details style="margin-top:12px"><summary>Tabelle ansehen</summary><div class="lrtab"><table class="zlsum"><tr><th style="width:auto">mm²</th><th style="width:auto">Tabelle</th><th style="width:auto">mit Faktoren</th><th style="width:auto">Spannungsfall</th></tr>${c.tab.filter(x=>x.iz0!=null).map(x=>`<tr${x.q===c.rec?' class="lrhi"':''}><td>${qsTxt(x.q)}</td><td>${lrF(x.iz0,1)} A</td><td>${lrF(x.iz,1)} A ${x.okI?'✓':'✗'}</td><td>${c.L>0?lrF(x.du,2)+' % '+(x.okU?'✓':'✗'):'–'}</td></tr>`).join('')}</table></div></details>
@@ -2591,7 +2592,7 @@ function vPlan(){
         <label class="f c3">Raum des Verteilers<input data-pl="hvRaum" value="${esc(pl.hvRaum||'')}" placeholder="z. B. Technikraum" maxlength="40" autocomplete="off"${dis}></label>${chips('hvRaum',pl.hvStock)}</div>`}
       else if(pg==='sich'){const T=pl.hakTyp,AA=HAK_A[T]||[];inner=`${zlAnim(p,pl)}<div class="legend">Sicherung ${esc(zlSrcIn(pl))}: welche Sicherungsart?</div>
       <div class="seg wrap" role="group">${HAK_T.map(([v,t,su])=>`<button type="button" data-plv="hakTyp" data-v="${v}" aria-pressed="${T===v}"${dis}><b>${t}</b><span>${su}</span></button>`).join('')}</div>
-      ${T?`<div class="grid" style="margin-top:10px"><label class="f c3">Bemessungsstrom ${esc(hakTypTxt(T))}<select data-pl="hakA"${dis}><option value="">wählen …</option>${opt(AA.map(a=>[String(a),a+' A']),pl.hakA||'')}</select></label></div><p class="sub">Die Stromwerte sind ein Vorschlag mit den üblichen Grössen. Bitte prüfen.</p>`:''}${+pl.hakA>80?`<div class="msg err" style="margin-top:8px"><b>${esc(ZU_GROSS_TXT)}</b></div>`:wandlerNoetig(p,pl.hakA)?`<div class="msg warn" style="margin-top:8px">${esc(WANDLER_TXT)}</div>`:''}${izWarn(pl,'hak',pl.hakA,pl.qs,'Sicherung '+zlSrc(pl),dis)}`}
+      ${T?`<div class="grid" style="margin-top:10px"><label class="f c3">Bemessungsstrom ${esc(hakTypTxt(T))}<select data-pl="hakA"${dis}><option value="">wählen …</option>${opt(AA.map(a=>[String(a),a+' A']),pl.hakA||'')}</select></label></div><p class="sub">Die Stromwerte sind ein Vorschlag mit den üblichen Grössen. Bitte prüfen.</p>`:''}${+pl.hakA>80?`<div class="msg info" style="margin-top:8px">${esc(HAK_WANDLER_TXT)}</div>`:''}${izWarn(pl,'hak',pl.hakA,pl.qs,'Sicherung '+zlSrc(pl),dis)}`}
       else if(pg==='kab'){inner=`${zlAnim(p,pl)}<div class="legend">Leitung ${esc(zlSrcVon(pl))} in den Verteiler</div>
       <div class="grid">${qsF}<label class="f c3">Leitungstyp<select data-pl="kabTyp"${dis}><option value="">wählen …</option>${opt(KAB_T.map(x=>[x,x]),pl.kabTyp||'')}</select></label>
       ${pl.kabTyp==='anderer Typ'?`<label class="f c3">Welcher Typ?<input data-pl="kabTypTxt" value="${esc(pl.kabTypTxt||'')}" maxlength="30" autocomplete="off"${dis}></label>`:''}${izWarn(pl,'hak',pl.hakA,pl.qs,'Sicherung '+zlSrc(pl),dis)}</div>${lrHTML(p,pl,dis,ed)}`}
@@ -2809,7 +2810,7 @@ function bauData(s){const pl=planOf(s),hv=s.art==='HV',five=(pl.adern||'5')==='5
   /* 1) Wichtig */
   const W=[];if(lox){const ps=loxPs(pl);if(ps&&ps.big)W.push('Loxone Power Supply & Backup: 18 TE breit. Einbau unten im Verteiler, oben und unten 50 mm frei, Verteiler mind. 100 l.');loxPsx(pl).forEach(X=>W.push('Weiteres Netzteil -G'+X.g+': '+X.o.art+', '+X.o.te+' TE.'));if(fkPtrvN(pl))W.push('Fensterkontakte '+LX(pl).fk+': '+fkPtrvN(pl)+'× Rangierverbinder PTRV 8, sehr gross (86 mm hoch, 100 mm quer zur Hutschiene).')}
   if(hv&&pl.hvBau)W.push('Hauptverteilung als '+(pl.hvBau==='stand'?'Standverteiler':'Wandverteiler hängend')+(pl.hvBau==='stand'&&hvMaxTxt(pl)?', maximale Masse (Höchstwerte, nicht Endmasse): '+hvMaxTxt(pl):'')+(hvPos(pl)?'. Standort: '+hvPos(pl):'')+'.');
-  if(hv&&wandlerNoetig(s,pl.hakA))W.push('Achtung: '+WANDLER_TXT);
+  if(hv&&pl.zs!=='nein'&&(pl.zl||[]).some(z=>wandlerNoetig(s,z.bezA,z.qs)))W.push('Achtung: '+WANDLER_TXT);
   if(pl.hs)W.push('Hauptschalter'+(hsTxt(pl)?' '+hsTxt(pl):'')+' mit Klemmenabdeckung.');if(pl.spd)W.push('Überspannungsschutz direkt nach der Einspeisung.');
   if(W.length)SEC.push({h:'Wichtig für den Einbau',hl:1,list:W});
   /* 2) Sicherungen pro Stromkreis */
@@ -3961,7 +3962,7 @@ document.addEventListener('click',e=>{
   if(act==='toPlan'){if(canEdit(S.site))persistSite();planOf(S.site);return go('plan')}
   if(act==='toSite'){return go('baustelle')}
   if(t.dataset.goto&&S.site){const [st,lbl]=t.dataset.goto.split('|'),pl=planOf(S.site);S.hl=lbl;if(st==='smarthome'&&SH_MISS_PT[lbl]&&S.shp!==SH_MISS_PT[lbl]){S.shp=SH_MISS_PT[lbl];pl.step=st;S.missShow=st;S._hlShown=null;render();return}if(pl.step!==st){pl.step=st;S.missShow=st;render()}else missGo(lbl);return}
-  if(act==='planNext'&&S.site.art==='HV'&&planOf(S.site).step==='zuleitung'){const pl=planOf(S.site),z=zlpCur(pl);if(z<ZLP.length-1){if(!zlpOk(pl,ZLP[z][0])){S.zlMsg=ZLP[z][0]==='sich'&&+pl.hakA>80?ZU_GROSS_TXT:zlpMsg[ZLP[z][0]];render();return}S.zlp=z+1;if(canEdit(S.site))persistSite();render();toStepTop();return}}
+  if(act==='planNext'&&S.site.art==='HV'&&planOf(S.site).step==='zuleitung'){const pl=planOf(S.site),z=zlpCur(pl);if(z<ZLP.length-1){if(!zlpOk(pl,ZLP[z][0])){S.zlMsg=zlpMsg[ZLP[z][0]];render();return}S.zlp=z+1;if(canEdit(S.site))persistSite();render();toStepTop();return}}
   if(act==='zlConf'&&S.site&&canEdit(S.site)){const pl=planOf(S.site);if(!ZLP.slice(0,-1).every(x=>zlpOk(pl,x[0])))return;pl.zlConf=zlSig(pl);if(pl.nb&&S.site.plz){D.nbMap=D.nbMap||{};D.nbMap[S.site.land+':'+S.site.plz.trim()]=pl.nb}touchPlan('Einspeisung bestätigt');pl.step=stepNext(S.site,'zuleitung');S.zlp=0;if(pl.step==='zaehler'&&S.site.geb==='MFH'&&pl.zl.length<2)pl.zl.push(zlNew(S.site));persistSite();render();toStepTop();return}
   if(act==='planPrev'&&S.site.art==='HV'&&planOf(S.site).step==='zuleitung'&&zlpCur(planOf(S.site))>0){S.zlp=zlpCur(planOf(S.site))-1;render();toStepTop();return}
   if(t.dataset.zlp!=null){S.zlp=+t.dataset.zlp;render();return}
