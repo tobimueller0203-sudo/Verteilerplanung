@@ -281,7 +281,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-27.0806';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-27.0813';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -1154,7 +1154,7 @@ const NB_SEL=['IWB Industrielle Werke Basel','Primeo Netz AG','EBL Genossenschaf
 const NB_LIST=['IWB Industrielle Werke Basel','Primeo Energie','EBL Genossenschaft Elektra Baselland','AEW Energie AG','BKW Energie AG','CKW AG','EKZ Elektrizitätswerke des Kantons Zürich','Netze BW GmbH','ED Netze GmbH','bnNETZE GmbH'];
 const qsNum=q=>parseFloat(String(q).replace(',','.'))||0;
 const qsTxt=q=>String(q).replace('.',',');
-function planOf(s){if(s.plan&&!s.plan.klAbg)s.plan.klAbg='ja';if(!s.plan)s.plan={step:'unterlagen',qs:'',adern:'5',nb:'',nbAuto:false,material:false,revs:[]};const pl=s.plan;if(!pl.revs)pl.revs=[];if(!pl.docs)pl.docs={deck:false,toc:false,klemmen:false,bau:true};if(!Array.isArray(pl.sk))pl.sk=[];if(pl.step==='produkte')pl.step='stromkreise';if(!Array.isArray(pl.zl)||!pl.zl.length)pl.zl=[{id:1,name:'',res:false,bez:pl.bez||(s.norm==='VDE'?'NH':'DZ'),bezA:pl.bezA||'',qs:'',adern:pl.adern||'5',ziel:''}];pl.zl[0].res=false;if(s.art==='HV'&&s.geb!=='EFH'&&pl.allg==null&&pl.zl[0].bezA)pl.allg='ja';if(s.geb==='MFH'&&!(zlEv(pl)&&pl.allg==='nein')&&!pl.zl[0].name)pl.zl[0].name='Allgemein';pl.isUV=s.art!=='HV';pl.isMFH=s.geb==='MFH';if(s.art==='HV'){if(s.geb==='EFH'&&pl.zlHerk==='zs')pl.zlHerk='';pl.gehaeuse='alu';pl.montage='AP';pl.adern='5';/* Tobi 27.11.: HV-Zuleitung immer 5-adrig */if(s.geb==='EFH'&&pl.zs==='nein')pl.zs=''}else if(pl.montage==='UP'){pl.gehaeuse='hersteller'}return pl}
+function planOf(s){if(s.plan&&!s.plan.klAbg)s.plan.klAbg='ja';if(!s.plan)s.plan={step:'unterlagen',qs:'',adern:'5',nb:'',nbAuto:false,material:false,revs:[]};const pl=s.plan;if(!pl.revs)pl.revs=[];if(!pl.docs)pl.docs={deck:false,toc:false,klemmen:false,bau:true};if(!Array.isArray(pl.sk))pl.sk=[];if(pl.step==='produkte')pl.step='stromkreise';if(!Array.isArray(pl.zl)||!pl.zl.length)pl.zl=[{id:1,name:'',res:false,bez:pl.bez||(s.norm==='VDE'?'NH':'DZ'),bezA:pl.bezA||'',qs:'',adern:pl.adern||'5',ziel:''}];pl.zl[0].res=false;if(s.art==='HV'&&s.geb!=='EFH'&&pl.allg==null&&pl.zl[0].bezA)pl.allg='ja';if(pl.resAns==null&&pl.zl.some(z=>z.res))pl.resAns=String(pl.zl.filter(z=>z.res).length);if(s.geb==='MFH'&&!(zlEv(pl)&&pl.allg==='nein')&&!pl.zl[0].name)pl.zl[0].name='Allgemein';pl.isUV=s.art!=='HV';pl.isMFH=s.geb==='MFH';if(s.art==='HV'){if(s.geb==='EFH'&&pl.zlHerk==='zs')pl.zlHerk='';pl.gehaeuse='alu';pl.montage='AP';pl.adern='5';/* Tobi 27.11.: HV-Zuleitung immer 5-adrig */if(s.geb==='EFH'&&pl.zs==='nein')pl.zs=''}else if(pl.montage==='UP'){pl.gehaeuse='hersteller'}return pl}
 const initials=n=>String(n||'').split(/\s+/).filter(Boolean).map(w=>w[0].toUpperCase()).join('').slice(0,3);
 /* Netzbetreiber: zuerst was auf diesem Gerät für die PLZ gemerkt wurde, sonst sichere Regel (Basel-Stadt = IWB) */
 function guessNB(s){
@@ -1438,10 +1438,11 @@ function zlAnim2(s,pl){const g=s.geb,hk=zlEv(pl)?'ev':pl.zlHerk,PG=zlpL(pl)[zlpC
 const zlAllgQ=s=>s.art==='HV'&&s.geb!=='EFH'&&zlEv(planOf(s));
 const zlAllgNo=s=>zlAllgQ(s)&&planOf(s).allg==='nein';
 const zlNm=z=>String(z.name||'').trim()||(z.arch?'Wohnung '+String(z.arch).trim():'');
-const zaPages=s=>{const pl=planOf(s);return [...(zlAllgQ(s)?['allg']:[]),...(zlAllgQ(s)&&!pl.allg?[]:pl.zl.map((z,j)=>j))]};
-const zaPgOk=(s,q)=>{const pl=planOf(s);if(q==='allg')return !!pl.allg;const z=pl.zl[q];if(!z)return true;return !!z.bez&&!!z.bezA&&+z.bezA<=80&&(z.res||!!z.qs)};
+/* Tobi 27.11.: Reservezählerplätze erst am Ende fragen (eigene Abschlussseite), nicht pro Zähler */
+const zaPages=s=>{const pl=planOf(s);if(zlAllgQ(s)&&!pl.allg)return ['allg'];return [...(zlAllgQ(s)?['allg']:[]),...pl.zl.map((z,j)=>z.res?null:j).filter(j=>j!=null),'res']};
+const zaPgOk=(s,q)=>{const pl=planOf(s);if(q==='allg')return !!pl.allg;if(q==='res'){const R=pl.zl.filter(z=>z.res);return pl.resAns!=null&&R.every(z=>!!z.bez&&!!z.bezA&&+z.bezA<=80)}const z=pl.zl[q];if(!z)return true;return !!z.bez&&!!z.bezA&&+z.bezA<=80&&(z.res||!!z.qs)};
 const zaCur=s=>{const P=zaPages(s);let i=S.zaI==null?0:S.zaI;i=Math.max(0,Math.min(P.length-1,i));for(let j=0;j<i;j++)if(!zaPgOk(s,P[j]))return j;return i};
-const zaMiss=(s,q)=>{const pl=planOf(s),Q=x=>document.querySelector('#main '+x),M=[];if(q==='allg'){if(!pl.allg)M.push(['Allgemeinbereich Ja/Nein',()=>{const e=Q('[data-allg]');return e?e.closest('.tiles'):null}]);return M}const z=pl.zl[q];if(!z)return M;
+const zaMiss=(s,q)=>{const pl=planOf(s),Q=x=>document.querySelector('#main '+x),M=[];if(q==='res'){if(pl.resAns==null)M.push(['Reservezählerplätze',()=>Q('[data-resn]')]);else{const z=pl.zl.find(z=>z.res);if(z){if(!z.bez)M.push(['Bezügersicherung',()=>Q('[data-resb=bez]')]);if(!z.bezA||+z.bezA>80)M.push([+z.bezA>80?'Fehler: über 80 A gesperrt':'Bemessungsstrom',()=>Q('[data-resb=bezA]')])}}return M}if(q==='allg'){if(!pl.allg)M.push(['Allgemeinbereich Ja/Nein',()=>{const e=Q('[data-allg]');return e?e.closest('.tiles'):null}]);return M}const z=pl.zl[q];if(!z)return M;
   if(!z.bez)M.push(['Bezügersicherung',()=>Q('[data-zl=bez]')]);if(!z.bezA||+z.bezA>80)M.push([+z.bezA>80?'Fehler: über 80 A gesperrt':'Bemessungsstrom',()=>Q('[data-zl=bezA]')]);if(!z.res&&!z.qs)M.push(['Querschnitt',()=>Q('[data-zl=qs]')]);return M};
 /* Animation Zähler: Stockwerke, Zählerschrank, Zähler pro Stockwerk nebeneinander (nach IWB-Nummer von links) */
 function zaAnim(s,pl,cur){const FH=34,bx0=70,bx1=320,W=380,hvL=pl.hvStock?flLvl(pl.hvStock,6):-1,Z=pl.zl.map((z,j)=>({z,j,l:j===0&&!zlAllgNo(s)?hvL:z.stock?flLvl(z.stock,6):null}));
@@ -1968,7 +1969,7 @@ function skLayout(s){
 const skSorted=s=>skLayout(s).list;
 const stepIdx=k=>stepsOf(S.site).findIndex(x=>x[0]===k);
 /* Zurücksetzen einzelner Planungsschritte (Baustellendaten bleiben) */
-const RS_KEYS={hvart:['zs','hvArt'],smarthome:['sh'],unterlagen:['docs'],hersteller:['hersteller','herstellerFrei'],gehaeuse:['gehaeuse','montage','vtSer','hvBau','hvMaxB','hvMaxH','hvMaxT','hvMaxU'],zuleitung:['qs','adern','nb','nbAuto','nbOwn','bez','bezA','x0Side','zlHerk','hakStock','hakRaum','hakSeite','hvStock','hvRaum','hakTyp','hakA','kabTyp','kabTypTxt','zlConf','izAck','evName','evNr','evStock','evRaum','lr','erd','zNr','hvWhg'],zaehler:['zl','allg'],klemmen:['klAbg','klPos'],heizung:['hz','hzAck'],stromkreise:['sk','relSame','resPct','resOff'],schienen:['bus','etag','big4','x0Moved','busSeen'],matliste:[],extras:['spd','hs','hsA','hsE','siem','siemOk','preise','litzeMag','material']};
+const RS_KEYS={hvart:['zs','hvArt'],smarthome:['sh'],unterlagen:['docs'],hersteller:['hersteller','herstellerFrei'],gehaeuse:['gehaeuse','montage','vtSer','hvBau','hvMaxB','hvMaxH','hvMaxT','hvMaxU'],zuleitung:['qs','adern','nb','nbAuto','nbOwn','bez','bezA','x0Side','zlHerk','hakStock','hakRaum','hakSeite','hvStock','hvRaum','hakTyp','hakA','kabTyp','kabTypTxt','zlConf','izAck','evName','evNr','evStock','evRaum','lr','erd','zNr','hvWhg'],zaehler:['zl','allg','resAns'],klemmen:['klAbg','klPos'],heizung:['hz','hzAck'],stromkreise:['sk','relSame','resPct','resOff'],schienen:['bus','etag','big4','x0Moved','busSeen'],matliste:[],extras:['spd','hs','hsA','hsE','siem','siemOk','preise','litzeMag','material']};
 function rsPanel(p){const ST=stepsOf(p),sel=S.rsSel||new Set(),ci=ST.findIndex(x=>x[0]===planOf(p).step),cur=ST[ci],all=sel.size===ST.length,only=cur&&sel.size===1&&sel.has(cur[0]);
   const q=only?'Nur Schritt '+(ci+1)+' «'+esc(cur[1])+'» zurücksetzen?':all?'Alles zurücksetzen (alle Schritte der Planung)?':'Diese Schritte zurücksetzen?';
   return `<div class="msg err" style="margin-top:14px"><b>${q}</b><p style="margin:6px 0">Sie können weitere Schritte ankreuzen oder alles zurücksetzen. Die Baustellendaten bleiben immer unverändert (die gehen nur beim Löschen der ganzen Baustelle weg).</p>
@@ -2733,11 +2734,18 @@ function vPlan(){
   }else if(k==='zaehler'){
     /* Tobi 27.11.: Zähler Seite für Seite. Zuerst «Gibt es einen Allgemeinbereich?», dann ein Zähler pro Seite, «+ Zähler» führt zur nächsten Seite */
     const pgs=pagesOf(p),L=skLayout(p),ZP=zaPages(p),zi=zaCur(p),pk=ZP[zi],FL=flList(pl);
-    const nav=`<div class="zlnav">${ZP.map((q,j)=>{const z=q==='allg'?null:pl.zl[q],lb=q==='allg'?'Allgemeinbereich?':'-P'+(q+1)+(z.res?' Reserve':(zlNm(z)?' '+zlShort(zlNm(z),14):''));return `<button type="button" data-zap="${j}" class="${j===zi?'on':''}${zaPgOk(p,q)?' done':''}"${j>zi&&!ZP.slice(0,j).every(x=>zaPgOk(p,x))?' disabled':''}><b>${j+1}</b>${esc(lb)}</button>`}).join('')}</div>`;
+    const nav=`<div class="zlnav">${ZP.map((q,j)=>{const z=q==='allg'||q==='res'?null:pl.zl[q],lb=q==='res'?'Reserve':q==='allg'?'Allgemeinbereich?':'-P'+(q+1)+(z.res?' Reserve':(zlNm(z)?' '+zlShort(zlNm(z),14):''));return `<button type="button" data-zap="${j}" class="${j===zi?'on':''}${zaPgOk(p,q)?' done':''}"${j>zi&&!ZP.slice(0,j).every(x=>zaPgOk(p,x))?' disabled':''}><b>${j+1}</b>${esc(lb)}</button>`}).join('')}</div>`;
     let inner='';
     if(pk==='allg'){inner=`<div class="legend">Gibt es einen Allgemeinbereich?</div>
       <div class="tiles two-col"><button type="button" class="tile" data-allg="ja" aria-pressed="${pl.allg==='ja'}"${dis}><b>Ja</b><span>Zähler «Allgemein» wird angelegt (z. B. Treppenhaus, Lift, Technik)</span></button><button type="button" class="tile" data-allg="nein" aria-pressed="${pl.allg==='nein'}"${dis}><b>Nein</b><span>z. B. Etagenverteiler nur für die Wohnungen, Allgemein kommt vom Hauptzähler im Keller</span></button></div>
       <p class="sub" style="margin-top:6px">Danach trägst du Zähler für Zähler ein, jeder auf einer eigenen Seite.</p>`}
+    else if(pk==='res'){const R=pl.zl.filter(z=>z.res),r0=R[0]||{};inner=`${zaAnim(p,pl,-1)}<div class="legend" style="margin-top:10px">Alle Zähler eingetragen. Braucht es Reservezählerplätze?</div>
+      <p class="sub" style="margin-top:0">Ein Reservezählerplatz wird mit Bezügersicherung und Abgang vorbereitet, der Zähler wird erst später montiert.</p>
+      <div class="grid"><label class="f c3">Anzahl Reservezählerplätze<select data-resn="1"${dis}><option value="">wählen …</option>${opt([0,1,2,3,4,5,6].map(v=>[String(v),v?v+(v===1?' Reserveplatz':' Reserveplätze'):'Keine Reserve']),pl.resAns==null?'':String(pl.resAns))}</select></label>
+      ${R.length?`<label class="f c3">Bezügersicherung Reserve<select data-resb="bez"${dis}><option value="">wählen …</option>${opt(bezTypes(p),r0.bez||'')}</select></label>
+      <label class="f c3">Bemessungsstrom Reserve<select data-resb="bezA"${r0.bez?dis:' disabled'}><option value="">wählen …</option>${opt((BEZ_A[r0.bez]||[]).map(a=>[a,a+' A']),r0.bezA||'')}</select></label>
+      <label class="f c3">Abgang Querschnitt<select data-resb="qs"${dis}><option value="">wählen …</option>${opt(QS.filter(q=>qsNum(q)<=QS_MAX).map(q=>[q,qsTxt(q)+' mm²']),r0.qs||'')}</select>${r0.bezA&&BEZ_QS[r0.bezA]?`<span class="sub" style="font-size:13px">Standard bei ${r0.bezA} A: ${qsTxt(BEZ_QS[r0.bezA])} mm²</span>`:''}</label>${+r0.bezA>80?`<div class="c6 msg err"><b>${esc(ZU_GROSS_TXT)}</b></div>`:''}`:''}</div>
+      ${R.length?`<p class="sub">Im Plan: ${R.map(z=>'-P'+(pl.zl.indexOf(z)+1)).join(', ')} (Reserve).</p>`:''}`}
     else{const j=pk,z=pl.zl[j],main=j===0&&!zlAllgNo(p),zp=pgs.find(q=>(j===0&&q.kind==='za')||(q.kind==='zm'&&q.bl.some(b=>b.k===j))),n=(L.ext[z.id]||[]).length;
       const info=z.res?'Reserveplatz: Bezügersicherung und Abgang werden vorbereitet, ein Zähler wird erst später montiert.':j===0?'Die Stromkreise dahinter trägst du später ein.':(n?n+(n===1?' Sicherung':' Sicherungen')+' direkt beim Zähler.':'Sicherungen beim Zähler (z. B. Keller) kommen später.');
       inner=`${zaAnim(p,pl,j)}<div class="sk zlr${z.res?' res':''}" data-zi="${j}" style="margin-top:10px">
@@ -2746,11 +2754,10 @@ function vPlan(){
       ${main?'':`<label class="f c3">Stockwerk<select data-zl="stock"${dis}><option value="">wählen …</option>${opt(FL.map(x=>[x,x]),z.stock||'')}</select></label>
       <label class="f c3">Wohnung (Architekt) <span class="hint">freiwillig, z. B. 1a</span><input data-zl="arch" value="${esc(z.arch||'')}" placeholder="z. B. 1a" maxlength="12" autocomplete="off"${dis}></label>
       <label class="f c3">Wohnung Nr. (IWB) <span class="hint">freiwillig, ab Treppe von links gezählt</span><input data-zl="iwb" value="${esc(z.iwb||'')}" placeholder="z. B. 5" inputmode="numeric" maxlength="4" autocomplete="off"${dis}></label>`}
-      ${j===0?'':`<label class="chk c6"><input type="checkbox" data-zl="res" ${z.res?'checked':''}${dis}> Reservezählerplatz (alles vorbereitet, Zähler wird nicht montiert)</label>`}
       ${zlFields(p,z,j,dis)}
       ${j===0||z.res?'':`<label class="f c6">Abgang geht zu <span class="hint">freiwillig</span><input data-zl="ziel" value="${esc(z.ziel||'')}" placeholder="z. B. UV Wohnung 1a" autocomplete="off"${dis}></label>`}</div>
       <p class="sub" style="margin:0">${info}${zp?' Im Plan auf Seite '+zp.no+'.':''}</p></div>
-      ${ed?'<div class="row" style="margin-top:10px"><button type="button" class="btn" data-act="zlAdd">+ Zähler hinzufügen</button><button type="button" class="btn" data-act="zlRes">+ Reservezählerplatz</button></div>':''}`}
+      ${ed?'<div class="row" style="margin-top:10px"><button type="button" class="btn" data-act="zlAdd">+ Zähler hinzufügen</button></div>':''}`}
     body=`<div class="row between"><h2>Zähler</h2><span class="tag y">${esc(gebName(p))} · ${zlSum(p)}</span></div>${nav}${inner}`;
   }else if(k==='smarthome'){
     body=(p.art==='HV'&&p.geb==='MFH'?`<div class="msg info"><b>Mehrfamilienhaus:</b> Loxone-Komponenten nur im Allgemeinbereich, also hinter dem Allgemeinzähler -P1${pl.zl&&pl.zl[0]&&pl.zl[0].name?' '+esc(pl.zl[0].name):''}. Alles aus diesem Schritt kommt dorthin.</div>`:'')+shBody(p,pl,dis);
@@ -3909,6 +3916,8 @@ document.addEventListener('input',e=>{
 document.addEventListener('toggle',e=>{const d=e.target;if(!d||!d.dataset||!d.dataset.det)return;S.det=S.det||new Set();d.open?S.det.add(d.dataset.det):S.det.delete(d.dataset.det)},true);
 document.addEventListener('change',e=>{
   const t=e.target;
+  if(t.dataset.resn&&S.site&&canEdit(S.site)){const pl=planOf(S.site),n=t.value===''?null:+t.value,old=pl.zl.filter(z=>z.res),src=old[0]||[...pl.zl].reverse().find(z=>!z.res)||{};pl.resAns=n==null?null:String(n);const keep=pl.zl.filter(z=>!z.res),R=[];for(let i=0;i<(n||0);i++){const z=old[i]||zlNew(S.site,true);z.res=true;if(!old[i]){z.bez=src.bez||z.bez;z.bezA=src.bezA||'';z.qs=src.qs||'';z.adern=src.adern||z.adern;z.name=''}R.push(z)}pl.zl=[...keep,...R];touchPlan(n?n+' Reservezählerplätze':'Keine Reservezählerplätze');render();return}
+  if(t.dataset.resb&&S.site&&canEdit(S.site)){const pl=planOf(S.site),k=t.dataset.resb;pl.zl.filter(z=>z.res).forEach(z=>{z[k]=t.value;if(k==='bez'&&!(BEZ_A[z.bez]||[]).includes(z.bezA))z.bezA='';if(k==='bezA'&&BEZ_QS[z.bezA])z.qs=BEZ_QS[z.bezA]});touchPlan('Reservezählerplätze angepasst');render();return}
   if(t.dataset.bssep&&S.site&&canEdit(S.site)){const h=shOf(planOf(S.site));h.bs=h.bs||{};const [rid,k,u]=t.dataset.bssep.split(':'),c=h.bs[rid]=h.bs[rid]||{};c.sep=c.sep||{};if(t.checked)c.sep[k+':'+u]=1;else delete c.sep[k+':'+u];touchPlan('Beschattung angepasst');persistSite();render();return}
   if(t.dataset.rs){S.rsSel=S.rsSel||new Set();t.checked?S.rsSel.add(t.dataset.rs):S.rsSel.delete(t.dataset.rs);S.armed=null;render();return}
   if(t.id==='userSel'){S.sel=t.value;S.msg=null;render();return}
@@ -4175,8 +4184,8 @@ document.addEventListener('click',e=>{
   if(t.dataset.pv){S.prevSel={step:planOf(S.site).step,idx:+t.dataset.pv};refreshPreview();return}
   if(act==='skAdd'&&S.site&&canEdit(S.site)){skAddRow();return}
   if((act==='zlAdd'||act==='zlRes')&&S.site&&canEdit(S.site)){const pl=planOf(S.site);if(pl.step==='zaehler'&&S.site.art==='HV'){const P=zaPages(S.site),zi=zaCur(S.site);if(!zaPgOk(S.site,P[zi])){S.zaMissPg=P[zi];S._missScroll=true;render();return}}
-    const z=zlNew(S.site,act==='zlRes'),pv=pl.zl.length>1?pl.zl[pl.zl.length-1]:null;/* Tobi 27.11.: Wohnung für Wohnung, Bezügersicherung und Querschnitt vom vorherigen Zähler als Vorschlag */if(pv){z.bez=pv.bez;z.bezA=pv.bezA;z.qs=pv.qs;z.adern=pv.adern}
-    pl.zl.push(z);pl.step='zaehler';S.prevSel=null;S.zaMissPg=null;S.zaI=zaPages(S.site).length-1;touchPlan((z.res?'Reservezählerplatz':'Zähler')+' -P'+pl.zl.length+' ergänzt');render();toStepTop();return}
+    const z=zlNew(S.site,act==='zlRes'),pv=[...pl.zl].reverse().find(x=>!x.res&&pl.zl.indexOf(x)>0)||null;/* Tobi 27.11.: Wohnung für Wohnung, Bezügersicherung und Querschnitt vom vorherigen Zähler als Vorschlag */if(pv){z.bez=pv.bez;z.bezA=pv.bezA;z.qs=pv.qs;z.adern=pv.adern}
+    {const ri=pl.zl.findIndex(x=>x.res);if(ri>0&&!z.res)pl.zl.splice(ri,0,z);else pl.zl.push(z)}pl.step='zaehler';S.prevSel=null;S.zaMissPg=null;S.zaI=Math.max(0,zaPages(S.site).indexOf(pl.zl.indexOf(z)));touchPlan((z.res?'Reservezählerplatz':'Zähler')+' -P'+pl.zl.length+' ergänzt');render();toStepTop();return}
   if(t.dataset.zldel&&S.site&&canEdit(S.site)){const pl=planOf(S.site),j=+t.dataset.zldel,z=pl.zl[j];if(!z||j===0)return;pl.zl.splice(j,1);pl.sk.forEach(r=>{if(String(r.zl)===String(z.id))r.zl=''});S.prevSel=null;S.zaI=Math.max(0,(S.zaI||1)-1);touchPlan('Zähler -P'+(j+1)+' entfernt');render();return}
   if(t.dataset.relauto&&S.site&&canEdit(S.site)){const r=planOf(S.site).sk[+t.dataset.relauto];if(r){r.relMan=false;r.abg='1';r.kab=[];touchPlan('Relaiskabel wieder automatisch bei '+(r.name||'Stromkreis'));render()}return}
   if(t.dataset.rldel&&S.site&&canEdit(S.site)){const [j,q]=t.dataset.rldel.split(':').map(Number),pl=planOf(S.site),r=pl.sk[j];if(r&&r.relais){r.relais.splice(q,1);touchPlan('Relais entfernt bei '+(r.name||'Stromkreis'));render()}return}
