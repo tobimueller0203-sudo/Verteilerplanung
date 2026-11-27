@@ -279,7 +279,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-27.0635';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-27.0636';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -1142,7 +1142,7 @@ function printSheet(){
 
 /* ---------- Planung ---------- */
 const QS=['1.5','2.5','4','6','10','16','25','35','50','70','95','120','150','185','240'];
-const QS_MAX=16;
+const QS_MAX=240;/* Tobi 27.11.: alle Querschnitte bis 240 mm² wählbar */
 /* Tobi 26.11.: die Bezügersicherung gibt den Querschnitt vor, er gilt ab der Bezügersicherung (auch bis zum Zähler). Vorschlag, änderbar. 25 A -> 6 mm² von Tobi bestätigt, Rest zur Prüfung */
 const BEZ_QS={'16':'4','20':'4','25':'6','32':'10','35':'10','40':'10','50':'16','63':'16'};
 const NB_LIST=['IWB Industrielle Werke Basel','Primeo Energie','EBL Genossenschaft Elektra Baselland','AEW Energie AG','BKW Energie AG','CKW AG','EKZ Elektrizitätswerke des Kantons Zürich','Netze BW GmbH','ED Netze GmbH','bnNETZE GmbH'];
@@ -2569,7 +2569,7 @@ function vPlan(){
         <select data-pl="x0Side"${dis}>${opt([['l','links'],['r','rechts']],x0Side(pl))}</select></label>
       <label class="f c3">Zuleitungsblock -X0 Höhe <span class="hint">Etagenschienen starten dort</span>
         <select data-klpos="-X0"${dis}>${opt([['o','oben'],['u','unten']],klPos(pl,'-X0')==='unten'?'u':'o')}</select></label>`:''}
-      ${big?`<div class="c6 msg err">Querschnitte über 16 mm² sind noch nicht in Programmierung. Bitte vorerst 16 mm² oder kleiner wählen.</div>`:''}`;
+      ${pl.qs&&qsNum(pl.qs)>16?`<div class="c6 msg err"><b>Klemmen für ${qsTxt(pl.qs)} mm² noch nicht eingefügt.</b> Der Klemmentyp für -X0 über 16 mm² ist noch nicht hinterlegt. Im Plan steht «Klemmentyp folgt», die Breite von -X0 bleibt offen.</div>`:''}`;
     if(!hv){body=`<div class="row between"><h2>Zuleitung und Einspeisung</h2><span class="tag y">UV · ohne Zähler</span></div><div class="grid">${qsF}</div>`}
     else{
       /* Tobi 26.11.: HV Zuleitung Seite für Seite: 1 Einspeisung (HAK/Säule + Position), 2 Standort Verteiler, 3 Sicherung im HAK, 4 Leitung HAK → Verteiler, 5 Zähler */
