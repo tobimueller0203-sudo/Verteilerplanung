@@ -281,7 +281,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-27.0814';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-27.0816';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -1440,9 +1440,9 @@ const zlAllgNo=s=>zlAllgQ(s)&&planOf(s).allg==='nein';
 const zlNm=z=>String(z.name||'').trim()||(z.arch?'Wohnung '+String(z.arch).trim():'');
 /* Tobi 27.11.: Reservezählerplätze erst am Ende fragen (eigene Abschlussseite), nicht pro Zähler */
 const zaPages=s=>{const pl=planOf(s);if(zlAllgQ(s)&&!pl.allg)return ['allg'];return [...(zlAllgQ(s)?['allg']:[]),...pl.zl.map((z,j)=>z.res?null:j).filter(j=>j!=null),'res']};
-const zaPgOk=(s,q)=>{const pl=planOf(s);if(q==='allg')return !!pl.allg;if(q==='res'){const R=pl.zl.filter(z=>z.res);return pl.resAns!=null&&R.every(z=>!!z.bez&&!!z.bezA&&+z.bezA<=80)}const z=pl.zl[q];if(!z)return true;return !!z.bez&&!!z.bezA&&+z.bezA<=80&&(z.res||!!z.qs)};
+const zaPgOk=(s,q)=>{const pl=planOf(s);if(q==='allg')return !!pl.allg;if(q==='res'){const R=pl.zl.filter(z=>z.res);return pl.resAns!=null&&R.every(z=>!!z.bez&&!!z.bezA&&+z.bezA<=80)}const z=pl.zl[q];if(!z)return true;/* Tobi 27.11.: Stockwerk Pflicht (ausser Allgemein/Hauptzähler) */if(!z.res&&!(q===0&&!zlAllgNo(s))&&!z.stock)return false;return !!z.bez&&!!z.bezA&&+z.bezA<=80&&(z.res||!!z.qs)};
 const zaCur=s=>{const P=zaPages(s);let i=S.zaI==null?0:S.zaI;i=Math.max(0,Math.min(P.length-1,i));for(let j=0;j<i;j++)if(!zaPgOk(s,P[j]))return j;return i};
-const zaMiss=(s,q)=>{const pl=planOf(s),Q=x=>document.querySelector('#main '+x),M=[];if(q==='res'){if(pl.resAns==null)M.push(['Reservezählerplätze',()=>Q('[data-resn]')]);else{const z=pl.zl.find(z=>z.res);if(z){if(!z.bez)M.push(['Bezügersicherung',()=>Q('[data-resb=bez]')]);if(!z.bezA||+z.bezA>80)M.push([+z.bezA>80?'Fehler: über 80 A gesperrt':'Bemessungsstrom',()=>Q('[data-resb=bezA]')])}}return M}if(q==='allg'){if(!pl.allg)M.push(['Allgemeinbereich Ja/Nein',()=>{const e=Q('[data-allg]');return e?e.closest('.tiles'):null}]);return M}const z=pl.zl[q];if(!z)return M;
+const zaMiss=(s,q)=>{const pl=planOf(s),Q=x=>document.querySelector('#main '+x),M=[];if(q==='res'){if(pl.resAns==null)M.push(['Reservezählerplätze',()=>Q('[data-resn]')]);else{const z=pl.zl.find(z=>z.res);if(z){if(!z.bez)M.push(['Bezügersicherung',()=>Q('[data-resb=bez]')]);if(!z.bezA||+z.bezA>80)M.push([+z.bezA>80?'Fehler: über 80 A gesperrt':'Bemessungsstrom',()=>Q('[data-resb=bezA]')])}}return M}if(q==='allg'){if(!pl.allg)M.push(['Allgemeinbereich Ja/Nein',()=>{const e=Q('[data-allg]');return e?e.closest('.tiles'):null}]);return M}const z=pl.zl[q];if(!z)return M;if(!z.res&&!(q===0&&!zlAllgNo(s))&&!z.stock)M.push(['Stockwerk',()=>Q('[data-zl=stock]')]);
   if(!z.bez)M.push(['Bezügersicherung',()=>Q('[data-zl=bez]')]);if(!z.bezA||+z.bezA>80)M.push([+z.bezA>80?'Fehler: über 80 A gesperrt':'Bemessungsstrom',()=>Q('[data-zl=bezA]')]);if(!z.res&&!z.qs)M.push(['Querschnitt',()=>Q('[data-zl=qs]')]);return M};
 /* Animation Zähler: Stockwerke, Zählerschrank, Zähler pro Stockwerk nebeneinander (nach IWB-Nummer von links) */
 function zaAnim(s,pl,cur){const FH=34,bx0=70,bx1=320,W=380,hvL=pl.hvStock?flLvl(pl.hvStock,6):-1,Z=pl.zl.map((z,j)=>({z,j,l:j===0&&!zlAllgNo(s)?hvL:z.stock?flLvl(z.stock,6):null}));
