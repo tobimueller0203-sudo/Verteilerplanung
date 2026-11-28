@@ -283,7 +283,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-28.1246';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-28.1314';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -1478,7 +1478,7 @@ const zSkNb=(s,d)=>{if(s.art!=='HV'||planOf(s).step!=='stromkreise')return null;
 function zlSelId(s){const act=zlAct(s),z=act.find(z=>z.id===S.zlSel)||act[0];return z?z.id:''}
 const rowZid=(s,r)=>{const act=zlAct(s),z=act.find(z=>String(z.id)===String(r.zl))||act[0];return z?z.id:''};
 /* Tobi 26.11.: HV (EFH und MFH): Smart Home erst nach Unterlagen, Hersteller, Gehäuse, Zuleitung und Zähler */
-const stepsOf=s=>{const b=s&&s.art==='HV'?[...STEPS.slice(1,3),['hvart','Zählerschrank'],STEPS[3],STEPS[4],...((s.plan||{}).zs==='nein'||zExt(s.plan)?[STEPS[6]]:[['zaehler','Zähler'],['stromkreise','Stromkreise pro Zähler']]),STEPS[0],STEPS[5],...STEPS.slice(7)]:[...STEPS.slice(1,5),STEPS[0],['klemmen','Klemmen'],...STEPS.slice(5)];if(s&&busOn(s))b.splice(b.findIndex(x=>x[0]==='extras'),0,['schienen','Schienen']);return b};
+const stepsOf=s=>{const b=s&&s.art==='HV'?[...STEPS.slice(1,3),['hvart','Zählerschrank'],STEPS[3],STEPS[4],/* Tobi 28.11.: Stromkreise erst nach Smart Home und Heizsystem (dort werden schon Sicherungen erfasst) */...((s.plan||{}).zs==='nein'||zExt(s.plan)?[]:[['zaehler','Zähler']]),STEPS[0],STEPS[5],((s.plan||{}).zs==='nein'||zExt(s.plan)?STEPS[6]:['stromkreise','Stromkreise pro Zähler']),...STEPS.slice(7)]:[...STEPS.slice(1,5),STEPS[0],['klemmen','Klemmen'],...STEPS.slice(5)];if(s&&busOn(s))b.splice(b.findIndex(x=>x[0]==='extras'),0,['schienen','Schienen']);return b};
 /* UV ohne Abgangsklemmen: Kabel direkt an der Sicherung, -X0 bleibt immer */
 const noKl=s=>!!s&&s.art!=='HV'&&planOf(s).klAbg==='nein';
 /* harte Sperre ohne Abgangsklemmen: höchstens 2 Kabel pro Sicherung, alle mit gleichem Querschnitt */
