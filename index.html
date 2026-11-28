@@ -283,7 +283,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-27.1319';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-28.1245';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -1006,7 +1006,7 @@ function siteListHTML(){
   const kc={};D.sites.forEach(s=>{const k=(s.kom||'').trim().toLowerCase();if(k)kc[k]=(kc[k]||0)+1});
   return `<div class="sites">${list.map(s=>{const ed=canEdit(s),dup=kc[(s.kom||'').trim().toLowerCase()]>1;return `<div class="site">
     <div>
-      <div class="t">${s.kom?esc(s.kom):'<span class="muted">ohne Kommissionsnummer</span>'}${s.bereich||s.stock?`<span style="font-weight:600">· ${esc([s.bereich,s.stock].filter(Boolean).join(' · '))}</span>`:''}${s.bauherr?`<span style="font-weight:500" class="muted">· ${esc(s.bauherr)}</span>`:''}</div>
+      <div class="t">${s.kom?esc(s.kom):'<span class="muted">ohne Kommissionsnummer</span>'}${s.bauherr?`<span style="font-weight:500" class="muted">· ${esc(s.bauherr)}</span>`:''}</div>
       <div class="d">${esc([s.adr,[s.plz,s.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ')||'Adresse fehlt')}</div>
       <div class="tags">
         <span class="tag y">${s.art}</span><span class="tag">${s.norm}</span>
@@ -1052,7 +1052,7 @@ function vListe(){
 function adoptKom(){
   const p=S.site,k=(p.kom||'').trim().toLowerCase(),el=$('#bMsg');if(!el)return;
   const n=k?D.sites.filter(s=>s.id!==p.id&&(s.kom||'').trim().toLowerCase()===k).length:0;
-  S.msg=n?{t:'info',m:'Die Kommission '+p.kom.trim()+' gibt es schon '+(n>1?n+'-mal':'einmal')+' als eigene Baustelle. Diese hier ist neu und bleibt leer. Fülle Bereich und Stockwerk aus, damit du sie in der Liste unterscheiden kannst.'}:null;el.innerHTML=msgHTML();
+  S.msg=n?{t:'info',m:'Die Kommission '+p.kom.trim()+' gibt es schon '+(n>1?n+'-mal':'einmal')+' als eigene Baustelle. Diese hier ist neu und bleibt leer. Ergänze die Bauherrschaft, damit du sie in der Liste unterscheiden kannst.'}:null;el.innerHTML=msgHTML();
 }
 function vBaustelle(){
   const p=S.site, ed=canEdit(p), dis=ed?'':' disabled';
@@ -1066,8 +1066,6 @@ function vBaustelle(){
     <form id="bForm" class="grid" novalidate>
       <label class="f c2">Kommissionsnummer<input id="b-kom" data-b="kom" value="${esc(p.kom)}" placeholder="z. B. 24-0815" autocomplete="off"${ed&&S.isNew?' autofocus':''}${dis}></label>
       <label class="f c4">Bauherrschaft<input id="b-bauherr" data-b="bauherr" value="${esc(p.bauherr)}" placeholder="Name oder Firma"${dis}></label>
-      <label class="f c3">Bereich<input id="b-bereich" data-b="bereich" value="${esc(p.bereich)}" autocomplete="off" placeholder="z. B. Allgemeinbereich"${dis}><span class="sugg" id="sg-bereich"></span></label>
-      <label class="f c3">Stockwerk<select id="b-stock" data-b="stock"${dis}><option value="">wählen …</option>${opt(STOCK.map(x=>[x,x]),p.stock||'')}</select></label>
       <label class="f c4">Strasse und Nummer<input id="b-adr" data-b="adr" value="${esc(p.adr)}" autocomplete="off"${dis}></label>
       <label class="f c2">Land<select id="b-land" data-b="land"${dis}>${LAENDER.map(([k,l])=>`<option value="${k}"${k===p.land?' selected':''}${['CH','LI'].includes(k)||k===p.land?'':' disabled'}>${esc(l)}${['CH','LI'].includes(k)?'':' (folgt)'}</option>`).join('')}</select></label>
       <label class="f c2">PLZ<input id="b-plz" data-b="plz" value="${esc(p.plz)}" inputmode="numeric" autocomplete="off" placeholder="${p.land==='DE'||p.land==='FR'?'79539':'4051'}"${dis}><span class="sugg" id="sg-plz"></span></label>
@@ -1143,7 +1141,7 @@ function onOrtDone(){
 }
 function printSheet(){
   const p=S.site;
-  const rows=[['Kommissionsnummer',p.kom],['Bereich',p.bereich],['Stockwerk',p.stock],['Bauherrschaft',p.bauherr],['Strasse',p.adr],[p.land==='DE'?'PLZ / Stadt':'PLZ / Ort',[p.plz,p.ort].filter(Boolean).join(' ')],...(p.land==='CH'?[['Kanton',p.kanton?p.kanton+' · '+kantonName(p.kanton):'']]:[]),['Land',landName(p.land)],['Norm',p.norm==='NIN'?'NIN (SN 411000)':'VDE (DIN VDE 0100)'],['Art der Verteilung',p.art==='HV'?'Hauptverteilung (HV)':'Unterverteilung (UV)'],['Erstellt von',userName(p.owner)],['Zuletzt geändert',fmtDate(p.updated)]];
+  const rows=[['Kommissionsnummer',p.kom],['Bauherrschaft',p.bauherr],['Strasse',p.adr],[p.land==='DE'?'PLZ / Stadt':'PLZ / Ort',[p.plz,p.ort].filter(Boolean).join(' ')],...(p.land==='CH'?[['Kanton',p.kanton?p.kanton+' · '+kantonName(p.kanton):'']]:[]),['Land',landName(p.land)],['Norm',p.norm==='NIN'?'NIN (SN 411000)':'VDE (DIN VDE 0100)'],['Art der Verteilung',p.art==='HV'?'Hauptverteilung (HV)':'Unterverteilung (UV)'],['Erstellt von',userName(p.owner)],['Zuletzt geändert',fmtDate(p.updated)]];
   $('#printSheet').innerHTML=`<h1>Baustellendaten${p.kom?' · Kommission '+esc(p.kom):''}</h1><table>${rows.map(r=>`<tr><td>${esc(r[0])}</td><td>${esc(r[1]||'–')}</td></tr>`).join('')}</table><div class="pf">Gedruckt am ${fmtDate(now())} von ${esc(S.user.name)} · Planungssoftware Service und Unterhalt</div>`;
   window.print();
 }
@@ -2657,9 +2655,9 @@ function vPlan(){
     <label class="f" style="opacity:.45">Anderer Hersteller <span class="hint">folgt</span><input id="p-hother" value="${other?esc(pl.hersteller):''}" placeholder="Hersteller folgen" autocomplete="off" disabled></label>`;
   }else if(k==='hvart'){
     /* Tobi 26.11.: ist die HV ein Zählerschrank? Sonst Art der HV (Pflicht, kommt aufs Deckblatt) und keine Zähler */
-    const HVA=['Etagenhauptverteiler','Gebäudehauptverteiler','Bürohauptverteiler'];
+    const HVA=['Etagenhauptverteiler','Bürohauptverteiler'];/* Tobi 28.11.: Gebäudehauptverteiler haben Zähler, hier nicht vorschlagen */
     body=`<h2>Zählerschrank</h2><p class="sub">Ist diese Hauptverteilung ein Zählerschrank (mit Zählern vom Netzbetreiber)?</p>
-      <div class="tiles two-col">${tile('zs','ja','Ja, Zählerschrank','Zähler werden später gewählt')}${p.geb==='EFH'?`<button type="button" class="tile" disabled aria-disabled="true" style="opacity:.45;cursor:not-allowed"><b>Nein</b><span>bei einem EFH nicht möglich</span></button>`:tile('zs','nein','Nein','z. B. Etagen- oder Gebäudehauptverteiler, ohne Zähler')}</div>
+      <div class="tiles two-col">${tile('zs','ja','Ja, Zählerschrank','Zähler werden später gewählt')}${p.geb==='EFH'?`<button type="button" class="tile" disabled aria-disabled="true" style="opacity:.45;cursor:not-allowed"><b>Nein</b><span>bei einem EFH nicht möglich</span></button>`:tile('zs','nein','Nein','z. B. Etagenverteiler, ohne Zähler')}</div>
       ${p.geb==='EFH'&&pl.zs==='ja'?`<div class="legend" style="margin-top:12px">Ein Einfamilienhaus hat immer einen Zähler. Wo befindet er sich?</div><div class="tiles two-col">${Object.entries(Z_ORT).map(([v,[t,su]])=>tile('zOrt',v,t,su)).join('')}</div>
         ${zExt(pl)?`<div class="msg info" style="margin-top:8px">Der Zähler sitzt ${esc(zOrtTxt(pl))}. Diese Hauptverteilung hat dann <b>keinen eigenen Zähler</b>: der Schritt Zähler entfällt, die Herkunft der Zuleitung wird automatisch eingetragen und ihr könnt den Verteiler auch selber bauen.</div>`:''}`:''}
       ${pl.zs==='nein'?`<div class="grid" style="margin-top:12px"><label class="f c6">Was für eine Hauptverteilung ist es? <span class="hint">Pflicht · steht so auf dem Deckblatt</span>
@@ -2670,7 +2668,7 @@ function vPlan(){
     if(hv){
       body=`<h2>Gehäuse</h2>${hvSelbstOk(pl)?`<p class="sub">${pl.zs==='nein'?'Ohne Zähler im Schrank':'Der Zähler ist extern'}: Wer baut die Hauptverteilung?</p><div class="tiles two-col">${tile('hvSelbst','nein','Schaltschrankbauer (extern)','Infoseiten für den Verteilerbauer automatisch dabei')}${tile('hvSelbst','ja','Selbstbau','Verteiler wählst du am Ende')}</div>`:'<p class="sub">Eine Hauptverteilung mit Zählern baut immer der Schaltschrankbauer (extern).</p>'}<p class="sub">Wie wird sie aufgestellt?</p>
       <div class="tiles two-col">${tile('hvBau','wand','Wandverteiler','hängend an der Wand')}${tile('hvBau','stand','Standverteiler','steht auf dem Boden oder Sockel')}</div>
-      ${pl.hvBau==='stand'?`<div class="legend" style="margin-top:12px">Maximale Masse <span class="hint">freiwillig · wie gross der Schrank höchstens sein darf</span></div>
+      ${pl.hvBau?`<div class="legend" style="margin-top:12px">Maximale Masse <span class="hint">freiwillig · wie gross der Schrank höchstens sein darf</span></div>
       <div class="grid"><label class="f c2">Breite max.<input type="number" inputmode="decimal" min="0" step="any" data-pl="hvMaxB" value="${esc(pl.hvMaxB||'')}" placeholder="leer = offen"${dis}></label>
       <label class="f c2">Höhe max.<input type="number" inputmode="decimal" min="0" step="any" data-pl="hvMaxH" value="${esc(pl.hvMaxH||'')}" placeholder="leer = offen"${dis}></label>
       <label class="f c2">Tiefe max.<input type="number" inputmode="decimal" min="0" step="any" data-pl="hvMaxT" value="${esc(pl.hvMaxT||'')}" placeholder="leer = offen"${dis}></label></div>
@@ -2999,7 +2997,7 @@ function bauData(s){const pl=planOf(s),hv=s.art==='HV',five=(pl.adern||'5')==='5
   let fig=[[teSich+teRel+' TE','Sicherungen'+(teRel?' und Relais':'')+' ('+sk.length+' Stromkreise)'],[lox?loxTE+' TE':'–','Smart Home Loxone'],[teRes+' TE','Reserve'],[teAll+' TE','Total auf Hutschienen = mind. '+Math.ceil(teAll/12)+' × 12 TE']];
   /* 1) Wichtig */
   const W=[];if(lox){const ps=loxPs(pl);if(ps&&ps.big)W.push('Loxone Power Supply & Backup: 18 TE breit. Einbau unten im Verteiler, oben und unten 50 mm frei, Verteiler mind. 100 l.');loxPsx(pl).forEach(X=>W.push('Weiteres Netzteil -G'+X.g+': '+X.o.art+', '+X.o.te+' TE.'));if(fkPtrvN(pl))W.push('Fensterkontakte '+LX(pl).fk+': '+fkPtrvN(pl)+'× Rangierverbinder PTRV 8, sehr gross (86 mm hoch, 100 mm quer zur Hutschiene).')}
-  if(hv&&pl.hvBau)W.push('Hauptverteilung als '+(pl.hvBau==='stand'?'Standverteiler':'Wandverteiler hängend')+(pl.hvBau==='stand'&&hvMaxTxt(pl)?', maximale Masse (Höchstwerte, nicht Endmasse): '+hvMaxTxt(pl):'')+(hvPos(pl)?'. Standort: '+hvPos(pl):'')+'.');
+  if(hv&&pl.hvBau)W.push('Hauptverteilung als '+(pl.hvBau==='stand'?'Standverteiler':'Wandverteiler hängend')+(hvMaxTxt(pl)?', maximale Masse (Höchstwerte, nicht Endmasse): '+hvMaxTxt(pl):'')+(hvPos(pl)?'. Standort: '+hvPos(pl):'')+'.');
   if(hv&&pl.zs==='ja'&&!zExt(pl)&&(pl.zl||[]).some(z=>wandlerNoetig(s,z.bezA,z.qs)))W.push('Achtung: '+WANDLER_TXT);
   W.push('Einspeiseblock -X0: '+(klPos(pl,'-X0')==='unten'?'unten':'oben')+' '+(x0Side(pl)==='r'?'rechts':'links')+' im Verteiler.');if(pl.hs)W.push('Hauptschalter'+(hsTxt(pl)?' '+hsTxt(pl):'')+' mit Klemmenabdeckung.');if(pl.spd)W.push('Überspannungsschutz direkt nach der Einspeisung.');
   if(W.length)SEC.push({h:'Wichtig für den Einbau',hl:1,list:W});
@@ -3141,7 +3139,6 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     T(lx,y1+114,cut('+'+(s.art||'UV')+(s.kom?' · Kommission '+s.kom:''),44),'tcov2');
     T(lx,y1+158,cut(s.bauherr||'Bauherrschaft offen',52),'tdeck3');
     T(lx,y1+178,cut([s.adr,[s.plz,s.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ')||'Adresse offen',70),'tcovs');
-    {const b=[s.bereich,s.stock].filter(Boolean).join(' · ');if(b)T(lx,y1+196,cut(b,70),'tcovs')}
     /* Tobi 24.11.: keine Kennzahlen aufs Deckblatt. Smart Home nur wenn gewählt, mit Loxone-Logo */
     if(lox){const ty=iy0+452,lg=loxImg('logo');T(lx,ty,'SMART HOME','tkv');if(lg)o.push(`<image href="${lg}" x="${lx}" y="${ty+10}" width="220" height="44" preserveAspectRatio="xMinYMid meet"/>`);else T(lx,ty+40,'LOXONE','tcov2')}
     /* Planung */
@@ -3150,7 +3147,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
     /* rechte Spalte: Projekt und Verteilung */
     o.push(`<rect x="${px}" y="${py}" width="${pw}" height="${ph}" fill="#f5f5f2"/><rect x="${px}" y="${py}" width="${pw}" height="6" fill="#ffed00"/>`);
     {let y=py+44;const mx=Math.floor((pw-48)/6.9),sec=(h,R)=>{T(px+24,y,h,'tlab');L(px+24,y+9,px+pw-24,y+9,'fr2');y+=32;R.filter(r=>r[1]).forEach(r=>{T(px+24,y,r[0].toUpperCase(),'tkv');/* Tobi 27.11.: nie abschneiden, umbrechen */const Ls=[];String(r[1]).split(' ').forEach(w=>{const l=Ls.length?Ls[Ls.length-1]:null;if(l!=null&&(l+' '+w).length<=mx)Ls[Ls.length-1]=l+' '+w;else Ls.push(w)});Ls.forEach((l,i)=>T(px+24,y+16+i*16,l,'tkvb'));y+=36+(Ls.length-1)*16});y+=14};
-      sec('PROJEKT',[['Kommission',s.kom||'offen'],['Bauherrschaft',s.bauherr||'offen'],['Adresse',[s.adr,[s.plz,s.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ')],['Bereich · Stockwerk',[s.bereich,s.stock].filter(Boolean).join(' · ')],['Land',(s.land==='CH'&&s.kanton?s.kanton+' · ':'')+landName(s.land)]]);
+      sec('PROJEKT',[['Kommission',s.kom||'offen'],['Bauherrschaft',s.bauherr||'offen'],['Adresse',[s.adr,[s.plz,s.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ')],['Land',(s.land==='CH'&&s.kanton?s.kanton+' · ':'')+landName(s.land)]]);
       sec('VERTEILUNG',[['Art',hv?'Hauptverteilung (HV)':'Unterverteilung (UV)'],['Norm',s.norm==='VDE'?'DIN VDE 0100':'NIN SN 411000'],['Hersteller',pl.hersteller||'offen'],['Gehäuse',hv?(pl.gehaeuse==='hersteller'?'Selbstbau · ':'')+(pl.hvBau==='stand'?'Standverteiler':pl.hvBau==='wand'?'Wandverteiler hängend · Aufputz':'offen'):pl.gehaeuse?(pl.gehaeuse==='alu'?'Schaltschrankbauer (extern)':'Selbstbau')+(pl.montage?' · '+(pl.montage==='AP'?'Aufputz':'Unterputz'):''):'offen'],['Zuleitung',pl.qs?(five?'5×':'3×')+qsTxt(pl.qs)+' mm² Cu':'offen'],['Standort Verteiler',hvPos(pl)],...(!hv?[['Zuleitung von',String(pl.evName||'').trim()?zlSrc(pl)+(hakPos(pl)?' · '+hakPos(pl):''):''],['Abgangssicherung',pl.hakTyp?hakSichTxt(pl):''],['Zähler-Nr.',String(pl.zNr||'').trim()]]:[]),...(hv?[['Zuleitung von',zlEv(pl)?zlSrc(pl)+(hakPos(pl)?' · '+hakPos(pl):''):pl.zlHerk==='saeule'?'Energiesäule · Aussenbereich':pl.zlHerk?'Hausanschlusskasten'+(hakPos(pl)?' · '+hakPos(pl):''):'offen']]:[]),...(hv?[['Zuleitungssicherung',pl.hakTyp?hakSichTxt(pl)+' ('+zlSrcIn(pl)+')':'offen']]:[])])}
   }else if(pg.kind==='bau'){
     const D=bauData(s),cols=pg.cols||[[],[]],k=pg.k||0,cx0=ix0+40,cW=(ix1-ix0-120)/2;
@@ -3866,7 +3863,6 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
   // Blattbeschreibung
   T(cI[7]+5,ky+13,'Blattbeschreibung:','tk2');T(cI[7]+5,ky+29,pg.title,'tb');
   {const sb=String(pg.sub||'');/* Tobi 27.11.: nie mit «…» abschneiden, auf 2 Zeilen umbrechen */if(sb.length<=24)T(cI[7]+5,ky+43,sb,'tk3');else{const Ls=wrapTxt(sb,30);if(Ls.length<=2)Ls.forEach((l,m)=>T(cI[7]+5,ky+41+m*10,l,'tk2'));else wrapTxt(sb,40).forEach((l,m)=>T(cI[7]+5,ky+39+m*7,l,'tk'))}}
-  T(cI[7]+5,ky+57,[s.bereich,s.stock].filter(Boolean).join(' · ').slice(0,30),'tk3');
   // Projekt / Ort / Seite
   L(cI[8],ky+kh,X1,ky+kh,'fr2');L(cI[8]+110,ky+kh,cI[8]+110,Y1,'fr2');
   T(cI[8]+5,ky+11,'Kommission: '+(s.kom||'offen'),'tk2');
@@ -4278,7 +4274,7 @@ document.addEventListener('click',e=>{
     $('#printSheet').innerHTML=pagesOf(S.site).map(pg=>schemaSVG(S.site,pg,{print:true})).join('');document.body.classList.add('ps');
     const st=document.createElement('style');st.id='pgA3';st.textContent='@page{size:A3 landscape;margin:6mm}';document.head.appendChild(st);
     window.print();setTimeout(()=>{document.body.classList.remove('ps');st.remove()},500)}
-  if(act==='new'){S.site={id:nid(),owner:S.user.id,editors:[],kom:'',bereich:'',stock:'',bauherr:'',adr:'',plz:'',ort:'',kanton:'',land:'CH',norm:'NIN',art:'UV',geb:'EFH',created:now(),updated:now()};S.isNew=true;S.savedAt=null;return go('baustelle')}
+  if(act==='new'){S.site={id:nid(),owner:S.user.id,editors:[],kom:'',bauherr:'',adr:'',plz:'',ort:'',kanton:'',land:'CH',norm:'NIN',art:'UV',geb:'EFH',created:now(),updated:now()};S.isNew=true;S.savedAt=null;return go('baustelle')}
   if(t.dataset.open){
     if(t.dataset.fromhint&&S.site){const cur=S.site;const onlyKom=!cur.bauherr&&!cur.adr&&!cur.plz&&!cur.ort;if(onlyKom&&cur.owner===S.user.id){clearTimeout(persistT);D.sites=D.sites.filter(s=>s.id!==cur.id);save();cloudDel(cur.id)}}
     const s=D.sites.find(x=>x.id===t.dataset.open);if(!s)return;
