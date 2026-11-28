@@ -82,6 +82,15 @@ input:disabled,select:disabled{opacity:1;background:var(--bg);color:var(--ink);-
 .sugg{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.sugg:empty{display:none}
 .sugg button{font:inherit;font-size:14px;font-weight:500;padding:6px 10px;min-height:34px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);cursor:pointer}
 .sugg button:hover{border-color:var(--ink)}
+.sugg button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#111;font-weight:700}
+.vh{position:absolute!important;opacity:0;pointer-events:none;width:1px;height:1px;overflow:hidden}
+.dzp{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px}
+.dzb{display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:7px 9px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink);cursor:pointer;font:inherit;text-align:left}
+.dzb:disabled{cursor:default;opacity:.6}
+.dzb b{display:flex;align-items:center;gap:7px;font:700 15px var(--f-display)}
+.dzb i{display:inline-block;width:14px;height:14px;border-radius:50%;border:1px solid #555;flex:none}
+.dzb span{font-size:11.5px;font-weight:500;color:var(--muted)}
+.dzb[aria-pressed="true"]{border:2px solid #111;background:var(--accent);color:#111;padding:6px 8px}.dzb[aria-pressed="true"] span{color:#3a3a00}
 .msg.err{background:var(--err-soft);color:var(--err)}
 .msg.ok{background:var(--ok-soft);color:var(--ok)}
 .msg.info{background:var(--info-soft);color:var(--info)}
@@ -1150,7 +1159,8 @@ function printSheet(){
 const QS=['1.5','2.5','4','6','10','16','25','35','50','70','95','120','150','185','240'];
 const QS_MAX=240;/* Tobi 27.11.: alle Querschnitte bis 240 mm² wählbar */
 /* Tobi 26.11.: die Bezügersicherung gibt den Querschnitt vor, er gilt ab der Bezügersicherung (auch bis zum Zähler). Vorschlag, änderbar. 25 A -> 6 mm² von Tobi bestätigt, Rest zur Prüfung */
-const BEZ_QS={'16':'4','20':'4','25':'6','32':'10','35':'10','40':'10','50':'16','63':'16','80':'25'};
+/* Vorschlag Querschnitt ab Bezügersicherung (25 A bestätigt, Rest zur Prüfung durch Tobi) */
+const BEZ_QS={'2':'1.5','4':'1.5','6':'1.5','10':'1.5','16':'4','20':'4','25':'6','32':'10','35':'10','40':'10','50':'16','63':'16','80':'25','100':'35'};
 /* Tobi 27.11.: Netzbetreiber als Auswahl, automatisch nach Kanton/PLZ */
 const NB_SEL=['IWB Industrielle Werke Basel','Primeo Netz AG','EBL Genossenschaft Elektra Baselland'];
 const NB_LIST=['IWB Industrielle Werke Basel','Primeo Energie','EBL Genossenschaft Elektra Baselland','AEW Energie AG','BKW Energie AG','CKW AG','EKZ Elektrizitätswerke des Kantons Zürich','Netze BW GmbH','ED Netze GmbH','bnNETZE GmbH'];
@@ -1175,8 +1185,13 @@ function touchPlan(grund){
 }
 /* Bezügersicherung HV: NIN Diazed oder LS 4-polig D; VDE (Annahme) SLS oder NH */
 const bezTypes=s=>s.norm==='VDE'?[['SLS','SLS-Schalter, selektiv (3-polig)'],['NH','NH-Sicherung (3-polig)']]:[['DZ','Diazed (3-polig)'],['LSD','LS 4-polig (Charakteristik wählen)'],['NH','NH-Trenner (3-polig)']];
-const BEZ_A={DZ:['16','20','25','35','50','63'],LSD:['16','20','25','32','40','50','63'],SLS:['35','40','50','63'],NH:['20','25','32','35','40','50','63','80','100','125']};
-const bezTxt=pl=>pl.bez?(pl.bez==='DZ'?(pl.bezA&&+pl.bezA<=25?'DII':pl.bezA?'DIII':'Diazed'):{LSD:'LS '+(pl.bezC||'D'),SLS:'SLS',NH:'NH'}[pl.bez])+(pl.bezA?' '+pl.bezA+' A':'')+(pl.bez==='LSD'?' 4-polig':pl.bez==='DZ'||pl.bez==='NH'?' + N-Trenner':' 3-polig'):'';
+/* Tobi 28.11.: Diazed (D-System) genau nach DIN VDE 0636-3 / IEC 60269-3: DII E27 2–25 A, DIII E33 35–63 A, DIV R1¼ 80–100 A, mit Kennfarbe */
+const DZ_A=['2','4','6','10','16','20','25','35','50','63','80','100'];
+const DZ_COL={'2':['rosa','#f7b6e8'],'4':['braun','#8b5a2b'],'6':['grün','#00a651'],'10':['rot','#e10600'],'16':['grau','#8a8a8a'],'20':['blau','#0066c4'],'25':['gelb','#ffe500'],'35':['schwarz','#111111'],'50':['weiss','#ffffff'],'63':['kupfer','#e8946a'],'80':['silber','#cfd3d6'],'100':['rot','#e10600']};
+const dzGr=a=>+a<=25?'DII':+a<=63?'DIII':'DIV';
+const dzPick=(attrs,cur,dis)=>`<select class="vh" tabindex="-1" aria-hidden="true" ${attrs}${dis}><option value="">wählen …</option>${opt(DZ_A.map(a=>[a,a+' A']),String(cur||''))}</select><div class="dzp" role="group">${DZ_A.map(a=>`<button type="button" class="dzb" data-dzv="${a}" aria-pressed="${String(cur||'')===a}"${dis}><b><i style="background:${DZ_COL[a][1]}"></i>${a} A</b><span>${DZ_COL[a][0]} · ${dzGr(a)}</span></button>`).join('')}</div>`;
+const BEZ_A={DZ:DZ_A,LSD:['16','20','25','32','40','50','63'],SLS:['35','40','50','63'],NH:['20','25','32','35','40','50','63','80','100','125']};
+const bezTxt=pl=>pl.bez?(pl.bez==='DZ'?(pl.bezA?dzGr(pl.bezA):'Diazed'):{LSD:'LS '+(pl.bezC||'D'),SLS:'SLS',NH:'NH'}[pl.bez])+(pl.bezA?' '+pl.bezA+' A'+(pl.bez==='DZ'&&DZ_COL[pl.bezA]?' ('+DZ_COL[pl.bezA][0]+')':''):'')+(pl.bez==='LSD'?' 4-polig':pl.bez==='DZ'||pl.bez==='NH'?' + N-Trenner':' 3-polig'):'';
 const HS_A=['20','32','40','63'];
 /* Hauptschalter = Lasttrennschalter Hager 4L (Sonepar, Tobi 23.11.); Klemmenabdeckung IMMER mitrechnen */
 const HS_PROD={'20':{nr:'550 405 101',t:'HAB402',art:'Lasttrennschalter Hager HAB402 4L 20A',net:29.70,bru:54.00},'32':{nr:'550 405 301',t:'HAB403',art:'Lasttrennschalter Hager HAB403 4L 32A',net:38.50,bru:70.00},'40':{nr:'550 405 401',t:'HAB404',art:'Lasttrennschalter Hager HAB404 4L 40A',net:48.24,bru:87.70},'63':{nr:'550 405 601',t:'HAB406',art:'Lasttrennschalter Hager HAB406 4L 63A',net:55.83,bru:101.50}};
@@ -1191,7 +1206,7 @@ const ZM_EXT_MAX=5;
 const zlAll=s=>s.art==='HV'?planOf(s).zl:[];
 const zlAct=s=>zlAll(s).filter(z=>!z.res);
 function zlNew(s,res){const pl=planOf(s),id=Math.max(0,...pl.zl.map(z=>+z.id||0))+1;return {id,name:'',res:!!res,bez:s.norm==='VDE'?'NH':'DZ',bezA:'',qs:'',adern:pl.adern||'5',ziel:''}}
-const bezL1=z=>z.bez?(z.bez==='DZ'?(z.bezA&&+z.bezA<=25?'DII':z.bezA?'DIII':'Diazed'):{LSD:'LS '+(z.bezC||'D'),SLS:'SLS',NH:'NH'}[z.bez])+(z.bezA?' '+z.bezA+' A':''):'offen';
+const bezL1=z=>z.bez?(z.bez==='DZ'?(z.bezA?dzGr(z.bezA):'Diazed'):{LSD:'LS '+(z.bezC||'D'),SLS:'SLS',NH:'NH'}[z.bez])+(z.bezA?' '+z.bezA+' A':''):'offen';
 const bezL2=z=>z.bez==='LSD'?'4-polig':z.bez==='SLS'?'3-polig':z.bez?'+ N-Trenner':'';
 function zlSum(s){const a=zlAll(s),r=a.filter(z=>z.res).length;return (a.length-r)+(a.length-r===1?' Zähler':' Zähler')+(r?' + '+r+(r===1?' Reserveplatz':' Reserveplätze'):'')}
 /* Tobi 26.11.: Gebäude EFH / Gewerbe / MFH / anderes (nur Bezeichnung, Schritte wie EFH; MFH mit Allgemeinzähler) */
@@ -1245,11 +1260,11 @@ const erdOk=pl=>{const e=pl.erd;if(!e||!e.typ||!Array.isArray(e.sch)||!e.sch.len
 const erdPage=pl=>erdOn(pl)&&!!(pl.erd&&pl.erd.typ);
 /* Tobi 26.11.: Sicherungsart im HAK / in der Säule, danach Bemessungsstrom (übliche Grössen, zur Prüfung) */
 /* Tobi 27.11.: alle NH-Grössen mit vollem Nennstrombereich gG (IEC 60269-2 / Herstellerkataloge, zur Prüfung). Schlüssel NH01..NH04 bleiben für gespeicherte Pläne, Anzeige NH1..NH4 */
-const HAK_T=[['DZ','Diazed','D II / D III, bis 63 A'],['LS','LS','Leitungsschutzschalter'],['NH000','NH000','6–100 A'],['NH00','NH00','6–160 A'],['NH0','NH0','6–160 A, ältere Bauform'],['NH01','NH1','16–250 A'],['NH02','NH2','35–400 A'],['NH03','NH3','100–630 A'],['NH04','NH4','400–1250 A']];
-const HAK_A={DZ:[16,20,25,35,40,50,63],LS:[13,16,20,25,32,40,50,63],NH000:[6,10,16,20,25,32,35,40,50,63,80,100],NH00:[6,10,16,20,25,32,35,40,50,63,80,100,125,160],NH0:[6,10,16,20,25,32,35,40,50,63,80,100,125,160],NH01:[16,20,25,32,35,40,50,63,80,100,125,160,200,224,250],NH02:[35,40,50,63,80,100,125,160,200,224,250,300,315,355,400],NH03:[100,125,160,200,224,250,300,315,355,400,425,500,630],NH04:[400,500,630,800,1000,1250]};
+const HAK_T=[['DZ','Diazed','D II / D III / D IV, 2–100 A'],['LS','LS','Leitungsschutzschalter'],['NH000','NH000','6–100 A'],['NH00','NH00','6–160 A'],['NH0','NH0','6–160 A, ältere Bauform'],['NH01','NH1','16–250 A'],['NH02','NH2','35–400 A'],['NH03','NH3','100–630 A'],['NH04','NH4','400–1250 A']];
+const HAK_A={DZ:DZ_A.map(Number),LS:[13,16,20,25,32,40,50,63],NH000:[6,10,16,20,25,32,35,40,50,63,80,100],NH00:[6,10,16,20,25,32,35,40,50,63,80,100,125,160],NH0:[6,10,16,20,25,32,35,40,50,63,80,100,125,160],NH01:[16,20,25,32,35,40,50,63,80,100,125,160,200,224,250],NH02:[35,40,50,63,80,100,125,160,200,224,250,300,315,355,400],NH03:[100,125,160,200,224,250,300,315,355,400,425,500,630],NH04:[400,500,630,800,1000,1250]};
 const hakTypTxt=t=>(HAK_T.find(x=>x[0]===t)||['',''])[1];
 const LS_CH=[['B','B'],['C','C'],['D','D']];/* Tobi 27.11.: LS mit Charakteristik */
-const hakSichTxt=pl=>pl.hakTyp?hakTypTxt(pl.hakTyp)+(pl.hakTyp==='LS'&&pl.hakChar?' '+pl.hakChar:'')+(pl.hakA?' '+pl.hakA+' A':''):'Sicherung offen';
+const hakSichTxt=pl=>pl.hakTyp?hakTypTxt(pl.hakTyp)+(pl.hakTyp==='LS'&&pl.hakChar?' '+pl.hakChar:'')+(pl.hakA?' '+pl.hakA+' A'+(pl.hakTyp==='DZ'&&DZ_COL[pl.hakA]?' ('+DZ_COL[pl.hakA][0]+')':''):''):'Sicherung offen';
 const KAB_T=['GKN','TT','FE0','FE05C (halogenfrei)','XKT','anderer Typ'];
 const kabTypTxt=pl=>pl.kabTyp==='anderer Typ'?(pl.kabTypTxt||'').trim():(pl.kabTyp||'');
 const zlpOk=(pl,k)=>pl.isUV?({herk:true,vt:true,sich:!pl.hakTyp||!!pl.hakA,kab:!!pl.qs&&qsNum(pl.qs)<=QS_MAX})[k]:({herk:hakOk(pl),vt:!!pl.hvStock&&!!(pl.hvRaum||'').trim(),sich:!!pl.hakTyp&&!!pl.hakA&&(pl.hakTyp!=='LS'||!!pl.hakChar),kab:!!pl.qs&&qsNum(pl.qs)<=QS_MAX&&!!kabTypTxt(pl),erd:erdOk(pl),ok:!!pl.zlConf&&pl.zlConf===zlSig(pl)})[k];
@@ -1257,6 +1272,9 @@ const zlpOk=(pl,k)=>pl.isUV?({herk:true,vt:true,sich:!pl.hakTyp||!!pl.hakA,kab:!
 const zlSig=pl=>[pl.zs,pl.zOrt,pl.evName,pl.evNr,pl.evStock,pl.evRaum,pl.zlHerk,pl.hakStock,pl.hakRaum,pl.hakSeite,pl.hvStock,pl.hvRaum,pl.hakTyp,pl.hakA,pl.qs,pl.adern,pl.kabTyp,pl.kabTypTxt].map(x=>x||'').join('|')+(erdOn(pl)?'|'+JSON.stringify(pl.erd||{}):'')+(pl.hvWhg?'|w'+pl.hvWhg:'');
 const zlpMsg={herk:'Bitte zuerst angeben, woher die Zuleitung kommt, und wo diese Einspeisung steht.',vt:'Bitte Stockwerk und Raum des Verteilers angeben.',sich:'Bitte Sicherungsart und Bemessungsstrom wählen.',kab:'Bitte Querschnitt und Leitungstyp wählen.',erd:'Bitte den Erder wählen, die Erdungspunkte (Stockwerk, Raum, Anzahl) und bei jeder PA-Schiene Stockwerk, Raum und «hängt an» angeben und festlegen, an welcher Schiene HAK und Hauptverteilung hängen.',ok:'Bitte die Einspeisung bestätigen.'};
 const zlpCur=pl=>{let z=S.zlp==null?0:S.zlp;z=Math.max(0,Math.min(zlpL(pl).length-1,z));for(let j=0;j<z;j++)if(!zlpOk(pl,zlpL(pl)[j][0]))return j;return z};
+/* Tobi 28.11.: Zähler kann über mehrere Stockwerke gehen (z. B. Laden UG + EG); z.stock = erstes, z.stks = alle */
+const zStks=z=>Array.isArray(z.stks)&&z.stks.length?z.stks:(z.stock?[z.stock]:[]);
+const zStkTxt=z=>zStks(z).join(' + ');
 const flList=pl=>[...new Set([...((pl.sh||{}).fl||[]).map(f=>f.name).filter(Boolean),...STOCK])];
 const rmSugg=(pl,fl)=>[...new Set([...(((pl.sh||{}).fl||[]).find(f=>f.name===fl)||{rooms:[]}).rooms.map(r=>r.name),'Technikraum','Elektroraum','Keller','Waschküche','Garage','Hauswirtschaftsraum'])].slice(0,10);
 /* Stockwerk-Name -> Ebene (UG negativ, EG 0, OG positiv, Attika/Dach oben) */
@@ -1458,7 +1476,7 @@ const zlNm=z=>String(z.name||'').trim()||(z.arch?'Wohnung '+String(z.arch).trim(
 const zaPages=s=>{const pl=planOf(s);if(zlAllgQ(s)&&!pl.allg)return ['allg'];return [...(zlAllgQ(s)?['allg']:[]),...pl.zl.map((z,j)=>z.res?null:j).filter(j=>j!=null),'res']};
 const zaPgOk=(s,q)=>{const pl=planOf(s);if(q==='allg')return !!pl.allg;if(q==='res'){const R=pl.zl.filter(z=>z.res);return pl.resAns!=null&&R.every(z=>!!z.bez&&!!z.bezA&&+z.bezA<=80)}const z=pl.zl[q];if(!z)return true;/* Tobi 27.11.: Stockwerk Pflicht (ausser Allgemein/Hauptzähler) */if(!z.res&&!(q===0&&!zlAllgNo(s))&&!z.stock)return false;return !!z.bez&&!!z.bezA&&+z.bezA<=80&&(z.res||!!z.qs)};
 const zaCur=s=>{const P=zaPages(s);let i=S.zaI==null?0:S.zaI;i=Math.max(0,Math.min(P.length-1,i));for(let j=0;j<i;j++)if(!zaPgOk(s,P[j]))return j;return i};
-const zaMiss=(s,q)=>{const pl=planOf(s),Q=x=>document.querySelector('#main '+x),M=[];if(q==='res'){if(pl.resAns==null)M.push(['Reservezählerplätze',()=>Q('[data-resn]')]);else{const z=pl.zl.find(z=>z.res);if(z){if(!z.bez)M.push(['Bezügersicherung',()=>Q('[data-resb=bez]')]);if(!z.bezA||+z.bezA>80)M.push([+z.bezA>80?'Fehler: über 80 A gesperrt':'Bemessungsstrom',()=>Q('[data-resb=bezA]')])}}return M}if(q==='allg'){if(!pl.allg)M.push(['Allgemeinbereich Ja/Nein',()=>{const e=Q('[data-allg]');return e?e.closest('.tiles'):null}]);return M}const z=pl.zl[q];if(!z)return M;if(!z.res&&!(q===0&&!zlAllgNo(s))&&!z.stock)M.push(['Stockwerk',()=>Q('[data-zl=stock]')]);
+const zaMiss=(s,q)=>{const pl=planOf(s),Q=x=>document.querySelector('#main '+x),M=[];if(q==='res'){if(pl.resAns==null)M.push(['Reservezählerplätze',()=>Q('[data-resn]')]);else{const z=pl.zl.find(z=>z.res);if(z){if(!z.bez)M.push(['Bezügersicherung',()=>Q('[data-resb=bez]')]);if(!z.bezA||+z.bezA>80)M.push([+z.bezA>80?'Fehler: über 80 A gesperrt':'Bemessungsstrom',()=>Q('[data-resb=bezA]')])}}return M}if(q==='allg'){if(!pl.allg)M.push(['Allgemeinbereich Ja/Nein',()=>{const e=Q('[data-allg]');return e?e.closest('.tiles'):null}]);return M}const z=pl.zl[q];if(!z)return M;if(!z.res&&!(q===0&&!zlAllgNo(s))&&!z.stock)M.push(['Stockwerk',()=>{const e=Q('[data-zlstk]');return e?e.closest('.sugg'):null}]);
   if(!z.bez)M.push(['Bezügersicherung',()=>Q('[data-zl=bez]')]);if(!z.bezA||+z.bezA>80)M.push([+z.bezA>80?'Fehler: über 80 A gesperrt':'Bemessungsstrom',()=>Q('[data-zl=bezA]')]);if(!z.res&&!z.qs)M.push(['Querschnitt',()=>Q('[data-zl=qs]')]);return M};
 /* Animation Zähler: Stockwerke, Zählerschrank, Zähler pro Stockwerk nebeneinander (nach IWB-Nummer von links) */
 function zaAnim(s,pl,cur){const FH=34,bx0=70,bx1=320,W=380,hvL=pl.hvStock?flLvl(pl.hvStock,6):-1,Z=pl.zl.map((z,j)=>({z,j,l:j===0&&!zlAllgNo(s)?hvL:z.stock?flLvl(z.stock,6):null}));
@@ -1470,7 +1488,7 @@ function zaAnim(s,pl,cur){const FH=34,bx0=70,bx1=320,W=380,hvL=pl.hvStock?flLvl(
   const byL={};Z.filter(x=>x.l!=null).forEach(x=>{(byL[x.l]=byL[x.l]||[]).push(x)});const rT=Math.min(hy+12,...Object.keys(byL).map(l=>fy(+l)+FH/2)),rB=Math.max(hy+12,...Object.keys(byL).map(l=>fy(+l)+FH/2));B+=`<line x1="${rx}" y1="${rT}" x2="${rx}" y2="${rB}" stroke="#b59b00" stroke-width="2"/>`;
   Object.keys(byL).forEach(l=>{const A=byL[l].sort((a,b)=>(parseFloat(a.z.iwb)||999)-(parseFloat(b.z.iwb)||999)||a.j-b.j),x0=rx+8,sp=Math.min(38,(bx1-6-x0)/A.length),y=fy(+l)+FH/2;B+=`<line x1="${rx}" y1="${y}" x2="${x0+sp*(A.length-1)+15}" y2="${y}" stroke="#b59b00" stroke-width="1.2" stroke-dasharray="3 2"/>`;
     A.forEach((x,k)=>{const bx=x0+sp*k,on=x.j===cur;B+=`<g${on?' class="zlpulse"':''}><rect x="${bx}" y="${y-9}" width="${Math.min(30,sp-3)}" height="18" rx="2" fill="${on?'#ffed00':x.z.res?'#e9e9e9':'#fff'}" stroke="#111" stroke-width="${on?1.6:1}"${x.z.res?' stroke-dasharray="2 2"':''}/><text x="${bx+Math.min(30,sp-3)/2}" y="${y+3}" text-anchor="middle" font-size="8" font-weight="700">P${x.j+1}</text></g>`})});
-  const c=pl.zl[cur],cap=c?'-P'+(cur+1)+' '+(zlNm(c)||zlLbl(s,cur))+(c.stock?' · '+c.stock:'')+(c.iwb?' · Energieversorger: '+c.iwb:'')+(c.bezA?' · '+bezTxt(c):''):'';
+  const c=pl.zl[cur],cap=c?'-P'+(cur+1)+' '+(zlNm(c)||zlLbl(s,cur))+(c.stock?' · '+zStkTxt(c):'')+(c.iwb?' · Energieversorger: '+c.iwb:'')+(c.bezA?' · '+bezTxt(c):''):'';
   return `<div class="zlani"><div class="zlview"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(cap)}">${B}</svg></div><div class="cap">${esc(cap)}</div></div>`}
 const zlLbl=(s,k)=>k===0?(zlAllgNo(s)?'Zähler':s.geb==='MFH'||(zlAllgQ(s)&&planOf(s).allg==='ja')?'Allgemeinzähler':'Hauptzähler'):'Zähler';
 const zSkLbl=(s,z)=>{const pl=planOf(s),k=pl.zl.indexOf(z);return '-P'+(k+1)+' '+(z.name||zlLbl(s,k))};
@@ -2286,7 +2304,7 @@ const flPreSrc=pl=>{const A=[],add=(f,r)=>{f=String(f||'').trim();r=String(r||''
   if(zlEv(pl))add(pl.evStock,pl.evRaum);else if(pl.zlHerk==='hak_in')add(pl.hakStock,pl.hakRaum);
   add(pl.hvStock,pl.hvRaum);
   if(erdOn(pl)&&pl.erd){(pl.erd.pts||[]).forEach(x=>add(x.stock,x.raum));(pl.erd.sch||[]).forEach(x=>add(x.stock,x.raum))}
-  if(!pl.isUV&&pl.zs==='ja')(pl.zl||[]).forEach(z=>{if(!z.res)add(z.stock,'')});return A};
+  if(!pl.isUV&&pl.zs==='ja')(pl.zl||[]).forEach(z=>{if(!z.res)zStks(z).forEach(f=>add(f,''))});return A};
 const flPreMiss=pl=>{const F=((pl.sh||{}).fl)||[],M=[];flPreSrc(pl).forEach(([fn,rn])=>{const f=F.find(g=>fzN(g.name)===fzN(fn));let m=M.find(x=>fzN(x.f)===fzN(fn));if(!m&&!f){m={f:fn,r:[]};M.push(m)}if(!rn)return;if(f&&f.rooms.some(x=>fzN(x.name)===fzN(rn)))return;if(!m){m={f:fn,r:[],ex:f};M.push(m)}if(!m.r.some(x=>fzN(x)===fzN(rn)))m.r.push(rn)});return M.filter(m=>!m.ex||m.r.length)};
 const flPrefill=pl=>{const h=pl.sh;h.fl=h.fl||[];const F=h.fl,M=flPreMiss(pl),lv=n=>fzN(n)==='aussenbereich'?-99:flLvl(n,99);let n=0;
   M.forEach(m=>{let f=m.ex||F.find(g=>fzN(g.name)===fzN(m.f));if(!f){f={id:rid(),name:m.f,rooms:[],ok:false,nt:1,rt:{},tf:{},pre:true};const i=F.findIndex(g=>g.autoWs||fzN(g.name)==='aussenbereich'||lv(g.name)<lv(m.f));if(i>=0)F.splice(i,0,f);else F.push(f);n++}
@@ -2737,7 +2755,7 @@ function vPlan(){
         <label class="f c3">Raum des Verteilers<input data-pl="hvRaum" value="${esc(pl.hvRaum||'')}" placeholder="z. B. Technikraum" maxlength="40" autocomplete="off"${dis}></label>${chips('hvRaum',pl.hvStock)}${uv&&p.geb==='MFH'?`<label class="f c3">Wohnung <span class="hint">freiwillig · Bezeichnung vom Architekten</span><input data-pl="hvWhg" value="${esc(pl.hvWhg||'')}" placeholder="z. B. Wohnung 3a" maxlength="30" autocomplete="off"${dis}></label>`:''}</div>`}
       else if(pg==='sich'){const T=pl.hakTyp,AA=HAK_A[T]||[];inner=`${zlAnim(p,pl)}<div class="legend">${uv?'Abgangssicherung '+esc(zlSrcIn(pl))+': welche Sicherungsart? <span class="hint">freiwillig</span>':'Sicherung '+esc(zlSrcIn(pl))+': welche Sicherungsart?'}</div>
       <div class="seg wrap" role="group">${HAK_T.map(([v,t,su])=>`<button type="button" data-plv="hakTyp" data-v="${v}" aria-pressed="${T===v}"${dis}><b>${t}</b><span>${su}</span></button>`).join('')}</div>
-      ${T?`<div class="grid" style="margin-top:10px">${T==='LS'?`<label class="f c3">Charakteristik LS<select data-pl="hakChar"${dis}><option value="">wählen …</option>${opt(LS_CH,pl.hakChar||'')}</select></label>`:''}<label class="f c3">Bemessungsstrom ${esc(hakTypTxt(T))}<select data-pl="hakA"${dis}><option value="">wählen …</option>${opt(AA.map(a=>[String(a),a+' A']),pl.hakA||'')}</select></label></div><p class="sub">${T==='LS'?'Genormte Nennströme LS (IEC 60898, zur Prüfung).':'Alle genormten Nennströme dieser Grösse (gG, nach IEC 60269 / Herstellerkatalogen, zur Prüfung).'}</p>`:''}${hv&&+pl.hakA>80?`<div class="msg info" style="margin-top:8px">${esc(HAK_WANDLER_TXT)}</div>`:''}${izWarn(pl,'hak',pl.hakA,pl.qs,'Sicherung '+zlSrc(pl),dis)}`}
+      ${T?`<div class="grid" style="margin-top:10px">${T==='LS'?`<label class="f c3">Charakteristik LS<select data-pl="hakChar"${dis}><option value="">wählen …</option>${opt(LS_CH,pl.hakChar||'')}</select></label>`:''}${T==='DZ'?`<label class="f c6">Bemessungsstrom Diazed <span class="hint">Kennfarbe nach DIN VDE 0636-3</span>${dzPick('data-pl="hakA"',pl.hakA,dis)}</label>`:`<label class="f c3">Bemessungsstrom ${esc(hakTypTxt(T))}<select data-pl="hakA"${dis}><option value="">wählen …</option>${opt(AA.map(a=>[String(a),a+' A']),pl.hakA||'')}</select></label>`}</div><p class="sub">${T==='LS'?'Genormte Nennströme LS (IEC 60898, zur Prüfung).':T==='DZ'?'Diazed (D-System, gG) nach DIN VDE 0636-3 / IEC 60269-3: DII (E27) 2–25 A, DIII (E33) 35–63 A, DIV 80–100 A.':'Alle genormten Nennströme dieser Grösse (gG, nach IEC 60269 / Herstellerkatalogen, zur Prüfung).'}</p>`:''}${hv&&+pl.hakA>80?`<div class="msg info" style="margin-top:8px">${esc(HAK_WANDLER_TXT)}</div>`:''}${izWarn(pl,'hak',pl.hakA,pl.qs,'Sicherung '+zlSrc(pl),dis)}`}
       else if(pg==='kab'){inner=`${zlAnim(p,pl)}<div class="legend">Leitung ${esc(zlSrcVon(pl))} in den Verteiler</div>
       <div class="grid">${qsF}<label class="f c3">Leitungstyp<select data-pl="kabTyp"${dis}><option value="">wählen …</option>${opt(KAB_T.map(x=>[x,x]),pl.kabTyp||'')}</select></label>
       ${pl.kabTyp==='anderer Typ'?`<label class="f c3">Welcher Typ?<input data-pl="kabTypTxt" value="${esc(pl.kabTypTxt||'')}" maxlength="30" autocomplete="off"${dis}></label>`:''}${izWarn(pl,'hak',pl.hakA,pl.qs,'Sicherung '+zlSrc(pl),dis)}</div>${lrHTML(p,pl,dis,ed)}`}
@@ -2791,7 +2809,7 @@ function vPlan(){
       <p class="sub" style="margin-top:0">Ein Reservezählerplatz wird mit Bezügersicherung und Abgang vorbereitet, der Zähler wird erst später montiert.</p>
       <div class="grid"><label class="f c3">Anzahl Reservezählerplätze<select data-resn="1"${dis}><option value="">wählen …</option>${opt([0,1,2,3,4,5,6].map(v=>[String(v),v?v+(v===1?' Reserveplatz':' Reserveplätze'):'Keine Reserve']),pl.resAns==null?'':String(pl.resAns))}</select></label>
       ${R.length?`<label class="f c3">Bezügersicherung Reserve<select data-resb="bez"${dis}><option value="">wählen …</option>${opt(bezTypes(p),r0.bez||'')}</select></label>
-      ${r0.bez==='LSD'?`<label class="f c3">Charakteristik LS Reserve<select data-resb="bezC"${dis}>${opt(LS_CH,r0.bezC||'D')}</select></label>`:''}<label class="f c3">Bemessungsstrom Reserve<select data-resb="bezA"${r0.bez?dis:' disabled'}><option value="">wählen …</option>${opt((BEZ_A[r0.bez]||[]).map(a=>[a,a+' A']),r0.bezA||'')}</select></label>
+      ${r0.bez==='LSD'?`<label class="f c3">Charakteristik LS Reserve<select data-resb="bezC"${dis}>${opt(LS_CH,r0.bezC||'D')}</select></label>`:''}${r0.bez==='DZ'?`<label class="f c6">Bemessungsstrom Reserve <span class="hint">Diazed, Kennfarbe nach DIN VDE 0636-3</span>${dzPick('data-resb="bezA"',r0.bezA,dis)}</label>`:`<label class="f c3">Bemessungsstrom Reserve<select data-resb="bezA"${r0.bez?dis:' disabled'}><option value="">wählen …</option>${opt((BEZ_A[r0.bez]||[]).map(a=>[a,a+' A']),r0.bezA||'')}</select></label>`}
       <label class="f c3">Abgang Querschnitt<select data-resb="qs"${dis}><option value="">wählen …</option>${opt(QS.filter(q=>qsNum(q)<=QS_MAX).map(q=>[q,qsTxt(q)+' mm²']),r0.qs||'')}</select>${r0.bezA&&BEZ_QS[r0.bezA]?`<span class="sub" style="font-size:13px">Standard bei ${r0.bezA} A: ${qsTxt(BEZ_QS[r0.bezA])} mm²</span>`:''}</label>${+r0.bezA>80?`<div class="c6 msg err"><b>${esc(ZU_GROSS_TXT)}</b></div>`:''}`:''}</div>
       ${R.length?`<p class="sub">Im Plan: ${R.map(z=>'-P'+(pl.zl.indexOf(z)+1)).join(', ')} (Reserve).</p>`:''}`}
     else{const j=pk,z=pl.zl[j],main=j===0&&!zlAllgNo(p),zp=pgs.find(q=>(j===0&&q.kind==='za')||(q.kind==='zm'&&q.bl.some(b=>b.k===j))),n=(L.ext[z.id]||[]).length;
@@ -2799,7 +2817,7 @@ function vPlan(){
       inner=`${zaAnim(p,pl,j)}<div class="sk zlr${z.res?' res':''}" data-zi="${j}" style="margin-top:10px">
       <div class="sk1"><b class="zlno">-P${j+1}</b>${j===0?`<span class="tag y">${zlLbl(p,0)}</span>`:''}${z.res?'<span class="tag">Reservezählerplatz</span>':''}<span style="flex:1"></span>${ed&&j?`<button type="button" class="btn x" data-zldel="${j}" aria-label="Zähler -P${j+1} löschen" title="Zähler löschen">✕</button>`:''}</div>
       <div class="grid"><label class="f c6">${main?'Bezeichnung':'Bereich / Bezeichnung'} <span class="hint">${main?'umbenennbar':'steht im Schema'}</span><input data-zl="name" value="${esc(z.name||'')}" placeholder="${main?'Allgemein':'z. B. Wohnung 1a, Büro, Laden'}" maxlength="40" autocomplete="off"${dis}></label>
-      ${main?'':`<label class="f c3">Stockwerk<select data-zl="stock"${dis}><option value="">wählen …</option>${opt(FL.map(x=>[x,x]),z.stock||'')}</select></label>
+      ${main?'':`<label class="f c6 zlstk">Stockwerk <span class="hint">mehrere möglich, z. B. Laden über UG und EG</span><div class="sugg" role="group" style="margin-top:0">${[...new Set([...FL,...zStks(z)])].map(x=>`<button type="button" data-zlstk="${j}" data-v="${esc(x)}" aria-pressed="${zStks(z).includes(x)}"${dis}>${esc(x)}</button>`).join('')}</div></label>
       <label class="f c3">Wohnungsbezeichnung Energieversorger <span class="hint">freiwillig</span><input data-zl="iwb" value="${esc(z.iwb||'')}" placeholder="z. B. 5" maxlength="12" autocomplete="off"${dis}></label>`}
       ${zlFields(p,z,j,dis)}
 </div>
@@ -2889,8 +2907,8 @@ function vPlan(){
 function zlFields(p,z,j,dis){const five=(planOf(p).adern||'5')==='5';
   return `<label class="f c3">Bezügersicherung
       <select data-zl="bez" data-zi="${j}"${dis}><option value="">wählen …</option>${opt(bezTypes(p),z.bez||'')}</select></label>
-    ${z.bez==='LSD'?`<label class="f c3">Charakteristik LS<select data-zl="bezC" data-zi="${j}"${dis}>${opt(LS_CH,z.bezC||'D')}</select></label>`:''}<label class="f c3">Bemessungsstrom
-      <select data-zl="bezA" data-zi="${j}"${z.bez?dis:' disabled'}><option value="">wählen …</option>${opt((BEZ_A[z.bez]||[]).map(a=>[a,a+' A']),z.bezA||'')}</select></label>
+    ${z.bez==='LSD'?`<label class="f c3">Charakteristik LS<select data-zl="bezC" data-zi="${j}"${dis}>${opt(LS_CH,z.bezC||'D')}</select></label>`:''}${z.bez==='DZ'?`<label class="f c6">Bemessungsstrom Diazed <span class="hint">Kennfarbe nach DIN VDE 0636-3</span>${dzPick(`data-zl="bezA" data-zi="${j}"`,z.bezA,dis)}</label>`:`<label class="f c3">Bemessungsstrom
+      <select data-zl="bezA" data-zi="${j}"${z.bez?dis:' disabled'}><option value="">wählen …</option>${opt((BEZ_A[z.bez]||[]).map(a=>[a,a+' A']),z.bezA||'')}</select></label>`}
     <label class="f c3">${j===0?'Querschnitt ab Bezügersicherung':'Abgang Querschnitt'}
       <select data-zl="qs" data-zi="${j}"${dis}><option value="">wählen …</option>${opt(QS.filter(q=>qsNum(q)<=QS_MAX).map(q=>[q,qsTxt(q)+' mm²']),z.qs||'')}</select>${z.bezA&&BEZ_QS[z.bezA]?`<span class="sub" style="font-size:13px">Standard bei ${z.bezA} A: ${qsTxt(BEZ_QS[z.bezA])} mm² (gilt ab Bezügersicherung)</span>`:''}</label>${+z.bezA>80?`<div class="c6 msg err"><b>${esc(ZU_GROSS_TXT)}</b></div>`:wandlerNoetig(p,z.bezA,z.qs)?`<div class="c6 msg warn">${esc(WANDLER_TXT)}</div>`:''}${izWarn(planOf(p),'z'+(z.id||j),z.bezA,z.qs,'Bezügersicherung',dis)}
     <label class="f c3">${j===0?'Adern ab Bezügersicherung':'Abgang Adern'}
@@ -3695,7 +3713,7 @@ function schemaSVG(s,pgArg,o2){const prt=!!(o2&&o2.print);
       [...xs,xPE].forEach((x,i)=>term(x,i+1,i<zc.length?(zc[i]==='N'?'N':zf?zc[i]:'L'):'PE'));
       T(xs[0]-10,yK+7,X,'tb','end');
       const cx=(xs[0]+xPE)/2;for(let m=0;m<3;m++)L(cx-7,yK+35+m*3,cx+7,yK+30+m*3,'w');
-      if(z.res)T(cx,yK+60,'Reserve','tb','middle');else{T(cx,yK+60,(z.name||'Bereich offen').slice(0,26),'tb','middle');T(cx,yK+72,z.ziel?z.ziel.slice(0,30):'Abgang','tk3','middle');T(cx,yK+83,(zf?'5×':'3×')+(z.qs?qsTxt(z.qs)+' mm²':' Querschnitt offen'),'tk3','middle');{const w=[z.stock,z.iwb?'EVU: '+z.iwb:''].filter(Boolean).join(' · ');if(w)T(cx,yK+94,w,'tk3','middle')}}
+      if(z.res)T(cx,yK+60,'Reserve','tb','middle');else{T(cx,yK+60,(z.name||'Bereich offen').slice(0,26),'tb','middle');T(cx,yK+72,z.ziel?z.ziel.slice(0,30):'Abgang','tk3','middle');T(cx,yK+83,(zf?'5×':'3×')+(z.qs?qsTxt(z.qs)+' mm²':' Querschnitt offen'),'tk3','middle');{const w=[zStkTxt(z),z.iwb?'EVU: '+z.iwb:''].filter(Boolean).join(' · ');if(w)T(cx,yK+94,w,'tk3','middle')}}
       if(z.res)return;
       /* Sicherungen direkt beim Zähler, z. B. Keller: ab Zählerausgang, eigener Klemmenabgang */
       (LY.ext[z.id]||[]).slice(0,ZM_EXT_MAX).forEach((r,j)=>{const ax=bx+2*cw+j*1.5*cw,cn=r.cond.filter(c=>c!=='PE'),ex=cn.map((_,i)=>ax+64+i*14),ePE=ex[ex.length-1]+14,y1=430,y2=466;
@@ -4163,6 +4181,8 @@ document.addEventListener('focusin',e=>{const t=e.target;if(!t||!t.dataset||!S.s
 document.addEventListener('focusout',e=>{const t=e.target;if(!t||!t.dataset||!['bereich','plz','ort'].includes(t.dataset.b))return;const f=t.dataset.b;setTimeout(()=>{const b=$('#sg-'+f),i=$('#b-'+f);if(b&&document.activeElement!==i)b.innerHTML=''},250)});
 document.addEventListener('click',e=>{
   const t=e.target.closest('button,g[data-act]');if(!t)return;
+  if(t.dataset.dzv!=null){e.preventDefault();const sl=t.closest('label').querySelector('select');if(sl&&!sl.disabled&&S.site&&canEdit(S.site)){sl.value=t.dataset.dzv;sl.dispatchEvent(new Event('change',{bubbles:true}))}return}
+  if(t.dataset.zlstk!=null&&S.site&&canEdit(S.site)){const pl=planOf(S.site),z=pl.zl[+t.dataset.zlstk];if(!z)return;const F=flList(pl),v=t.dataset.v,cur=zStks(z);let nw=cur.includes(v)?cur.filter(x=>x!==v):[...cur,v];nw.sort((a,b)=>(F.indexOf(a)<0?99:F.indexOf(a))-(F.indexOf(b)<0?99:F.indexOf(b)));z.stks=nw;z.stock=nw[0]||'';touchPlan('Zähler -P'+(+t.dataset.zlstk+1)+' Stockwerk '+(zStkTxt(z)||'offen'));S.prevSel=null;render();return}
   if(t.dataset.sg&&S.site&&canEdit(S.site)){const f=t.dataset.sg,v=t.dataset.v;setField(f,v);if(f==='plz')onPlz();if(f==='ort')onOrtDone();const b=$('#sg-'+f);if(b)b.innerHTML='';persistSoon();return}
   if(t.dataset.ezint!=null&&S.site&&canEdit(S.site)){const pl=planOf(S.site),h=shOf(pl);h.ezInt=t.dataset.ezint==='1';if(h.ntMode!=='man')h.out={};loxSyncTe(pl);touchPlan('Energiezähler 24 V '+(h.ezInt?'verteilerintern':'eigener Abgang'));persistSite();render();return}
   if(t.dataset.ezmode&&S.site&&canEdit(S.site)){const pl=planOf(S.site),h=shOf(pl),[key,m]=t.dataset.ezmode.split('|');h.ezTrM=h.ezTrM||{};if(m==='own')h.ezTrM[key]='';else if(!ezTrOf(pl,key))h.ezTrM[key]='?';if(h.ntMode!=='man')h.out={};touchPlan('Tree Energiezähler');persistSite();render();return}
