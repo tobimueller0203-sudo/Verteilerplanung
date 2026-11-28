@@ -283,7 +283,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-28.1314';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-28.1316';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -2098,6 +2098,8 @@ const HZ_DEF={au:['4','C','16','FILS'],in:['2','C','13','FILS'],puf:['4','','','
 const HZ_OPEN=['puf','boi'];
 const hzJa=(h,k)=>(h[k]||'ja')==='ja';
 const hkvLox=pl=>loxOn(pl)&&(pl.sh||{}).stA==='lox';
+/* Tobi 28.11.: MFH-HV: Fussbodenheizung läuft über die Wohnungs-UVs, in der HV nur die Heizanlage selbst absichern (keine HZV) */
+const hzMfh=pl=>!!(pl&&pl.isMFH&&!pl.isUV);
 const hkvN=h=>Math.max(1,Math.min(12,+h.hkvN||1)),hkvF=h=>{const n=hkvN(h),d=Math.ceil(n/2),f=+h.hkvF||d;return Math.max(1,Math.min(n,f))};
 /* Stromkreise aus dem Heizsystem, erscheinen automatisch im Schema */
 /* Licht-Sicherungen aus Smart Home -> Stromkreise (ausgegraut wie Heizsystem, Tobi 23.11.); Standard FI/LS 2-polig C13, Kabel aus Schaltdrähten */
@@ -2115,7 +2117,7 @@ function hzSk(s){const pl=planOf(s),h=pl.hz||{};if(!hzWP(pl))return [];const out
   if(hzJa(h,'in'))out.push(fz('in','Wärmepumpe Inneneinheit',hzJa(h,'au')?'':kw));
   if(h.puf==='ja'&&h.pufHs==='ja')out.push(fz('puf','Heizstab Pufferspeicher',h.pufKw?String(h.pufKw).replace('.',',')+' kW':''));
   if(h.boiHs==='ja')out.push(fz('boi','Heizstab Boiler',h.boiKw?String(h.boiKw).replace('.',',')+' kW':''));
-  if(h.art==='wp-fbh'&&!hkvLox(pl)){const n=hkvN(h),f=hkvF(h),per=Math.ceil(n/f);
+  if(h.art==='wp-fbh'&&!hkvLox(pl)&&!hzMfh(pl)){const n=hkvN(h),f=hkvF(h),per=Math.ceil(n/f);
     for(let q=0;q<f;q++){const ids=[];for(let k=q*per;k<Math.min(n,(q+1)*per);k++)ids.push(k);if(!ids.length)continue;
       const loc=ids.map(k=>[h['hkvG'+k],h['hkvZ'+k]].filter(Boolean).join(' ')||'HZV '+(k+1)).join(', ');
       const r={name:'Heizkreisverteiler '+loc,pol:'2',char:'C',amp:'13',typ:'FILS',note:'automatisch (Fussbodenheizung)',kabAuto:true,relais:[],hz:'hkv'};autoKab(r);out.push(r)}}
@@ -2614,7 +2616,8 @@ function hzBody(p,pl,dis){const h=hzOf(pl);const fb=hzShFbh(pl);if(fb&&!dis){if(
   b+=jn('puf','Gibt es einen Pufferspeicher?');
   if(h.puf==='ja'){b+=jn('pufHs','Hat der Pufferspeicher einen Heizstab?');if(h.pufHs==='ja')b+=inp('pufKw','Leistung Heizstab Puffer (kW)','z. B. 6')+fuse('puf')}
   b+=jn('boiHs','Hat der Boiler einen Heizstab?');if(h.boiHs==='ja')b+=inp('boiKw','Leistung Heizstab Boiler (kW)','z. B. 3')+fuse('boi');
-  if(h.art==='wp-fbh'){const n=hkvN(h),d=Math.ceil(n/2),f=hkvF(h);
+  if(h.art==='wp-fbh'&&hzMfh(pl))b+=`<div class="legend">Heizkreisverteiler (Fussbodenheizung)</div><div class="msg info"><b>Mehrfamilienhaus:</b> Die Heizkreisverteiler der Fussbodenheizung werden in den Unterverteilungen der Wohnungen abgesichert. In dieser Hauptverteilung kommen nur die Sicherungen der Heizanlage selbst (oben).</div>`;
+  else if(h.art==='wp-fbh'){const n=hkvN(h),d=Math.ceil(n/2),f=hkvF(h);
     if(hkvLox(pl))b+=`<div class="legend">Heizkreisverteiler (Fussbodenheizung)</div><div class="msg info"><b>Heizkreisverteiler benötigt keine Sicherung</b>, da über Loxone-Stellantriebe (${stSum(pl.sh||{})} Stellantriebe, Schritt Smart Home).<br>${stHZV(pl.sh||{}).map((v,k)=>'HZV '+(k+1)+': '+esc([v.g,v.z].filter(Boolean).join(' ')||'–')+((v.mit||[]).length?' (versorgt auch '+esc(stFloors(pl.sh||{}).filter(f=>v.mit.includes(f.id)).map(f=>f.name).join(', '))+')':'')+' · '+(+v.n||0)+' Stellantriebe').join('<br>')}</div>`;else
     b+=`<div class="legend">Heizkreisverteiler (Fussbodenheizung)</div><div class="msg info">Pro 2 Heizkreisverteiler kommt automatisch eine Sicherung C13 FI/LS ins Schema.</div>
     <label class="f" style="max-width:260px">Wie viele Heizkreisverteiler?<select data-hz="hkvN"${dis}>${opt([...Array(12)].map((_,k)=>[String(k+1),String(k+1)]),String(n))}</select></label>
@@ -2623,7 +2626,7 @@ function hzBody(p,pl,dis){const h=hzOf(pl);const fb=hzShFbh(pl);if(fb&&!dis){if(
   b+=`<div class="legend">Laufen die Heizstäbe über einen Schütz? <span class="hint">folgt</span></div><div class="tiles two-col">${tl('sch','ja','Ja','',1)}${tl('sch','nein','Nein','',1)}</div><p class="sub">Tag/Nacht- bzw. Schützsteuerung wird noch nicht im Plan umgesetzt. Kommt später.</p>`;
   {const m=h.wpPdf;b+=`<div class="legend">Schema der Wärmepumpe (PDF)</div>${m?`<div class="msg info"><b>${esc(m.name)}</b> · ${m.n} ${m.n===1?'Seite':'Seiten'} in der Planmappe${m.tot>m.n?' (von '+m.tot+', höchstens 10)':''} ${canEdit(p)?'<button type="button" class="btn small danger" data-act="wpDel">Entfernen</button>':''}</div>`:''}
     ${canEdit(p)?`<label class="f" style="max-width:460px">${m?'Anderes PDF wählen':'PDF auswählen'}<input type="file" accept="application/pdf,.pdf" data-wpfile="1"></label><div id="wpStat"></div>`:''}<p class="sub">Das Schema vom Wärmepumpen-Hersteller kommt als eigene Seite in die Planmappe und ins PDF.${SB.on?'':' Die Datei bleibt auf diesem Gerät gespeichert.'}</p>`}
-  const L=hzSk(p);if(L.length)b+=`<div class="msg info"><b>Kommt automatisch ins Schema:</b><br>${L.map(r=>esc(r.name)+' · '+(r.polMiss?'?':r.pol)+'-polig '+(r.char||'?')+(r.amp||'?')+' '+(r.typ==='FILS'?'FI/LS':r.typ==='LS'?'LS':'?')+(r.hzOpen?' · <b style="color:#b42318">'+esc(r.hzTxt)+'</b>':'')+(r.note&&!/^automatisch/.test(r.note)?' · '+esc(r.note):'')).join('<br>')}</div>`;
+  const L=hzSk(p),zA=p.art==='HV'?zlAct(p):[];if(L.length)b+=`<div class="msg info"><b>Kommt automatisch ins Schema${zA.length?' hinter -P1 '+esc(zA[0].name||(p.geb==='MFH'?'Allgemein':'')):''}:</b><br>${L.map(r=>esc(r.name)+' · '+(r.polMiss?'?':r.pol)+'-polig '+(r.char||'?')+(r.amp||'?')+' '+(r.typ==='FILS'?'FI/LS':r.typ==='LS'?'LS':'?')+(r.hzOpen?' · <b style="color:#b42318">'+esc(r.hzTxt)+'</b>':'')+(r.note&&!/^automatisch/.test(r.note)?' · '+esc(r.note):'')).join('<br>')}</div>`;
   return b}
 function stepper(pl){
   const cur=stepIdx(pl.step);
@@ -2815,14 +2818,14 @@ function vPlan(){
     const zlA=zlAct(p),zsel=zlSelId(p),zMain=!zlA.length||zsel===zlA[0].id,vis=r=>p.art!=='HV'||rowZid(p,r)===zsel;
     if(ed&&!pl.sk.some(vis))pl.sk.push(skNew(p));const zO=pl.zl.find(z=>z.id===zsel),nExt=pl.sk.filter(r=>vis(r)&&(r.name||'').trim()).length;
     const sel=(key,list,r,label)=>`<label class="m"><span>${label}</span><select data-sk="${key}"${dis}>${opt(list,r[key]||'')}</select></label>`;
-    body=`<div class="row between"><h2>${stepsOf(p).some(x=>x[0]==='zaehler')?'Stromkreise pro Zähler':'Stromkreise'}</h2>${p.art==='HV'&&zlA.length>1?`<span class="tag y">Zähler ${zlA.findIndex(z=>z.id===zsel)+1} von ${zlA.length}</span>`:''}</div>${zlA.length>1?`<p class="sub">Zähler für Zähler: Unten den Zähler wählen und seine Sicherungen eintragen. «Weiter» führt zum nächsten Zähler. Zähler ohne eigene Sicherungen (zum Beispiel eine Wohnung) einfach leer lassen.</p><label class="f" style="max-width:460px">Zähler<select data-zsel="1">${zlA.map(z=>`<option value="${z.id}"${z.id===zsel?' selected':''}>-P${pl.zl.indexOf(z)+1} ${esc(z.name||zlLbl(p,pl.zl.indexOf(z)))} · ${(n=>n+' Sich.')(pl.sk.filter(r=>(r.name||'').trim()&&rowZid(p,r)===z.id).length)}</option>`).join('')}</select></label>
+    body=`<div class="row between"><h2>${stepsOf(p).some(x=>x[0]==='zaehler')?'Stromkreise pro Zähler':'Stromkreise'}</h2>${p.art==='HV'&&zlA.length>1?`<span class="tag y">Zähler ${zlA.findIndex(z=>z.id===zsel)+1} von ${zlA.length}</span>`:''}</div>${zlA.length>1?`<p class="sub">Zähler für Zähler: Unten den Zähler wählen und seine Sicherungen eintragen. «Weiter» führt zum nächsten Zähler. Zähler ohne eigene Sicherungen (zum Beispiel eine Wohnung) einfach leer lassen.</p><label class="f" style="max-width:460px">Zähler<select data-zsel="1">${zlA.map(z=>`<option value="${z.id}"${z.id===zsel?' selected':''}>-P${pl.zl.indexOf(z)+1} ${esc(z.name||zlLbl(p,pl.zl.indexOf(z)))} · ${(n=>n+' Sich.')(pl.sk.filter(r=>(r.name||'').trim()&&rowZid(p,r)===z.id).length+(z===zlA[0]?hzSk(p).length+liSk(p).length:0))}</option>`).join('')}</select></label>
     <div class="msg info">${zMain?'Stromkreise hinter dem '+zlLbl(p,0)+', zum Beispiel Lift oder Technikraum. Sie kommen auf eigene Seiten im Plan.':'Sicherungen direkt beim Zähler -P'+(pl.zl.indexOf(zO)+1)+' '+esc(zO.name||'')+', zum Beispiel für den Keller. Jede bekommt einen eigenen Klemmenabgang neben dem Abgang zur Wohnung.'}</div>
     ${!zMain&&nExt>ZM_EXT_MAX?`<div class="msg err">Pro Zähler passen höchstens ${ZM_EXT_MAX} Sicherungen auf das Zählerblatt.</div>`:''}`:''}${(()=>{const A=skLayout(p).list.filter(x=>x.hz==='li'||x.hz==='wb'||x.hz==='ez'||x.hz==='ka'||x.hz==='tb');if(!A.length||(p.art==='HV'&&!zMain))return '';const ro=(v,list,label)=>`<label class="m"><span>${label}</span><select disabled>${opt([['','?'],...list],v||'')}</select></label>`;
       return '<div class="msg info" style="margin-bottom:0"><b>Aus Schritt Smart Home: Raum-Sicherungen'+(A.some(x=>x.hz==='wb')?', Wallbox':'')+(A.some(x=>x.hz==='ez')?', Stromkreise mit Energiezähler':'')+(A.some(x=>x.hz==='ka')?', Klimaanlage':'')+(A.some(x=>x.hz==='tb')?', Türschloss':'')+'</b> (ausgegraut, ändern nur im <button type="button" class="btn link" data-step="smarthome">Schritt Smart Home</button>). Diese Räume (Licht und Steckdosen) hier nicht nochmals eintragen.'+(p.art==='HV'&&p.geb==='MFH'?' Beim Mehrfamilienhaus immer hinter dem Allgemeinzähler -P1.':'')+'</div><div class="skrows skro">'+A.map(x=>`<div class="sk">
         <div class="sk1"><input value="${esc(x.name)}" disabled aria-label="${esc(x.name)}"><span class="tag">${x.f} · ${x.te} TE · Schiene ${x.rail}</span>${fSel(p,x,dis)}</div>
         <div class="sk2">${ro(x.pol,POL,'Polzahl')}${ro(x.char,CHAR,'Char.')}${ro(x.amp,AMP,'Strom')}${ro(x.typ,TYP,'Typ')}${ro(x.adern,SK_ADERN,'Adern')}${ro(x.qs,SK_QS,'mm²')}</div>${!noKl(p)&&(p.art!=='HV'||zMain)?`<div class="sk3">${kpSw(x.hz==='li'?'N:'+x.liN:'F:'+x.fKey,x.kp,dis)}</div>`:''}
-        ${x.note?`<input class="note" value="${esc(x.note)}" disabled>`:''}</div>`).join('')+'</div>'})()}${(()=>{if(!hzWP(pl))return '';const A=skLayout(p).list.filter(x=>x.hz&&x.hz!=='li'),n6=stepIdx('heizung')+1,ro=(v,list,label)=>`<label class="m"><span>${label}</span><select disabled>${opt([['','?'],...list],v||'')}</select></label>`;
-      return '<div class="msg info" style="margin-bottom:0"><b>Aus Schritt '+n6+' Heizsystem</b> (ausgegraut, ändern nur im <button type="button" class="btn link" data-step="heizung">Schritt '+n6+' Heizsystem</button>). Wärmepumpe, Boiler und Puffer nicht hier eintragen.</div><div class="skrows skro">'+A.map(x=>`<div class="sk">
+        ${x.note?`<input class="note" value="${esc(x.note)}" disabled>`:''}</div>`).join('')+'</div>'})()}${(()=>{if(!hzWP(pl)||(p.art==='HV'&&!zMain))return '';const A=skLayout(p).list.filter(x=>x.hz&&x.hz!=='li'),n6=stepIdx('heizung')+1,ro=(v,list,label)=>`<label class="m"><span>${label}</span><select disabled>${opt([['','?'],...list],v||'')}</select></label>`;
+      return '<div class="msg info" style="margin-bottom:0"><b>Aus Schritt '+n6+' Heizsystem</b> (ausgegraut, ändern nur im <button type="button" class="btn link" data-step="heizung">Schritt '+n6+' Heizsystem</button>). Wärmepumpe, Boiler und Puffer nicht hier eintragen.'+(p.art==='HV'&&zlA.length?' Bei der Hauptverteilung immer hinter dem '+(p.geb==='MFH'?'Allgemeinzähler ':'ersten Zähler ')+'-P1.':'')+'</div><div class="skrows skro">'+A.map(x=>`<div class="sk">
         <div class="sk1"><input value="${esc(x.name)}" disabled aria-label="${esc(x.name)}"><span class="tag">${x.f} · ${x.te} TE · Schiene ${x.rail}</span>${fSel(p,x,dis)}</div>
         <div class="sk2">${ro(x.polMiss?'':x.pol,POL,'Polzahl')}${ro(x.char,CHAR,'Char.')}${ro(x.amp,AMP,'Strom')}${ro(x.typ,TYP,'Typ')}${ro(x.adern,SK_ADERN,'Adern')}${ro(x.qs,SK_QS,'mm²')}</div>${!noKl(p)&&(p.art!=='HV'||zMain)?`<div class="sk3">${kpSw(x.hz==='li'?'N:'+x.liN:'F:'+x.fKey,x.kp,dis)}</div>`:''}
         ${x.note?`<input class="note" value="${esc(x.note)}" disabled>`:''}${x.hzOpen?`<div class="skn"><span class="warn">${esc(x.hzTxt)} (im Schritt ${n6})</span></div>`:''}</div>`).join('')+'</div>'})()}<p class="sub">Zeile für Zeile eintragen, zum Beispiel «Backofen». Die Reihenfolge ist egal: Im Schema stehen 4- und 3-polige Sicherungen immer zuerst, danach 2- und 1-polige. Pro Hutschiene gibt es 12 TE.</p>
