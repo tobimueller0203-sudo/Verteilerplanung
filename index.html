@@ -283,7 +283,7 @@ body.ps .brandbar{display:none!important}
 <script>
 (() => {
 const KEY='vp.v2';
-const APP_V='2026-11-28.1245';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
+const APP_V='2026-11-28.1246';/* wird beim Veröffentlichen gesetzt (version.json gleich) */
 const START_NAMES=['Cihad Mekikli','Marco Winkler','Shajatan Kumar','Mumin Jakupi','Tobias Müller','Lionel Mazard'];
 const LAENDER=[['CH','Schweiz'],['LI','Liechtenstein'],['DE','Deutschland'],['AT','Österreich'],['FR','Frankreich']];
 const STOCK=['2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','6.OG','7.OG','8.OG','9.OG'];
@@ -1380,7 +1380,7 @@ function lrHTML(p,pl,dis,ed){
 const lrLastTxt=c=>c.rows.length?`Installiert ${lrF(c.pInst)} kW · gleichzeitig <b>${lrF(c.pGl)} kW</b> · Betriebsstrom <b>${lrF(c.ib)} A</b> (${c.three?'400 V, 3-phasig, gleichmässig verteilt':'230 V, 1-phasig'}, cos φ ${qsTxt(String(c.cos))})${c.inA?`<br>Gewählte Sicherung: ${c.inA} A${c.ib>c.inA?' · <b style="color:#b00">zu klein für diese Last</b>':''}`:c.inSug?`<br>Passende Sicherung: ${c.inSug} A`:''}`:'Noch keine Verbraucher gewählt. Ohne Verbraucher rechnet der Rechner mit dem Strom der Sicherung (sicher, aber eher grosszügig).';
 const lrLenTxt=c=>c.L>0?`Gerechnet mit ${lrF(c.iDu)} A ${c.ib>0?'(Betriebsstrom)':'(Sicherung, keine Last erfasst)'}: mindestens <b>${c.minU?qsTxt(c.minU)+' mm²':'über 240 mm²'}</b> für höchstens ${qsTxt(String(c.du))} % Spannungsfall.`:'Länge eingeben, dann rechnet die App den Spannungsfall.';
 /* Tobi 27.11.: MFH zusätzlich Wohnung (Bezeichnung vom Architekten), EFH/Gewerbe nicht */
-const hvWhg=pl=>pl.isMFH?String(pl.hvWhg||'').trim():'';
+/* Tobi 28.11.: Feld «Wohnung» nur bei UV im MFH, nie bei HV */const hvWhg=pl=>pl.isMFH&&pl.isUV?String(pl.hvWhg||'').trim():'';
 const hvPos=pl=>[hvWhg(pl),pl.hvStock,(pl.hvRaum||'').trim()].filter(Boolean).join(' · ');
 function zlAnim(s,pl){return zlAnim2(s,pl)}
 function zlAnimOld(s,pl){const g=s.geb,hk=pl.zlHerk,K=hk||'none';
@@ -2734,7 +2734,7 @@ function vPlan(){
       ${pl.zlHerk==='saeule'?`<p class="sub" style="margin-top:6px">Die Energiesäule steht im <b>Aussenbereich</b> und wird so ins Schema gezeichnet. Hier ist nichts weiter zu wählen.</p>`:''}`}
       else if(pg==='vt'){inner=`<div class="legend">${uv?'Wo steht die Unterverteilung? <span class="hint">freiwillig</span>':'Wo steht der Verteiler (Hauptverteilung)?'}</div>${zlAnim(p,pl)}
       <div class="grid"><label class="f c3">Stockwerk des Verteilers<select data-pl="hvStock"${dis}><option value="">wählen …</option>${opt(FL.map(x=>[x,x]),pl.hvStock||'')}</select></label>
-        <label class="f c3">Raum des Verteilers<input data-pl="hvRaum" value="${esc(pl.hvRaum||'')}" placeholder="z. B. Technikraum" maxlength="40" autocomplete="off"${dis}></label>${chips('hvRaum',pl.hvStock)}${p.geb==='MFH'?`<label class="f c3">Wohnung <span class="hint">freiwillig · Bezeichnung vom Architekten</span><input data-pl="hvWhg" value="${esc(pl.hvWhg||'')}" placeholder="z. B. Wohnung 3a" maxlength="30" autocomplete="off"${dis}></label>`:''}</div>`}
+        <label class="f c3">Raum des Verteilers<input data-pl="hvRaum" value="${esc(pl.hvRaum||'')}" placeholder="z. B. Technikraum" maxlength="40" autocomplete="off"${dis}></label>${chips('hvRaum',pl.hvStock)}${uv&&p.geb==='MFH'?`<label class="f c3">Wohnung <span class="hint">freiwillig · Bezeichnung vom Architekten</span><input data-pl="hvWhg" value="${esc(pl.hvWhg||'')}" placeholder="z. B. Wohnung 3a" maxlength="30" autocomplete="off"${dis}></label>`:''}</div>`}
       else if(pg==='sich'){const T=pl.hakTyp,AA=HAK_A[T]||[];inner=`${zlAnim(p,pl)}<div class="legend">${uv?'Abgangssicherung '+esc(zlSrcIn(pl))+': welche Sicherungsart? <span class="hint">freiwillig</span>':'Sicherung '+esc(zlSrcIn(pl))+': welche Sicherungsart?'}</div>
       <div class="seg wrap" role="group">${HAK_T.map(([v,t,su])=>`<button type="button" data-plv="hakTyp" data-v="${v}" aria-pressed="${T===v}"${dis}><b>${t}</b><span>${su}</span></button>`).join('')}</div>
       ${T?`<div class="grid" style="margin-top:10px">${T==='LS'?`<label class="f c3">Charakteristik LS<select data-pl="hakChar"${dis}><option value="">wählen …</option>${opt(LS_CH,pl.hakChar||'')}</select></label>`:''}<label class="f c3">Bemessungsstrom ${esc(hakTypTxt(T))}<select data-pl="hakA"${dis}><option value="">wählen …</option>${opt(AA.map(a=>[String(a),a+' A']),pl.hakA||'')}</select></label></div><p class="sub">${T==='LS'?'Genormte Nennströme LS (IEC 60898, zur Prüfung).':'Alle genormten Nennströme dieser Grösse (gG, nach IEC 60269 / Herstellerkatalogen, zur Prüfung).'}</p>`:''}${hv&&+pl.hakA>80?`<div class="msg info" style="margin-top:8px">${esc(HAK_WANDLER_TXT)}</div>`:''}${izWarn(pl,'hak',pl.hakA,pl.qs,'Sicherung '+zlSrc(pl),dis)}`}
